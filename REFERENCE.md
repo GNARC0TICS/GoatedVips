@@ -1,111 +1,151 @@
-# GoatedVIPs Platform Technical Overview
+// Implementation in server/routes.ts
+const wss = new WebSocketServer({ noServer: true });
+```
 
-## Current Status
-The platform is a multi-server architecture system designed for affiliate marketing tracking with real-time features. Key components include:
-- TypeScript React frontend
-- Dual Express server architecture (main + webhook)
-- PostgreSQL with Drizzle ORM
-- WebSocket real-time updates
-- Telegram bot integration
+2. Connection Handlers:
+- Leaderboard updates (/ws/leaderboard)
+- Transformation logs (/ws/transformation-logs)
 
-## Critical Issues Found
+### Critical Issues Found
 
-### 1. Configuration Issues
-- LSP errors in `.replit` configuration (wait_for_port and server sections unsupported)
-- Missing proper environment variable validation and type safety
-- No proper development environment setup documentation
-- Missing test data seeding mechanism
+1. Connection Management
+- Basic heartbeat implementation present but lacks proper error recovery
+- Missing connection state tracking
+- No proper cleanup on server shutdown
 
-### 2. Database Issues
-- Schema inconsistencies in user-related tables
-- Incomplete foreign key relationships
-- Missing indexes on frequently queried fields
-- Timestamp fields lack timezone information
-- Race conditions possible in wager race updates
+2. Error Handling Gaps
+- Incomplete error handling in WebSocket event listeners
+- Missing reconnection strategy
+- No proper error propagation to clients
 
-### 3. Security Concerns
-- JWT implementation mentioned but not visible in codebase
-- Missing proper input sanitization
-- No API key rotation mechanism
-- Unclear session management strategy
-- Missing proper rate limiting implementation
+3. Performance Concerns
+- No connection pooling
+- Missing load balancing consideration
+- Potential memory leaks in client tracking
 
-### 4. Real-time System Issues
-- WebSocket reconnection logic needs improvement
-- Missing heartbeat mechanism
-- No fallback mechanism for failed real-time updates
-- Connection stability issues possible in high-load scenarios
+### Required Improvements
 
-### 5. Error Handling
-- Inconsistent error handling patterns
-- Missing global error handling middleware
-- Incomplete error logging strategy
-- No proper error boundaries in React components
+1. High Priority
+- Implement proper connection state management
+- Add comprehensive error handling
+- Add proper cleanup mechanisms
 
-### 6. Performance Considerations
-- Missing response compression
-- Large payload sizes in API responses
-- Inefficient JOIN operations
-- N+1 query issues in leaderboard implementation
-- Missing caching layer
+2. Medium Priority
+- Add connection pooling
+- Implement proper load balancing
+- Add proper memory management
 
-### 7. Type Safety Issues
-- Any types used in critical places
-- Inconsistent type definitions
-- Missing proper interfaces for API responses
-- Incomplete type coverage in WebSocket handlers
+3. Low Priority
+- Add proper monitoring
+- Implement proper logging
+- Add proper documentation
 
-## Required Improvements
 
-### High Priority
-1. Database Schema:
-   - Add missing indexes for performance
-   - Implement proper foreign key relationships
-   - Add timezone support to timestamp fields
-   - Implement proper race condition handling
+## Configuration Issues
 
-2. Security:
-   - Implement proper JWT handling
-   - Add input sanitization
-   - Implement API key rotation
-   - Add proper session management
+### Current Problems
+1. Environment Variables
+- Missing proper validation
+- Inconsistent usage across files
+- No proper fallback mechanisms
 
-3. Error Handling:
-   - Add global error handling middleware
-   - Implement consistent error handling patterns
-   - Add proper logging strategy
-   - Implement error boundaries
+2. Server Configuration
+- Inconsistent port configuration
+- Missing proper SSL/TLS setup
+- No proper CORS configuration
 
-### Medium Priority
-1. Performance:
-   - Add response compression
-   - Optimize payload sizes
-   - Fix N+1 query issues
-   - Implement proper caching
+3. Database Configuration
+- Missing proper connection pooling
+- No proper migration strategy
+- Inconsistent schema definitions
 
-2. Type Safety:
-   - Remove any types
-   - Add proper interfaces
-   - Implement complete type coverage
-   - Add proper type guards
+### Required Fixes
 
-3. Real-time System:
-   - Improve WebSocket reconnection
-   - Add heartbeat mechanism
-   - Implement fallback mechanisms
-   - Add connection stability improvements
+1. Environment Variables
+```typescript
+// Implement proper validation
+const requiredEnvVars = [
+  'DATABASE_URL',
+  'API_TOKEN',
+  'ADMIN_USERNAME',
+  'ADMIN_PASSWORD'
+];
 
-### Low Priority
-1. Documentation:
-   - Add proper development setup guide
-   - Document test data seeding
-   - Add API documentation
-   - Document deployment process
+function validateEnv() {
+  const missing = requiredEnvVars.filter(v => !process.env[v]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+}
+```
 
-## Next Steps
-1. Implement missing indexes on frequently accessed columns
-2. Add proper error handling middleware
-3. Implement JWT authentication properly
-4. Add input sanitization
-5. Implement proper caching layer
-6. Add proper type safety improvements
+2. Server Configuration
+```typescript
+// Implement proper server configuration
+const serverConfig = {
+  port: process.env.PORT || 5000,
+  host: '0.0.0.0',
+  cors: {
+    origin: process.env.CORS_ORIGIN || '*',
+    methods: ['GET', 'POST'],
+  },
+  ssl: process.env.NODE_ENV === 'production' ? {
+    key: fs.readFileSync('path/to/key'),
+    cert: fs.readFileSync('path/to/cert')
+  } : undefined
+};
+```
+
+3. Database Configuration
+```typescript
+// Implement proper database configuration
+const dbConfig = {
+  connectionPool: {
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000
+  },
+  ssl: process.env.NODE_ENV === 'production'
+};
+```
+
+## Development Setup Issues
+
+### Current Problems
+1. Local Development
+- Missing proper setup documentation
+- Inconsistent environment configurations
+- No proper hot reload setup
+
+2. Testing Environment
+- Missing proper test setup
+- No proper test data
+- Inconsistent test configuration
+
+3. Deployment Process
+- Missing proper deployment documentation
+- No proper staging environment
+- Inconsistent deployment configuration
+
+### Required Improvements
+
+1. Development Environment
+```bash
+# Required local setup
+npm install
+npm run db:push
+npm run dev
+```
+
+2. Testing Setup
+```bash
+# Required test setup
+npm run test:setup
+npm run test
+```
+
+3. Deployment Process
+```bash
+# Required deployment steps
+npm run build
+npm run deploy
