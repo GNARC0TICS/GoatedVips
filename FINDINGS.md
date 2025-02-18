@@ -1,22 +1,3 @@
-// Consolidate user schema
-export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  username: text('username').notNull().unique(),
-  email: text('email').notNull().unique(),
-  // ... other fields
-});
-```
-
-2. Add Missing Indexes
-```sql
--- Add missing indexes
-CREATE INDEX idx_users_telegram_id ON users(telegram_id);
-CREATE INDEX idx_wager_races_status ON wager_races(status);
-CREATE INDEX idx_transactions_user_id ON transactions(user_id);
-```
-
-3. Fix N+1 Query Issues
-```typescript
 // Example fix for N+1 query
 const raceWithParticipants = await db.query.wagerRaces.findFirst({
   with: {
@@ -110,7 +91,6 @@ const result = await db.insert(users)
 This document will be updated as more issues are discovered during the implementation phase.
 
 ## File-specific Issues
-
 ### server/routes.ts
 1. Type safety issues:
 ```typescript
@@ -1174,7 +1154,6 @@ const securityHeaders = (
 ```
 
 ### Implementation Priority
-
 1. Add request validation middleware to ensure consistent data validation
 2. Implement proper error handling with logging and correlation IDs
 3. Enhance rate limiting with Redis support and proper headers

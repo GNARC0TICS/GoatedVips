@@ -10,10 +10,9 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
-import { telegramUsers, telegramUserRelations, type InsertTelegramUser, type SelectTelegramUser } from "./schema/telegram";
-import { verificationRequests, verificationRequestRelations, type InsertVerificationRequest, type SelectVerificationRequest } from "./schema/verification";
+import { sql } from "drizzle-orm";
 
-// Users table
+// Users table - primary definition
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -24,15 +23,40 @@ export const users = pgTable("users", {
   telegramVerified: boolean("telegram_verified").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   emailVerified: boolean("email_verified").default(false),
+  bio: text("bio"),
+  profileColor: text("profile_color").default('#D7FF00'),
+  bannerImage: text("banner_image"),
+  socialLinks: jsonb("social_links").default({
+    telegram: null,
+    twitter: null,
+    discord: null
+  }).notNull(),
+  displayBadges: jsonb("display_badges").default([]).notNull(),
+  favoriteAchievements: jsonb("favorite_achievements").default([]).notNull(),
+  customTheme: jsonb("custom_theme").default({
+    primary: '#D7FF00',
+    secondary: '#1A1B21',
+    accent: '#2A2B31'
+  }).notNull(),
+  goatedAccountLinked: boolean("goated_account_linked").default(false),
+  goatedUsername: text("goated_username"),
+  lastActive: timestamp("last_active"),
+  lastLogin: timestamp("last_login"),
+  customization: jsonb("customization").default({}).notNull(),
+  profileImage: text("profile_image"),
+  preferences: jsonb("preferences").default({
+    emailNotifications: true,
+    telegramNotifications: true,
+    marketingEmails: false,
+  }).notNull(),
+  lastPasswordChange: timestamp("last_password_change"),
+  failedLoginAttempts: integer("failed_login_attempts").default(0),
+  accountLocked: boolean("account_locked").default(false),
+  lockoutUntil: timestamp("lockout_until"),
+  twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  suspiciousActivity: boolean("suspicious_activity").default(false),
+  activityLogs: jsonb("activity_logs").default([]).notNull(),
 });
-
-// Define relations
-export const userRelations = relations(users, ({ one }) => ({
-  telegramUser: one(telegramUsers, {
-    fields: [users.telegramId],
-    references: [telegramUsers.telegramId],
-  }),
-}));
 
 // Export schemas for validation
 export const insertUserSchema = createInsertSchema(users);
@@ -42,17 +66,17 @@ export const selectUserSchema = createSelectSchema(users);
 export type InsertUser = typeof users.$inferInsert;
 export type SelectUser = typeof users.$inferSelect;
 
-// Re-export telegram and verification types
-export {
-  telegramUsers,
-  telegramUserRelations,
-  type InsertTelegramUser,
-  type SelectTelegramUser,
-  verificationRequests,
-  verificationRequestRelations,
-  type InsertVerificationRequest,
-  type SelectVerificationRequest,
-};
+// Re-export other schemas
+export { verificationRequests, verificationRequestRelations } from "./schema/verification";
+export { telegramUsers, telegramUserRelations } from "./schema/telegram";
+
+// Define relations
+export const userRelations = relations(users, ({ one, many }) => ({
+  telegramUser: one(telegramUsers, {
+    fields: [users.telegramId],
+    references: [telegramUsers.telegramId],
+  }),
+}));
 
 // Wheel spins table
 export const wheelSpins = pgTable("wheel_spins", {
