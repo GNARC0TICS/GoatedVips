@@ -235,8 +235,10 @@ export const newsletterSubscriptions = pgTable("newsletter_subscriptions", {
   source: text("source"),
 });
 
+// Update notificationPreferences schema to include userId
 export const notificationPreferences = pgTable("notification_preferences", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
   wagerRaceUpdates: boolean("wager_race_updates").default(true).notNull(),
   vipStatusChanges: boolean("vip_status_changes").default(true).notNull(),
   promotionalOffers: boolean("promotional_offers").default(true).notNull(),
@@ -246,8 +248,10 @@ export const notificationPreferences = pgTable("notification_preferences", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Update affiliateStats schema to fix type issues
 export const affiliateStats = pgTable("affiliate_stats", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
   totalWager: decimal("total_wager", { precision: 18, scale: 8 }).notNull(),
   commission: decimal("commission", { precision: 18, scale: 8 }).notNull(),
   timestamp: timestamp("timestamp").defaultNow().notNull(),

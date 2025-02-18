@@ -53,16 +53,15 @@ async function resetDatabase() {
         })
         .returning();
 
-      // Insert affiliate stats with API uid and name
+      // Insert affiliate stats with proper decimal handling
       await db.insert(affiliateStats).values({
-        id: parseInt(entry.uid, 36) % 2147483647, // Convert uid to int32
         userId: user.id,
-        totalWager: entry.wagered.all_time || 0,
-        commission: 0,
+        totalWager: entry.wagered.all_time?.toString() || "0",
+        commission: "0",
         timestamp: new Date(),
       });
 
-      // Insert default notification preferences
+      // Insert default notification preferences with userId
       await db.insert(notificationPreferences).values({
         userId: user.id,
         wagerRaceUpdates: true,
@@ -76,7 +75,7 @@ async function resetDatabase() {
 
     log("Database reset complete with new data");
   } catch (error) {
-    log(`Error resetting database: ${error}`);
+    log(`Error resetting database: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
   }
 }
