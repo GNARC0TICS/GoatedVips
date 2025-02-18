@@ -1,84 +1,3 @@
-## 2. Conflicting Definitions
-- Different field types between schemas
-- Inconsistent relation definitions
-- Missing foreign key constraints
-
-3. Performance Issues
-```sql
--- Missing critical indexes
-CREATE INDEX idx_users_telegram_id ON users(telegram_id);
-CREATE INDEX idx_wager_races_status ON wager_races(status);
-CREATE INDEX idx_transactions_user_id ON transactions(user_id);
-```
-
-```markdown
-#### ORM Implementation Issues
-
-1. Query Performance
-- N+1 query problems in race participant fetching
-- Missing proper relation loading
-- Inefficient JOIN operations
-
-2. Type Safety
-- Incomplete type definitions
-- Missing proper validation
-- Inconsistent error handling
-
-3. Data Consistency
-- Missing transaction handling
-- Race conditions in updates
-- Incomplete cleanup operations
-
-
-### 3. Security Vulnerabilities
-- Inadequate input validation in API routes
-- Missing rate limiting on critical endpoints
-- Weak session management
-- No API key rotation mechanism
-- Missing CSRF protection
-- Incomplete authentication middleware
-
-### 4. Real-time System Problems
-- WebSocket reconnection logic is basic
-- Missing proper error handling in WebSocket connections
-- No fallback mechanism for failed real-time updates
-- Potential memory leaks in WebSocket client tracking
-- Missing proper cleanup for disconnected clients
-
-### 5. Error Handling Deficiencies
-- Inconsistent error response formats
-- Missing global error handling middleware
-- Incomplete logging strategy
-- No proper error boundaries in React components
-- Missing error tracking for background tasks
-
-### 6. Type Safety Issues
-- Usage of `any` types in critical sections:
-  - WebSocket message handling
-  - API response processing
-  - Rate limiter middleware
-- Incomplete type definitions for API responses
-- Missing proper TypeScript configurations for strict mode
-
-### 7. Performance Bottlenecks
-- Missing response compression
-- No proper caching implementation
-- Large payload sizes in API responses
-- Inefficient database queries
-- Missing connection pooling configuration
-
-### 8. Development Setup Issues
-- Missing proper development documentation
-- No standardized testing environment
-- Incomplete test coverage
-- Missing CI/CD pipeline
-- No proper staging environment configuration
-
-## Recommendations
-
-### High Priority Fixes
-1. Schema Consolidation
-```typescript
 // Consolidate user schema
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
@@ -799,4 +718,516 @@ function TableSkeleton() {
 7. Add proper error boundaries
 8. Optimize performance
 
+
 These findings will be updated as more issues are discovered during the implementation phase.
+
+## API Configuration and Database Management Issues
+
+### API Configuration (server/config/api.ts)
+
+1. Environment Variable Handling:
+```typescript
+// Current implementation has issues:
+export const API_CONFIG = {
+  baseUrl: "https://europe-west2-g3casino.cloudfunctions.net/user",
+  token: process.env.API_TOKEN || "", // Dangerous empty fallback
+  endpoints: {
+    leaderboard: "/affiliate/referral-leaderboard/2RW440E",
+    health: "/health"
+  }
+};
+
+// Missing validation for required configuration
+// No type safety for endpoint definitions
+// Hardcoded values that should be configurable
+```
+
+2. Configuration Structure Problems:
+```typescript
+// Missing proper environment-specific configuration
+// No validation for endpoint URLs
+// Missing retry and timeout configurations
+// No proper error handling for missing/invalid configuration
+```
+
+### Database Management Issues
+
+1. Database Reset Implementation:
+```typescript
+// Missing proper transaction handling
+// No backup creation before reset
+// Missing proper logging of reset operations
+// No validation of environment before destructive operations
+```
+
+2. Connection Management:
+```typescript
+// Missing proper connection pooling configuration
+// No proper handling of connection timeouts
+// Missing proper cleanup on application shutdown
+// No proper monitoring of connection status
+```
+
+### Required Improvements
+
+1. API Configuration:
+```typescript
+// Add proper configuration validation
+const validateApiConfig = () => {
+  const required = ['API_TOKEN', 'API_BASE_URL'];
+  const missing = required.filter(key => !process.env[key]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required API configuration: ${missing.join(', ')}`);
+  }
+};
+
+// Add environment-specific configuration
+const apiConfig = {
+  development: {
+    baseUrl: process.env.API_BASE_URL,
+    timeout: 5000,
+    retries: 3
+  },
+  production: {
+    baseUrl: process.env.API_BASE_URL,
+    timeout: 3000,
+    retries: 5
+  }
+};
+```
+
+2. Database Management:
+```typescript
+// Add proper transaction handling for resets
+async function safeDbReset() {
+  const backup = await createBackup();
+  try {
+    await db.transaction(async (tx) => {
+      // Perform reset operations
+      await tx.execute(sql`/* Reset operations */`);
+    });
+    await verifyReset();
+  } catch (error) {
+    await restoreBackup(backup);
+    throw error;
+  }
+}
+```
+
+3. Connection Management:
+```typescript
+// Add proper connection pooling
+const dbConfig = {
+  pool: {
+    min: 2,
+    max: 10,
+    idleTimeoutMillis: 30000,
+    createTimeoutMillis: 3000,
+    acquireTimeoutMillis: 30000,
+  },
+  debug: process.env.NODE_ENV === 'development',
+};
+
+// Add proper cleanup
+process.on('SIGTERM', async () => {
+  await db.destroy();
+  process.exit(0);
+});
+```
+
+## Authentication and Session Management Issues
+
+### Authentication Implementation (server/auth.ts)
+
+1. Session Management:
+```typescript
+// Missing proper session configuration
+app.use(session({
+  // Missing secure cookie settings
+  // No proper session store configuration
+  // Missing session expiration handling
+}));
+
+// No proper session cleanup on logout
+// Missing session fixation protection
+```
+
+2. Password Security:
+```typescript
+// Current implementation has issues:
+// - Missing password complexity requirements
+// - No rate limiting on password attempts per user
+// - No account lockout mechanism
+// Missing password reset functionality
+```
+
+3. Token Management:
+```typescript
+// Missing token rotation
+// No proper JWT configuration
+// Missing refresh token implementation
+// No proper token invalidation on logout
+```
+
+4. Email Verification:
+```typescript
+// Missing email verification token expiration
+// No resend verification email functionality
+// Missing proper error handling for invalid tokens
+// No cleanup of expired tokens
+```
+
+### Required Authentication Improvements
+
+1. Enhanced Session Configuration:
+```typescript
+// Add proper session configuration
+const sessionConfig = {
+  store: new RedisStore({
+    client: redisClient,
+    prefix: 'session:',
+  }),
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'strict'
+  },
+  name: 'sessionId', // Don't use default connect.sid
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false
+};
+```
+
+2. Implement Password Security:
+```typescript
+// Add password validation
+const validatePassword = (password: string): boolean => {
+  const minLength = 8;
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumbers = /\d/.test(password);
+  const hasSpecialChar = /[!@#$%^&*]/.test(password);
+
+  return password.length >= minLength &&
+    hasUpperCase && hasLowerCase &&
+    hasNumbers && hasSpecialChar;
+};
+
+// Add account lockout
+const accountLockout = new Map<string, {
+  attempts: number,
+  lockUntil?: Date
+}>();
+```
+
+3. Token Management:
+```typescript
+// Implement token rotation
+interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+}
+
+async function rotateTokens(userId: number): Promise<TokenPair> {
+  const accessToken = jwt.sign(
+    { userId },
+    process.env.JWT_SECRET!,
+    { expiresIn: '15m' }
+  );
+
+  const refreshToken = jwt.sign(
+    { userId },
+    process.env.JWT_REFRESH_SECRET!,
+    { expiresIn: '7d' }
+  );
+
+  // Store refresh token hash
+  await db
+    .insert(refreshTokens)
+    .values({
+      userId,
+      tokenHash: await hashToken(refreshToken),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    });
+
+  return { accessToken, refreshToken };
+}
+```
+
+4. Email Verification Improvements:
+```typescript
+// Add token expiration and cleanup
+async function generateVerificationToken(userId: number): Promise<string> {
+  const token = randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  await db
+    .insert(verificationTokens)
+    .values({
+      userId,
+      token,
+      expiresAt
+    });
+
+  return token;
+}
+
+// Add resend functionality
+async function resendVerificationEmail(userId: number): Promise<void> {
+  // Invalidate existing tokens
+  await db
+    .delete(verificationTokens)
+    .where(eq(verificationTokens.userId, userId));
+
+  const newToken = await generateVerificationToken(userId);
+  // Send new verification email
+}
+```
+
+## Middleware and Request Validation Issues
+
+### Current Implementation Issues
+
+1. Request Validation:
+```typescript
+// Missing centralized request validation
+// No proper schema validation middleware
+// Inconsistent validation patterns across routes
+// Missing proper type inference for request bodies
+```
+
+2. Error Handling Patterns:
+```typescript
+// In server/middleware/auth.ts:
+// - Inconsistent error response formats
+// - Missing proper error classification
+// - No standardized error logging
+// - Missing correlation IDs for request tracking
+```
+
+3. Rate Limiting Implementation:
+```typescript
+// Current implementation in rate-limit.ts has issues:
+// - Basic memory-based rate limiting
+// - No distributed rate limiting support
+// - Missing proper IP resolution behind proxies
+// - No rate limit headers in responses
+```
+
+4. Security Middleware Gaps:
+```typescript
+// Missing security headers
+// - No proper CORS configuration
+// - Missing XSS protection headers
+// - No CSP implementation
+// - Missing HSTS configuration
+```
+
+### Required Middleware Improvements
+
+1. Centralized Request Validation:
+```typescript
+// Add proper request validation middleware
+interface ValidatedRequest<T> extends Request {
+  validated: T;
+}
+
+function validateRequest<T>(schema: z.ZodType<T>) {
+  return async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const validated = await schema.parseAsync(req.body);
+      (req as ValidatedRequest<T>).validated = validated;
+      next();
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          status: "error",
+          message: "Validation failed",
+          errors: error.errors
+        });
+      }
+      next(error);
+    }
+  };
+}
+```
+
+2. Enhanced Error Handling:
+```typescript
+// Add proper error handling middleware
+interface AppError extends Error {
+  status?: number;
+  code?: string;
+  details?: unknown;
+}
+
+const errorHandler = (
+  error: AppError,
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const correlationId = req.headers['x-correlation-id'];
+
+  logger.error('Request failed', {
+    error: error.message,
+    stack: error.stack,
+    correlationId,
+    path: req.path,
+    method: req.method
+  });
+
+  res.status(error.status || 500).json({
+    status: "error",
+    message: error.message,
+    code: error.code,
+    correlationId,
+    ...(process.env.NODE_ENV === 'development' && {
+      stack: error.stack,
+      details: error.details
+    })
+  });
+};
+```
+
+3. Improved Rate Limiting:
+```typescript
+// Add distributed rate limiting
+const rateLimiter = new RateLimiterRedis({
+  storeClient: redisClient,
+  keyPrefix: 'ratelimit',
+  points: 100,
+  duration: 60,
+  blockDuration: 60 * 2
+});
+
+const rateLimitMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const ip = getClientIp(req);
+
+  try {
+    const rateLimitRes = await rateLimiter.consume(ip);
+
+    res.set({
+      'RateLimit-Limit': rateLimitRes.limit,
+      'RateLimit-Remaining': rateLimitRes.remainingPoints,
+      'RateLimit-Reset': new Date(Date.now() + rateLimitRes.msBeforeNext)
+    });
+
+    next();
+  } catch (error) {
+    if (error instanceof Error) {
+      const retryAfter = Math.ceil(error.msBeforeNext / 1000) || 60;
+
+      res.set('Retry-After', String(retryAfter));
+      res.status(429).json({
+        status: "error",
+        message: "Too many requests",
+        retryAfter
+      });
+    } else {
+      next(error);
+    }
+  }
+};
+```
+
+4. Security Headers Middleware:
+```typescript
+// Add security headers middleware
+const securityHeaders = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  // CORS headers
+  res.set('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGINS);
+  res.set('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+
+  // Security headers
+  res.set({
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Content-Security-Policy': [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "connect-src 'self' https://api.example.com"
+    ].join('; ')
+  });
+
+  next();
+};
+```
+
+### Implementation Priority
+
+1. Add request validation middleware to ensure consistent data validation
+2. Implement proper error handling with logging and correlation IDs
+3. Enhance rate limiting with Redis support and proper headers
+4. Add security headers middleware
+5. Update existing routes to use the new middleware
+6. Add proper testing for middleware functions
+7. Document middleware usage and configuration
+
+These findings will be updated as more issues are discovered during the implementation phase.
+
+## WebSocket and Real-time Communication Issues
+
+### WebSocket Implementation (server/routes.ts)
+
+1. Connection Management Issues:
+```typescript
+// Current implementation has weaknesses:
+// - Basic ping/pong implementation
+// - No proper connection state tracking
+// - Missing reconnection strategy
+// - Incomplete error propagation
+function handleLeaderboardConnection(ws: WebSocket) {
+  const clientId = Date.now().toString();
+  // Basic implementation missing robust error handling
+}
+```
+
+2. Memory Management:
+```typescript
+// Memory leak potential:
+// - No proper cleanup of disconnected clients
+// - Missing connection timeout handling
+// - No max connection limits
+// - Incomplete resource cleanup
+```
+
+3. Message Handling:
+```typescript
+// Missing proper type definitions for WebSocket messages
+// No proper error handling for message processing
+// Incomplete message validation
+// Missing proper logging for message handling
+```
+
+
+## Testing and Infrastructure Issues
+
+### Testing Setup (vitest.config.ts)
+
+1. Configuration Issues:
+```typescript
+// Current implementation has limitations:
+// - Basic test environment setup
+// - Missing proper test database configuration
+// - Incomplete test coverage configuration
+// - No proper test data seeding mechanism
