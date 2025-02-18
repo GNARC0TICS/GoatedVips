@@ -22,20 +22,40 @@ externalPort = 3001
 [[ports]]
 localPort = 5173
 externalPort = 5173
-# Define the workflows to run everything correctly
+
 [workflows]
-runButton = "Start application"
+runButton = "Start Application"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
 mode = "parallel"
+
 [workflows.workflow.metadata]
 agentRequireRestartOnSave = true
+
 [[workflows.workflow.tasks]]
 name = "API Server"
 task = "shell.exec"
 args = "BOT_PORT=5001 VITE_PORT=5173 API_PORT=5000 npm run dev"
 wait_for_port = 5000
+
+[[workflows.workflow]]
+name = "START"
+author = 38337569
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "BOT_PORT=5001 VITE_PORT=5173 API_PORT=5000 npm run dev"
+
+[[workflows.workflow]]
+name = "BUILD"
+author = 38337569
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run build"
 # Authentication settings
 [auth]
 pageEnabled = false
