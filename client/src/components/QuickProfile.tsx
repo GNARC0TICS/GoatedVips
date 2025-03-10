@@ -1,13 +1,15 @@
-import React, { useMemo, useState } from "react";
+import React from "react";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { getTierFromWager, getTierIcon } from "@/lib/tier-utils";
 import { useQuery } from "@tanstack/react-query";
 import { LoadingSpinner } from "./LoadingSpinner";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, User, Trophy, Award, Settings } from "lucide-react";
-import { VerificationBadge } from "@/components/VerificationBadge";
+import { Sheet, SheetContent } from "@/components/ui/sheet"
+import {Button} from "@/components/ui/button";
+import {ArrowRight} from "lucide-react";
+import {VerificationBadge} from "@/components/VerificationBadge";
 import { useLocation } from "wouter";
+import { useState } from "react";
+
 
 interface QuickProfileProps {
   userId: string;
@@ -15,39 +17,24 @@ interface QuickProfileProps {
   children: React.ReactNode;
 }
 
-interface UserStats {
-  isVerified: boolean;
-  verifiedAt?: string;
-}
-
-interface LeaderboardStats {
-  wagered: {
-    today: number;
-    this_week: number;
-    this_month: number;
-    all_time: number;
-  };
-  rankings: {
-    weekly?: number;
-    monthly?: number;
-    all_time?: number;
-  };
-}
-
 export function QuickProfile({ userId, username, children }: QuickProfileProps) {
-  const { data: userData, isError: userError } = useQuery<UserStats>({
+  const { data: userData } = useQuery({
     queryKey: [`/api/users/${userId}/quick-stats`],
     staleTime: 30000,
-    enabled: !!userId,
   });
 
+  const quickActions = [
+    { label: "View Profile", icon: User, href: `/profile/${userId}` },
+    { label: "Race History", icon: Trophy, href: `/profile/${userId}/races` },
+    { label: "Achievements", icon: Award, href: `/profile/${userId}/achievements` },
+    { label: "Settings", icon: Settings, href: `/profile/${userId}/settings` }
+  ];
   const { data: leaderboardData, isLoading } = useQuery({
     queryKey: ["/api/affiliate/stats"],
     staleTime: 30000,
-    enabled: !!userId,
   });
 
-  const stats = useMemo(() => {
+  const stats = React.useMemo(() => {
     if (!leaderboardData?.data) return null;
 
     const userStats = {
@@ -72,24 +59,13 @@ export function QuickProfile({ userId, username, children }: QuickProfileProps) 
     window.location.href = path;
   }
 
-  const quickActions = [
-    { label: "View Profile", icon: User, href: `/profile/${userId}` },
-    { label: "Race History", icon: Trophy, href: `/profile/${userId}/races` },
-    { label: "Achievements", icon: Award, href: `/profile/${userId}/achievements` },
-    { label: "Settings", icon: Settings, href: `/profile/${userId}/settings` }
-  ];
-
-  if (userError) {
-    return <span>{children}</span>;
-  }
-
   return (
     <>
       <HoverCard>
         <HoverCardTrigger asChild>
           <span className="cursor-pointer">{children}</span>
         </HoverCardTrigger>
-        <HoverCardContent className="w-80 bg-[#1A1B21] border border-[#2A2B31] p-4 z-50">
+        <HoverCardContent className="w-80 bg-[#1A1B21] border border-[#2A2B31] p-4 z-50"> {/* Added z-50 for higher z-index */}
           {isLoading ? (
             <div className="flex justify-center p-4">
               <LoadingSpinner />
