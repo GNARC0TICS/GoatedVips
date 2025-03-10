@@ -68,7 +68,8 @@ export type SelectUser = typeof users.$inferSelect;
 
 // Re-export other schemas
 export { verificationRequests, verificationRequestRelations } from "./schema/verification";
-export { telegramUsers, telegramUserRelations } from "./schema/telegram";
+import { telegramUsers, telegramUserRelations } from "./schema/telegram";
+export { telegramUsers, telegramUserRelations };
 
 // Define relations
 export const userRelations = relations(users, ({ one, many }) => ({
