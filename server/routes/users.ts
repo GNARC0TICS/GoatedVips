@@ -6,8 +6,40 @@ import { like, desc, eq, sql } from "drizzle-orm";
 import rateLimit from 'express-rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
-import type { IpHistoryEntry, LoginHistoryEntry, ActivityLogEntry } from "@db/schema/users";
 import { API_CONFIG } from "../config/api";
+import bcrypt from 'bcrypt';
+
+// Type definitions for missing properties
+type IpHistoryEntry = { ip: string; timestamp: Date; };
+type LoginHistoryEntry = { timestamp: Date; success: boolean; ip?: string; };
+type ActivityLogEntry = { action: string; timestamp: Date; details?: any; };
+
+// Extended user type with optional fields we might need
+interface ExtendedUser extends SelectUser {
+  // Basic fields from schema.ts
+  bio?: string;
+  profileColor?: string;
+  goatedId?: string;
+  goatedUsername?: string;
+  goatedAccountLinked?: boolean;
+  lastActive?: Date;
+  telegramUsername?: string;
+  
+  // Extended fields
+  telegramVerifiedAt?: Date;
+  lastLoginIp?: string;
+  registrationIp?: string;
+  country?: string;
+  city?: string;
+  ipHistory?: IpHistoryEntry[];
+  loginHistory?: LoginHistoryEntry[];
+  activityLogs?: ActivityLogEntry[];
+  suspiciousActivity?: boolean;
+  updatedAt?: Date;
+  
+  // Security fields that might be added later
+  twoFactorEnabled?: boolean;
+}
 
 // Setup multer for file uploads
 const upload = multer({ 
@@ -27,48 +59,72 @@ const loginLimiter = rateLimit({
 
 // User search endpoint with enhanced analytics for admins
 router.get("/search", async (req, res) => {
-  const { username } = req.query;
+  const { username, goatedId } = req.query;
   const isAdminView = req.headers['x-admin-view'] === 'true';
 
-  if (typeof username !== "string" || username.length < 3) {
+  // If neither username nor goatedId is provided
+  if (!username && !goatedId) {
+    return res.status(400).json({ error: "Either username or goatedId must be provided" });
+  }
+  
+  // Username search validation
+  if (username && (typeof username !== "string" || username.length < 3)) {
     return res.status(400).json({ error: "Username must be at least 3 characters" });
   }
 
   try {
-    const results = await db
-      .select()
-      .from(users)
-      .where(like(users.username, `%${username}%`))
-      .limit(10);
+    let results;
+    
+    // Search by goatedId if provided
+    if (goatedId) {
+      results = await db
+        .select()
+        .from(users)
+        .where(eq(users.goatedId, goatedId as string))
+        .limit(10);
+    } 
+    // Otherwise search by username
+    else {
+      results = await db
+        .select()
+        .from(users)
+        .where(like(users.username, `%${username}%`))
+        .limit(10);
+    }
 
     // Map results based on admin view access
-    const mappedResults = results.map((user: SelectUser) => ({
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      isAdmin: user.isAdmin,
-      createdAt: user.createdAt,
-      emailVerified: user.emailVerified,
-      // Only include sensitive data for admin view
-      ...(isAdminView && {
-        // Telegram related fields
-        telegramId: user.telegramId,
-        telegramVerifiedAt: user.telegramVerifiedAt,
-        // Location and activity fields
-        lastLoginIp: user.lastLoginIp,
-        registrationIp: user.registrationIp,
-        country: user.country,
-        city: user.city,
-        lastActive: user.lastActive,
-        // Analytics fields
-        ipHistory: (user.ipHistory || []) as IpHistoryEntry[],
-        loginHistory: (user.loginHistory || []) as LoginHistoryEntry[],
-        // Security fields
-        twoFactorEnabled: user.twoFactorEnabled,
-        suspiciousActivity: user.suspiciousActivity,
-        activityLogs: (user.activityLogs || []) as ActivityLogEntry[]
-      })
-    }));
+    const mappedResults = results.map((user) => {
+      // Cast to extended user type to support all possible fields
+      const extUser = user as unknown as ExtendedUser;
+      
+      return {
+        id: extUser.id,
+        username: extUser.username,
+        email: extUser.email,
+        isAdmin: extUser.isAdmin,
+        createdAt: extUser.createdAt,
+        emailVerified: extUser.emailVerified,
+        // Only include sensitive data for admin view
+        ...(isAdminView && {
+          // Telegram related fields
+          telegramId: extUser.telegramId,
+          telegramVerifiedAt: extUser.telegramVerifiedAt,
+          // Location and activity fields
+          lastLoginIp: extUser.lastLoginIp,
+          registrationIp: extUser.registrationIp,
+          country: extUser.country,
+          city: extUser.city,
+          lastActive: extUser.lastActive,
+          // Analytics fields
+          ipHistory: (extUser.ipHistory || []) as IpHistoryEntry[],
+          loginHistory: (extUser.loginHistory || []) as LoginHistoryEntry[],
+          // Security fields
+          twoFactorEnabled: extUser.twoFactorEnabled,
+          suspiciousActivity: extUser.suspiciousActivity,
+          activityLogs: (extUser.activityLogs || []) as ActivityLogEntry[]
+        })
+      };
+    });
 
     res.json(mappedResults);
   } catch (error) {
@@ -135,29 +191,26 @@ router.get("/:id", async (req, res) => {
     // Fetch user based on ID type
     let user;
     if (isNumericId) {
-      // For numeric IDs, use eq with parsed integer
+      // For numeric IDs, try using raw SQL to avoid type conversion issues
       const numericId = parseInt(id, 10);
-      // First try to find the user
-      user = await db.query.users.findFirst({
-        where: eq(users.id, numericId),
-        columns: {
-          // Only include non-sensitive information
-          id: true,
-          username: true,
-          bio: true,
-          profileColor: true,
-          createdAt: true,
-          telegramUsername: true,
-          goatedId: true,
-          // Explicitly exclude sensitive fields
-          password: false,
-          email: false,
-          lastLoginIp: false,
-          registrationIp: false,
-          ipHistory: false,
-          loginHistory: false
-        }
-      });
+      try {
+        const results = await db.execute(sql`
+          SELECT 
+            id, 
+            username, 
+            bio, 
+            profile_color as "profileColor", 
+            created_at as "createdAt", 
+            goated_id as "goatedId"
+          FROM users 
+          WHERE id = ${numericId}
+          LIMIT 1
+        `);
+        user = results[0] || null;
+      } catch (findError) {
+        console.log("Error finding user by numeric ID:", findError);
+        user = null;
+      }
       
       // If no user found with numeric ID, try to see if this is a Goated ID
       if (!user) {
@@ -209,27 +262,25 @@ router.get("/:id", async (req, res) => {
         }
       }
     } else {
-      // For string IDs like UUID, keep as string
-      user = await db.query.users.findFirst({
-        where: eq(users.id, id),
-        columns: {
-          // Only include non-sensitive information
-          id: true,
-          username: true,
-          bio: true,
-          profileColor: true,
-          createdAt: true,
-          telegramUsername: true,
-          goatedId: true,
-          // Explicitly exclude sensitive fields
-          password: false,
-          email: false,
-          lastLoginIp: false,
-          registrationIp: false,
-          ipHistory: false,
-          loginHistory: false
-        }
-      });
+      // For string IDs (UUID format), use raw SQL to avoid type conversion issues
+      try {
+        const results = await db.execute(sql`
+          SELECT 
+            id, 
+            username, 
+            bio, 
+            profile_color as "profileColor", 
+            created_at as "createdAt", 
+            goated_id as "goatedId"
+          FROM users 
+          WHERE id = ${id}
+          LIMIT 1
+        `);
+        user = results[0] || null;
+      } catch (findError) {
+        console.log("Error finding user by string ID:", findError);
+        user = null;
+      }
     }
     
     if (!user) {
@@ -256,45 +307,51 @@ router.put("/:id/profile", async (req, res) => {
     // Check if id is numeric or a string ID
     const isNumericId = /^\d+$/.test(id);
     
-    // Check if user exists based on ID type
+    // Check if user exists based on ID type using raw SQL to avoid type conversion issues
     let existingUser;
     if (isNumericId) {
       // For numeric IDs
-      existingUser = await db.query.users.findFirst({
-        where: eq(users.id, parseInt(id, 10)),
-        columns: { id: true }
-      });
+      try {
+        const numericId = parseInt(id, 10);
+        const results = await db.execute(sql`
+          SELECT id FROM users WHERE id = ${numericId} LIMIT 1
+        `);
+        existingUser = results[0] || null;
+      } catch (findError) {
+        console.log("Error finding user by numeric ID for update:", findError);
+        existingUser = null;
+      }
     } else {
       // For string IDs
-      existingUser = await db.query.users.findFirst({
-        where: eq(users.id, id),
-        columns: { id: true }
-      });
+      try {
+        const results = await db.execute(sql`
+          SELECT id FROM users WHERE id = ${id} LIMIT 1
+        `);
+        existingUser = results[0] || null;
+      } catch (findError) {
+        console.log("Error finding user by string ID for update:", findError);
+        existingUser = null;
+      }
     }
     
     if (!existingUser) {
       return res.status(404).json({ error: "User not found" });
     }
     
-    // Update user profile based on ID type
+    // Update user profile using raw SQL to avoid type conversion issues
     if (isNumericId) {
-      await db
-        .update(users)
-        .set({
-          bio,
-          profileColor,
-          updatedAt: new Date()
-        })
-        .where(eq(users.id, parseInt(id, 10)));
+      const numericId = parseInt(id, 10);
+      await db.execute(sql`
+        UPDATE users 
+        SET bio = ${bio}, profile_color = ${profileColor}
+        WHERE id = ${numericId}
+      `);
     } else {
-      await db
-        .update(users)
-        .set({
-          bio,
-          profileColor,
-          updatedAt: new Date()
-        })
-        .where(eq(users.id, id));
+      await db.execute(sql`
+        UPDATE users 
+        SET bio = ${bio}, profile_color = ${profileColor}
+        WHERE id = ${id}
+      `);
     }
     
     res.json({ success: true, message: "Profile updated successfully" });
@@ -331,19 +388,15 @@ router.post("/ensure-profile", async (req, res) => {
       });
     }
     
-    // If user doesn't exist, create a new profile
+    // If user doesn't exist, create a new profile using raw SQL
     const userId = uuidv4();
-    await db.insert(users).values({
-      id: userId,
-      username,
-      email,
-      password: '', // empty password since this is just for profile viewing
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      profileColor: '#D7FF00', // Default color
-      bio: '',
-      isAdmin: false
-    });
+    await db.execute(sql`
+      INSERT INTO users (
+        id, username, email, password, created_at, profile_color, bio, is_admin
+      ) VALUES (
+        ${userId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', '', false
+      )
+    `);
     
     res.json({ 
       success: true, 
@@ -358,27 +411,27 @@ router.post("/ensure-profile", async (req, res) => {
 
 
 // Placeholder functions (replace with actual implementation)
-async function authenticateUser(username, password) {
+async function authenticateUser(username: string, password: string): Promise<any> {
     // Implement authentication logic here
     return null; // Replace with user object or null if authentication fails
 }
 
-function generateToken(user) {
+function generateToken(user: any): string | null {
     // Implement JWT token generation or other authentication token generation here
     return null; // Replace with generated token
 }
 
-async function saveProfileImage(file) {
+async function saveProfileImage(file: any): Promise<string | null> {
     // Implement image saving logic (e.g., cloudinary, local storage)
     return null; // Replace with image URL
 }
 
-async function updateUserPreferences(userId, preferences) {
+async function updateUserPreferences(userId: string | number, preferences: any): Promise<void> {
     // Implement user preference update logic
-    return null; // Replace with successful operation or error handling
+    return; // Replace with successful operation or error handling
 }
 
-function getVerificationEmailTemplate(verificationCode) {
+function getVerificationEmailTemplate(verificationCode: string): string {
     // Implement your themed email template generation here.  This should return an HTML string.
     // Example:
     return `<!DOCTYPE html>
@@ -427,17 +480,15 @@ router.post("/create-test-users", async (req, res) => {
         // Generate a unique ID starting from a high number to avoid conflicts
         const randomId = Math.floor(1000 + Math.random() * 9000);
         
-        await db.insert(users).values({
-          id: randomId,
-          username: user.username,
-          email: user.email,
-          password: hashedPassword,
-          profileColor: user.profileColor,
-          bio: 'This is a test user account created for development purposes.',
-          isAdmin: false,
-          createdAt: new Date(),
-          emailVerified: true
-        });
+        // Use raw SQL for insertion to avoid schema issues
+        await db.execute(sql`
+          INSERT INTO users (
+            id, username, email, password, created_at, profile_color, bio, is_admin, email_verified
+          ) VALUES (
+            ${randomId}, ${user.username}, ${user.email}, ${hashedPassword}, ${new Date()},
+            ${user.profileColor}, 'This is a test user account created for development purposes.', false, true
+          )
+        `);
         
         createdCount++;
         console.log(`Created test user: ${user.username} with ID ${randomId}`);
@@ -514,9 +565,9 @@ router.post("/sync-profiles-from-leaderboard", async (req, res) => {
         
         await db.execute(sql`
           INSERT INTO users (
-            id, username, email, password, created_at, updated_at, profile_color, bio, is_admin, goated_id
+            id, username, email, password, created_at, profile_color, bio, is_admin, goated_id
           ) VALUES (
-            ${userId}, ${player.name}, ${email}, '', ${new Date()}, ${new Date()}, '#D7FF00', '', false, ${player.uid}
+            ${userId}, ${player.name}, ${email}, '', ${new Date()}, '#D7FF00', '', false, ${player.uid}
           )
         `);
         
@@ -547,28 +598,33 @@ router.get("/by-goated-id/:goatedId", async (req, res) => {
       return res.status(400).json({ error: "Goated ID is required" });
     }
     
-    // Find user by Goated ID
-    const user = await db.query.users.findFirst({
-      where: eq(users.goatedId, goatedId),
-      columns: {
-        id: true,
-        username: true,
-        bio: true,
-        profileColor: true,
-        createdAt: true,
-        telegramUsername: true,
-        goatedId: true,
-        // Explicitly exclude sensitive fields
-        password: false,
-        email: false
+    // Find user by Goated ID using raw SQL to avoid schema issues
+    try {
+      const results = await db.execute(sql`
+        SELECT 
+          id, 
+          username, 
+          bio, 
+          profile_color as "profileColor", 
+          created_at as "createdAt",
+          telegram_username as "telegramUsername",
+          goated_id as "goatedId"
+        FROM users 
+        WHERE goated_id = ${goatedId}
+        LIMIT 1
+      `);
+      
+      const user = results[0] || null;
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
       }
-    });
-    
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      
+      res.json(user);
+    } catch (sqlError) {
+      console.error("SQL error getting user by Goated ID:", sqlError);
+      return res.status(500).json({ error: "Database error when fetching user" });
     }
-    
-    res.json(user);
   } catch (error) {
     console.error("Error getting user by Goated ID:", error);
     res.status(500).json({ error: "Failed to get user profile" });
@@ -594,17 +650,21 @@ router.post("/ensure-profile-from-id", async (req, res) => {
     let existingUser;
     
     if (isNumericId) {
-      // Check if this is a Goated ID
-      existingUser = await db.query.users.findFirst({
-        where: eq(users.goatedId, userId),
-        columns: { id: true, username: true }
-      });
+      // Check if this is a Goated ID using raw SQL to avoid schema issues
+      try {
+        const results = await db.execute(sql`
+          SELECT id, username FROM users WHERE goated_id = ${userId} LIMIT 1
+        `);
+        existingUser = results[0] || null;
+      } catch (findError) {
+        console.log("Error finding user by Goated ID:", findError);
+        existingUser = null;
+      }
     } else {
-      // Check by UUID
-      existingUser = await db.query.users.findFirst({
-        where: eq(users.id, userId),
-        columns: { id: true, username: true }
-      });
+      // Check by string ID (UUID format) using raw SQL to avoid type conversion issues
+      existingUser = await db.execute(sql`
+        SELECT id, username FROM users WHERE id = ${userId}
+      `).then(rows => rows[0] || null);
     }
     
     // If user exists, return success
@@ -644,19 +704,14 @@ router.post("/ensure-profile-from-id", async (req, res) => {
             const newUserId = Math.floor(1000 + Math.random() * 9000); // Generate a random numeric ID
             const email = `${playerData.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
             
-            // Use db.insert to properly handle the schema fields
-            await db.insert(users).values({
-              id: newUserId,
-              username: playerData.name,
-              email: email,
-              password: '', // Empty password for view-only profiles
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              profileColor: '#D7FF00',
-              bio: '',
-              isAdmin: false,
-              goatedId: playerData.uid
-            });
+            // Use raw SQL to insert the new user
+            await db.execute(sql`
+              INSERT INTO users (
+                id, username, email, password, created_at, updated_at, profile_color, bio, is_admin, goated_id
+              ) VALUES (
+                ${newUserId}, ${playerData.name}, ${email}, '', ${new Date()}, ${new Date()}, '#D7FF00', '', false, ${playerData.uid}
+              )
+            `);
             
             return res.json({
               success: true,

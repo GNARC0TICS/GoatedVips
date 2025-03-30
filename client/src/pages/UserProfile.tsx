@@ -53,6 +53,7 @@ interface UserStats {
   }>;
   bio?: string; // Added bio field
   profileColor?: string; // Added profile color field
+  goatedId?: string; // External Goated platform ID
 }
 
 const PROFILE_COLORS = {
@@ -105,7 +106,7 @@ export default function UserProfile({ params }: { params: { id: string } }) {
         
         // If still not found, try to create a user profile
         console.log("User not found, attempting auto-creation");
-        const createResponse = await fetch(`/api/users/ensure-profile-from-id`, {
+        const createResponse = await fetch(`/users/ensure-profile-from-id`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId })
@@ -203,6 +204,7 @@ export default function UserProfile({ params }: { params: { id: string } }) {
     username: userData.username,
     bio: userData.bio || '',
     profileColor: userData.profileColor || '#D7FF00',
+    goatedId: userData.goatedId, // Include goatedId if available
     ...statsData
   } : undefined;
 
