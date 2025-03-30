@@ -116,8 +116,10 @@ export function RaceTimer() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
+    // Ensure we're using the current year
+    const currentYear = new Date().getFullYear();
     return date.toLocaleDateString('en-US', { 
-      year: 'numeric',
+      year: currentYear === date.getFullYear() ? undefined : 'numeric',
       month: 'long'
     });
   };
