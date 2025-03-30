@@ -21,6 +21,7 @@ export const users = pgTable('users', {
   profileColor: text('profile_color').default('#D7FF00'),
   goatedAccountLinked: boolean('goated_account_linked').default(false),
   goatedUsername: text('goated_username'),
+  goatedId: text('goated_id').unique(), // Add goatedId field to link to Goated user ID
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
   lastActive: timestamp('last_active'),
   lastLogin: timestamp('last_login'),

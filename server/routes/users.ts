@@ -575,4 +575,118 @@ router.get("/by-goated-id/:goatedId", async (req, res) => {
   }
 });
 
+// Endpoint to create a user profile from ID (numeric or UUID)
+router.post("/ensure-profile-from-id", async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    // Validate input
+    if (!userId) {
+      return res.status(400).json({ 
+        error: "User ID is required" 
+      });
+    }
+    
+    // Check if ID is numeric (potential Goated ID) or UUID format
+    const isNumericId = /^\d+$/.test(userId);
+    
+    // First check if user already exists in our database
+    let existingUser;
+    
+    if (isNumericId) {
+      // Check if this is a Goated ID
+      existingUser = await db.query.users.findFirst({
+        where: eq(users.goatedId, userId),
+        columns: { id: true, username: true }
+      });
+    } else {
+      // Check by UUID
+      existingUser = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        columns: { id: true, username: true }
+      });
+    }
+    
+    // If user exists, return success
+    if (existingUser) {
+      return res.json({
+        success: true,
+        message: "User profile already exists",
+        id: existingUser.id,
+        username: existingUser.username
+      });
+    }
+    
+    // If user doesn't exist and ID is numeric, try to fetch from the Goated API
+    if (isNumericId) {
+      try {
+        const API_TOKEN = process.env.API_TOKEN;
+        
+        if (!API_TOKEN) {
+          return res.status(500).json({
+            error: "API_TOKEN is not configured"
+          });
+        }
+        
+        // Attempt to get user data from Goated API
+        const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.player}/${userId}`, {
+          headers: {
+            Authorization: `Bearer ${API_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+        });
+        
+        if (response.ok) {
+          const playerData = await response.json();
+          
+          if (playerData && playerData.uid && playerData.name) {
+            // Create a profile for this user
+            const newUserId = Math.floor(1000 + Math.random() * 9000); // Generate a random numeric ID
+            const email = `${playerData.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
+            
+            // Use db.insert to properly handle the schema fields
+            await db.insert(users).values({
+              id: newUserId,
+              username: playerData.name,
+              email: email,
+              password: '', // Empty password for view-only profiles
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              profileColor: '#D7FF00',
+              bio: '',
+              isAdmin: false,
+              goatedId: playerData.uid
+            });
+            
+            return res.json({
+              success: true,
+              message: "User profile created from Goated API",
+              id: newUserId,
+              username: playerData.name
+            });
+          }
+        }
+        
+        // If we get here, the user doesn't exist in Goated API either
+        return res.status(404).json({
+          error: "User not found in our system or Goated API"
+        });
+      } catch (apiError) {
+        console.error("Error creating user from API:", apiError);
+        return res.status(500).json({
+          error: "Failed to fetch user data from API"
+        });
+      }
+    }
+    
+    // If non-numeric ID, just return not found
+    return res.status(404).json({
+      error: "User not found with provided ID"
+    });
+  } catch (error) {
+    console.error("Error ensuring user profile from ID:", error);
+    res.status(500).json({ error: "Failed to process user profile request" });
+  }
+});
+
 export default router;

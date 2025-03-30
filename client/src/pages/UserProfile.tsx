@@ -87,11 +87,46 @@ export default function UserProfile({ params }: { params: { id: string } }) {
   const { data: userData, isLoading: isUserLoading } = useQuery({
     queryKey: [`/users/${userId}`],
     queryFn: async () => {
-      const response = await fetch(`/users/${userId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch user data');
+      try {
+        // Try primary user profile endpoint
+        const response = await fetch(`/users/${userId}`);
+        if (response.ok) {
+          return response.json();
+        }
+        
+        // If numeric ID failed, try fetching by Goated ID
+        if (/^\d+$/.test(userId)) {
+          console.log("Trying to fetch by Goated ID:", userId);
+          const goatedResponse = await fetch(`/users/by-goated-id/${userId}`);
+          if (goatedResponse.ok) {
+            return goatedResponse.json();
+          }
+        }
+        
+        // If still not found, try to create a user profile
+        console.log("User not found, attempting auto-creation");
+        const createResponse = await fetch(`/api/users/ensure-profile-from-id`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId })
+        });
+        
+        if (createResponse.ok) {
+          const createdData = await createResponse.json();
+          // If profile was successfully created, fetch it
+          if (createdData.success) {
+            const newProfileResponse = await fetch(`/users/${createdData.id || userId}`);
+            if (newProfileResponse.ok) {
+              return newProfileResponse.json();
+            }
+          }
+        }
+        
+        throw new Error('Failed to fetch or create user data');
+      } catch (error) {
+        console.error("User profile error:", error);
+        throw error;
       }
-      return response.json();
     },
     retry: 3,
     retryDelay: 1000,
