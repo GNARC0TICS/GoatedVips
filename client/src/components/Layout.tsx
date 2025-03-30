@@ -40,7 +40,7 @@ import {
 import { UtilityPanelButton } from "./UtilityPanel";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import giftIcon from '/client/public/images/GIFT.svg'; // Added import for the new icon
+import giftIcon from '/client/public/images/GIFT.png';
 
 // --- Static Styles (Memoized as constants) ---
 const headerClasses = {
@@ -513,7 +513,7 @@ export function Layout({ children }: { children: ReactNode }) {
                       label={
                         isAuthenticated ? (
                           <div className="flex items-center gap-2">
-                            <img src={giftIcon} alt="Gift" className="h-4 w-4" /> {/* Replaced Gift icon with img tag */}
+                            <img src={giftIcon} alt="Gift" className="h-4 w-4" />
                             <span>Bonus Codes</span>
                           </div>
                         ) : (
@@ -706,7 +706,7 @@ export function Layout({ children }: { children: ReactNode }) {
                         <LogOut className="h-4 w-4 mr-2" />
                         Logout
                       </DropdownMenuItem>
-                    </DropdownMenuContent>
+                                        </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (
                   <AuthModal />
