@@ -165,7 +165,7 @@ router.get("/wager-races/current",
 
 // Helper functions
 function getDefaultRaceData() {
-  const year = new Date().getFullYear();
+  const year = 2025;
   const marchMonth = 2; // 0-based index, so 2 is March
   return {
     id: `${year}03`, // 03 for March
