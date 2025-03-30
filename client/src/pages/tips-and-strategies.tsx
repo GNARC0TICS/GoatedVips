@@ -158,15 +158,13 @@ function FeaturedStrategyCard({ strategy }: { strategy: any }) {
   return (
     <Card className="bg-[#1A1B21]/50 backdrop-blur-sm border-[#2A2B31] relative overflow-hidden">
       <CardContent className="p-6">
-        <div className="flex justify-start mb-4">
-          <Star className="h-6 w-6 text-[#D7FF00] fill-current" />
+        <div className="absolute top-4 right-4">
+          <Star className="h-5 w-5 text-[#D7FF00] fill-current" />
         </div>
-        <div className="text-center mb-4">
-          <Badge className="bg-[#D7FF00] text-[#14151A] mb-2 inline-flex">{strategy.category}</Badge>
-          <h3 className="text-xl font-heading text-white mb-2">{strategy.title}</h3>
-          <p className="text-[#8A8B91] mb-6">{strategy.description}</p>
-        </div>
-        <div className="flex items-center justify-between mt-auto">
+        <Badge className="bg-[#D7FF00] text-[#14151A] mb-4">{strategy.category}</Badge>
+        <h3 className="text-xl font-heading text-white mb-2">{strategy.title}</h3>
+        <p className="text-[#8A8B91] mb-4">{strategy.description}</p>
+        <div className="flex items-center justify-between">
           <span className="text-sm text-[#8A8B91]">By {strategy.author}</span>
           <div className="flex items-center gap-2">
             <ThumbsUp className="h-4 w-4 text-[#D7FF00]" />

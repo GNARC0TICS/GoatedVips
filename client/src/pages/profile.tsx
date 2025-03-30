@@ -337,12 +337,12 @@ export default function ProfilePage() {
             <Card className="bg-gradient-to-br from-[#1A1B21]/80 to-[#14151A]/90 backdrop-blur-md border border-[#2A2B31]/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-xl transition-all duration-300 hover:shadow-[0_8px_30px_rgba(215,255,0,0.05)] group relative overflow-hidden">
               <div className="absolute inset-0 bg-[url('/images/noise.png')] opacity-[0.03] mix-blend-overlay pointer-events-none" />
               <CardContent className="p-4 relative z-10">
-                <div className="flex justify-start mb-3">
+                <div className="flex items-center gap-2 mb-3">
                   <Trophy className="h-5 w-5 text-[#D7FF00]" />
+                  <h3 className="font-medium">Total Wagered</h3>
                 </div>
-                <h3 className="font-medium text-center mb-2">Total Wagered</h3>
-                <p className="text-2xl font-bold text-center">$0</p>
-                <p className="text-xs text-[#8A8B91] mt-2 text-center">Connect your Goated account to track</p>
+                <p className="text-2xl font-bold">$0</p>
+                <p className="text-xs text-[#8A8B91] mt-1">Connect your Goated account to track</p>
               </CardContent>
             </Card>
 
