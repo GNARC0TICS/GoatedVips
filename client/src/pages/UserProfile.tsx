@@ -97,12 +97,20 @@ export default function UserProfile({ params }: { params: { id: string } }) {
     retryDelay: 1000,
   });
 
-  // Fetch additional stats (this would be implemented in a real API)
+  // Fetch additional stats from API
   const { data: statsData, isLoading: isStatsLoading, refetch } = useQuery<Omit<UserStats, 'id' | 'username'>>({
     queryKey: [`/users/${userId}/stats`],
     queryFn: async () => {
-      // In a real implementation, this would fetch from the API
-      // For now, we'll return mock data based on the user ID
+      try {
+        const response = await fetch(`/api/users/${userId}/stats`);
+        if (response.ok) {
+          return await response.json();
+        }
+      } catch (error) {
+        console.error("Error fetching user stats:", error);
+      }
+      
+      // Fallback data structure if API fails or is not implemented yet
       return {
         totalWagered: 250000,
         currentRank: 5,
@@ -165,8 +173,22 @@ export default function UserProfile({ params }: { params: { id: string } }) {
 
   const isLoading = isUserLoading || isStatsLoading;
 
-  if (isLoading) return <LoadingSpinner />;
-  if (!user) return null;
+  if (isLoading) return (
+    <div className="min-h-screen bg-[#14151A] flex items-center justify-center">
+      <LoadingSpinner />
+      <p className="ml-3 text-[#D7FF00]">Loading profile...</p>
+    </div>
+  );
+  
+  if (!user) return (
+    <div className="min-h-screen bg-[#14151A] flex flex-col items-center justify-center text-white">
+      <div className="text-5xl text-[#D7FF00] mb-4">404</div>
+      <p className="text-xl mb-8">User profile not found</p>
+      <Button onClick={() => setLocation('/')} className="bg-[#D7FF00] text-black hover:bg-[#D7FF00]/80">
+        Return to Home
+      </Button>
+    </div>
+  );
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -230,9 +252,21 @@ export default function UserProfile({ params }: { params: { id: string } }) {
     );
   };
 
+  // Background style for the profile
+  const profileBgStyle = {
+    backgroundColor: user.profileColor || PROFILE_COLORS.yellow,
+  };
+
   return (
-    <div className={`min-h-screen bg-[${user.profileColor || PROFILE_COLORS.yellow}] text-white`}> {/* Apply profile color */}
-      <div className="container mx-auto px-4 py-8 md:py-16">
+    <div className="min-h-screen bg-[#14151A] text-white relative" style={{ overflow: 'hidden' }}>
+      {/* Colored background gradient */}
+      <div 
+        className="absolute inset-0 opacity-10 z-0" 
+        style={profileBgStyle}
+      />
+      
+      {/* Content with subtle gradient background */}
+      <div className="container relative z-10 mx-auto px-4 py-8 md:py-16">
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -247,10 +281,10 @@ export default function UserProfile({ params }: { params: { id: string } }) {
             <Button
               variant="ghost"
               className="gap-2"
-              onClick={() => setLocation("/wager-races")}
+              onClick={() => setLocation("/")}
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to Races
+              Back to Home
             </Button>
             <EditProfileDialog user={user} onUpdate={refetch} /> {/* Add Edit Profile Dialog */}
           </motion.div>

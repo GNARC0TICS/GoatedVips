@@ -234,6 +234,69 @@ function setupAPIRoutes(app: Express) {
 
   app.post("/api/batch", createRateLimiter('medium'), batchHandler);
 
+  // Direct test endpoint for creating users
+  app.post("/api/create-test-users", async (_req, res) => {
+    try {
+      // Create 3 test users for development
+      const testUsers = [
+        { username: "testuser1", email: "test1@example.com", profileColor: "#D7FF00" },
+        { username: "testuser2", email: "test2@example.com", profileColor: "#10B981" },
+        { username: "testuser3", email: "test3@example.com", profileColor: "#3B82F6" }
+      ];
+      
+      let createdCount = 0;
+      let existingCount = 0;
+      const errors = [];
+      
+      for (const user of testUsers) {
+        try {
+          // Check if user already exists
+          const existingUser = await db.select()
+            .from(users)
+            .where(sql`username = ${user.username}`)
+            .limit(1);
+          
+          if (existingUser && existingUser.length > 0) {
+            existingCount++;
+            continue;
+          }
+          
+          // Generate a unique ID starting from a high number to avoid conflicts
+          const randomId = 1000 + Math.floor(Math.random() * 9000);
+          
+          // Insert the user directly
+          await db.execute(sql`
+            INSERT INTO users (
+              id, username, email, password, created_at, 
+              profile_color, bio, is_admin, email_verified
+            ) VALUES (
+              ${randomId}, ${user.username}, ${user.email}, '', ${new Date()}, 
+              ${user.profileColor}, 'Test user bio', false, true
+            )
+          `);
+          
+          createdCount++;
+          console.log(`Created test user: ${user.username} with ID ${randomId}`);
+        } catch (insertError) {
+          console.error(`Error creating test user ${user.username}:`, insertError);
+          errors.push(`Failed to create ${user.username}: ${insertError.message || 'Unknown error'}`);
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        message: `Created ${createdCount} test users, ${existingCount} already existed`,
+        errors: errors.length > 0 ? errors : undefined
+      });
+    } catch (error) {
+      console.error("Error creating test users:", error);
+      res.status(500).json({ 
+        error: "Failed to create test users",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   app.get("/api/affiliate/stats",
     createRateLimiter('medium'),
     cacheMiddleware(CACHE_TIMES.MEDIUM),
@@ -878,25 +941,39 @@ function setupRESTRoutes(app: Express) {
           });
         }
 
-        // Get basic user information (excluding sensitive data)
-        const userId_num = parseInt(userId, 10);
-        if (isNaN(userId_num)) {
-          return res.status(400).json({ 
-            status: "error", 
-            message: "Invalid user ID format" 
-          });
-        }
+        // Check if id is numeric or a string ID
+        const isNumericId = /^\d+$/.test(userId);
         
-        const [user] = await db
-          .select({
-            id: users.id,
-            username: users.username,
-            // Only select fields that exist in the users table
-            createdAt: users.createdAt,
-          })
-          .from(users)
-          .where(eq(users.id, userId_num))
-          .limit(1);
+        let user;
+        
+        if (isNumericId) {
+          // For numeric IDs (older format)
+          const userId_num = parseInt(userId, 10);
+          [user] = await db
+            .select({
+              id: users.id,
+              username: users.username,
+              bio: users.bio,
+              profileColor: users.profileColor,
+              createdAt: users.createdAt,
+            })
+            .from(users)
+            .where(eq(users.id, userId_num))
+            .limit(1);
+        } else {
+          // For string IDs like UUID (new format)
+          [user] = await db
+            .select({
+              id: users.id,
+              username: users.username,
+              bio: users.bio,
+              profileColor: users.profileColor,
+              createdAt: users.createdAt,
+            })
+            .from(users)
+            .where(eq(users.id, userId))
+            .limit(1);
+        }
 
         if (!user) {
           return res.status(404).json({ 
@@ -907,7 +984,7 @@ function setupRESTRoutes(app: Express) {
 
         // Return public user profile data
         res.json(user);
-      } catch (error: unknown) {
+      } catch (error) {
         console.error("Error fetching user profile:", error);
         res.status(500).json({ 
           status: "error", 
