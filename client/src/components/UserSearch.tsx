@@ -94,14 +94,15 @@ export function UserSearch() {
       setError(null);
       
       try {
-        const response = await fetch(`/api/users/search?username=${encodeURIComponent(debouncedQuery)}`);
+        const response = await fetch(`/api/users/search?q=${encodeURIComponent(debouncedQuery)}`);
         
         if (!response.ok) {
           throw new Error("Failed to search users");
         }
         
         const data = await response.json();
-        setResults(data);
+        // Handle both response formats - array or object with users property
+        setResults(Array.isArray(data) ? data : (data.users || []));
       } catch (err) {
         console.error("Error searching users:", err);
         setError("An error occurred while searching");

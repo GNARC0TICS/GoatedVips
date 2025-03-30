@@ -59,17 +59,26 @@ const loginLimiter = rateLimit({
 
 // User search endpoint with enhanced analytics for admins
 router.get("/search", async (req, res) => {
-  const { username, goatedId } = req.query;
+  // Support both "q" (from UserSearch component) and "username" parameters for compatibility
+  const q = req.query.q as string;
+  let username = req.query.username as string;
+  const goatedId = req.query.goatedId as string;
+  
+  // If q is provided and username is not, use q as username
+  if (q && !username) {
+    username = q;
+  }
+  
   const isAdminView = req.headers['x-admin-view'] === 'true';
 
   // If neither username nor goatedId is provided
   if (!username && !goatedId) {
-    return res.status(400).json({ error: "Either username or goatedId must be provided" });
+    return res.status(400).json({ error: "Either username, q, or goatedId must be provided" });
   }
   
   // Username search validation
-  if (username && (typeof username !== "string" || username.length < 3)) {
-    return res.status(400).json({ error: "Username must be at least 3 characters" });
+  if (username && (typeof username !== "string" || username.length < 2)) {
+    return res.status(400).json({ error: "Username must be at least 2 characters" });
   }
 
   try {
@@ -653,7 +662,7 @@ router.post("/ensure-profile-from-id", async (req, res) => {
       // Check if this is a Goated ID using raw SQL to avoid schema issues
       try {
         const results = await db.execute(sql`
-          SELECT id, username FROM users WHERE goated_id = ${userId} LIMIT 1
+          SELECT id, username FROM users WHERE goated_id = ${userId}::text LIMIT 1
         `);
         existingUser = results[0] || null;
       } catch (findError) {
@@ -663,7 +672,7 @@ router.post("/ensure-profile-from-id", async (req, res) => {
     } else {
       // Check by string ID (UUID format) using raw SQL to avoid type conversion issues
       existingUser = await db.execute(sql`
-        SELECT id, username FROM users WHERE id = ${userId}
+        SELECT id, username FROM users WHERE id::text = ${userId}
       `).then(rows => rows[0] || null);
     }
     
@@ -707,9 +716,9 @@ router.post("/ensure-profile-from-id", async (req, res) => {
             // Use raw SQL to insert the new user
             await db.execute(sql`
               INSERT INTO users (
-                id, username, email, password, created_at, updated_at, profile_color, bio, is_admin, goated_id
+                id, username, email, password, created_at, profile_color, bio, is_admin, goated_id
               ) VALUES (
-                ${newUserId}, ${playerData.name}, ${email}, '', ${new Date()}, ${new Date()}, '#D7FF00', '', false, ${playerData.uid}
+                ${newUserId}, ${playerData.name}, ${email}, '', ${new Date()}, '#D7FF00', '', false, ${playerData.uid}
               )
             `);
             

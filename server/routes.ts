@@ -901,6 +901,7 @@ function setupRESTRoutes(app: Express) {
     createRateLimiter('high'),
     async (req, res) => {
       try {
+        console.log("User search API called with query:", req.query);
         const query = req.query.q as string;
         
         if (!query || query.length < 2) {
@@ -919,6 +920,7 @@ function setupRESTRoutes(app: Express) {
           }
         });
         
+        console.log("Search results:", users);
         return res.json({ users });
       } catch (error) {
         console.error("User search error:", error);
