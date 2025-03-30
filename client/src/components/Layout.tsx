@@ -16,8 +16,6 @@ import {
   ChevronDown,
   Gift,
   Lock,
-  LogIn,
-  UserPlus,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -44,7 +42,7 @@ import {
 import { UtilityPanelButton } from "./UtilityPanel";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-
+import giftIcon from '/images/GIFT.png';
 
 // --- Static Styles (Memoized as constants) ---
 const headerClasses = {
@@ -489,7 +487,7 @@ export function Layout({ children }: { children: ReactNode }) {
                       label={
                         isAuthenticated ? (
                           <div className="flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 0 0-5.5-1.65l-.5.67l-.5-.68C10.96 2.54 10.05 2 9 2C7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2m-5-2c.55 0 1 .45 1 1s-.45 1-1 1s-1-.45-1-1s.45-1 1-1M9 4c.55 0 1 .45 1 1s-.45 1-1 1s-1-.45-1-1s.45-1 1-1m11 15H4v-2h16zm0-5H4V8h5.08L7 10.83L8.62 12L12 7.4l3.38 4.6L17 10.83L14.92 8H20z" /></svg>
+                            <img src={giftIcon} alt="Gift" className="h-4 w-4" />
                             <span>Bonus Codes</span>
                           </div>
                         ) : (
@@ -613,7 +611,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <div className="flex items-center gap-2 md:gap-4">
               {/* User search component */}
               <UserSearch />
-
+              
               {/* Debug info - remove in production */}
               {user?.isAdmin && (
                 <div className="text-xs text-[#8A8B91]">
@@ -772,40 +770,7 @@ export function Layout({ children }: { children: ReactNode }) {
         </nav>
       </header>
 
-      {/* Auth buttons container - desktop only */}
-      <div className="hidden lg:flex items-center justify-center w-full bg-gradient-to-r from-[#1A1B21]/80 via-[#1A1B21] to-[#1A1B21]/80 border-b border-[#2A2B31] py-2 shadow-md">
-        <div className="container mx-auto px-4 flex items-center justify-end gap-4">
-          {isAuthenticated ? (
-            <div className="flex items-center gap-3">
-              <Link href="/dashboard">
-                <Button variant="ghost" className="text-white hover:text-[#D7FF00] transition-colors duration-300 hover:bg-transparent">Dashboard</Button>
-              </Link>
-              <Button variant="outline" className="bg-[#D7FF00] text-black border-[#D7FF00] hover:bg-[#D7FF00]/80 hover:text-black hover:border-[#D7FF00]/80" onClick={handleLogout}>Sign Out</Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <Link href="/login">
-                <Button variant="ghost" className="text-white hover:text-[#D7FF00] transition-colors duration-300 hover:bg-transparent">Login</Button>
-              </Link>
-              <Link href="/register">
-                <Button variant="outline" className="bg-[#D7FF00] text-black border-[#D7FF00] hover:bg-[#D7FF00]/80 hover:text-black hover:border-[#D7FF00]/80">Sign Up</Button>
-              </Link>
-            </div>
-          )}
-          <Button variant="outline" className="bg-[#D7FF00] text-black border-[#D7FF00] hover:bg-[#D7FF00]/80 hover:text-black hover:border-[#D7FF00]/80 gap-2">
-            <span>Play Now</span>
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-black opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-black"></span>
-            </span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Main content */}
-      <main className="pt-[82px] md:pt-[92px] lg:pt-[110px]">
-        {children}
-      </main>
+      {children}
       <ScrollToTop />
       <footer ref={footerRef} className={footerClasses.wrapper}>
         <div className="absolute inset-0 bg-gradient-to-b from-[#D7FF00]/20 to-transparent pointer-events-none" />
