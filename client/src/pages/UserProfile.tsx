@@ -83,9 +83,85 @@ export default function UserProfile({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
   const userId = params.id;
 
-  const { data: user, isLoading, refetch } = useQuery<UserStats>({
+  // Fetch basic user data from our API
+  const { data: userData, isLoading: isUserLoading } = useQuery({
     queryKey: [`/api/users/${userId}`],
+    queryFn: async () => {
+      const response = await fetch(`/api/users/${userId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+      return response.json();
+    },
   });
+
+  // Fetch additional stats (this would be implemented in a real API)
+  const { data: statsData, isLoading: isStatsLoading, refetch } = useQuery<Omit<UserStats, 'id' | 'username'>>({
+    queryKey: [`/api/users/${userId}/stats`],
+    queryFn: async () => {
+      // In a real implementation, this would fetch from the API
+      // For now, we'll return mock data based on the user ID
+      return {
+        totalWagered: 250000,
+        currentRank: 5,
+        bestRank: 3,
+        races: {
+          participated: 12,
+          won: 3,
+          totalPrizes: 5600,
+        },
+        achievements: [
+          {
+            name: 'First Victory',
+            description: 'Won your first wager race',
+            earned: '2 months ago',
+          },
+          {
+            name: 'High Roller',
+            description: 'Placed in top 10 for monthly wager volume',
+            earned: '1 month ago',
+          },
+          {
+            name: 'Consistent Player',
+            description: 'Participated in 10+ races',
+            earned: '2 weeks ago',
+          },
+        ],
+        history: [
+          {
+            period: 'March 2025',
+            wagered: 80000,
+            rank: 5,
+            prize: 1500,
+          },
+          {
+            period: 'February 2025',
+            wagered: 120000,
+            rank: 3,
+            prize: 2800,
+          },
+          {
+            period: 'January 2025',
+            wagered: 50000,
+            rank: 8,
+            prize: 1300,
+          },
+        ],
+      };
+    },
+    enabled: !!userData, // Only fetch stats once we have the user data
+  });
+
+  // Combine the data
+  const user: UserStats | undefined = userData && statsData ? {
+    id: userData.id,
+    username: userData.username,
+    bio: userData.bio || '',
+    profileColor: userData.profileColor || '#D7FF00',
+    ...statsData
+  } : undefined;
+
+  const isLoading = isUserLoading || isStatsLoading;
 
   if (isLoading) return <LoadingSpinner />;
   if (!user) return null;

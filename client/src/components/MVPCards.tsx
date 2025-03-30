@@ -218,15 +218,15 @@ export function MVPCards() {
   const [openCard, setOpenCard] = useState<string | null>(null);
   const dialogTimeoutRef = React.useRef<NodeJS.Timeout>();
 
-  const { data: leaderboardData, isLoading } = useQuery({
+  const { data: leaderboardData, isLoading } = useQuery<any>({
     queryKey: ["/api/affiliate/stats"],
     staleTime: 30000,
   });
 
   const mvps = useMemo(() => ({
-    daily: leaderboardData?.data?.today?.data[0],
-    weekly: leaderboardData?.data?.weekly?.data[0],
-    monthly: leaderboardData?.data?.monthly?.data[0]
+    daily: leaderboardData?.data?.today?.data?.[0],
+    weekly: leaderboardData?.data?.weekly?.data?.[0],
+    monthly: leaderboardData?.data?.monthly?.data?.[0]
   }), [leaderboardData]);
 
   const handleDialogChange = useCallback((open: boolean, period: string) => {
@@ -268,7 +268,7 @@ export function MVPCards() {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8 max-w-5xl mx-auto perspective-1000 px-4 md:px-0">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-0 max-w-5xl mx-auto perspective-1000 px-0">
       {timeframes.map((timeframe) => (
         <motion.div
           key={timeframe.period}
@@ -276,16 +276,17 @@ export function MVPCards() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           whileHover={{ scale: 1.02 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
-          className="group relative transform transition-all duration-300"
+          className="group relative transform transition-all duration-300 p-2 md:p-3"
         >
           <MVPCardMemo 
             timeframe={timeframe}
             mvp={mvps[timeframe.period as keyof typeof mvps] ? {
               username: mvps[timeframe.period as keyof typeof mvps]?.name || '',
               uid: mvps[timeframe.period as keyof typeof mvps]?.uid || '',
-              wagerAmount: mvps[timeframe.period as keyof typeof mvps]?.wagered[timeframe.period === 'daily' ? 'today' : timeframe.period === 'weekly' ? 'this_week' : 'this_month'] || 0,
+              wagerAmount: mvps[timeframe.period as keyof typeof mvps]?.wagered?.[timeframe.period === 'daily' ? 'today' : timeframe.period === 'weekly' ? 'this_week' : 'this_month'] || 0,
               wagered: mvps[timeframe.period as keyof typeof mvps]?.wagered || { today: 0, this_week: 0, this_month: 0, all_time: 0 },
-              avatarUrl: mvps[timeframe.period as keyof typeof mvps]?.avatarUrl
+              avatarUrl: mvps[timeframe.period as keyof typeof mvps]?.avatarUrl,
+              rank: 1 // MVP is always rank 1
             } : undefined}
             isOpen={openCard === timeframe.period}
             onOpenChange={(open) => handleDialogChange(open, timeframe.period)}

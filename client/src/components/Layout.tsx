@@ -23,6 +23,8 @@ import AuthModal from "@/components/AuthModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SelectUser } from "@db/schema";
 import { ScrollToTop } from "./ScrollToTop";
+import { UserSearch } from "./UserSearch";
+import { ParticleBackground } from "./ParticleBackground";
 import {
   Tooltip,
   TooltipContent,
@@ -211,6 +213,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#14151A]">
+      <ParticleBackground />
       <header className={headerClasses.container}>
         <nav className={headerClasses.nav}>
           <div className="flex items-center gap-8">
@@ -231,26 +234,18 @@ export function Layout({ children }: { children: ReactNode }) {
                   <div className="bg-[#1A1B21]/95 backdrop-blur-xl border border-[#2A2B31] rounded-xl shadow-2xl py-2 px-1">
                     <Link href="/wager-races">
                       <div className="px-4 py-2.5 font-bold text-white hover:text-[#D7FF00] hover:bg-[#2A2B31]/50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-2">
-                        <span className="relative">
-                          <span className="absolute -left-2 opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:left-0">→</span>
-                          <span className="ml-0 transition-all duration-200 group-hover:ml-2 flex items-center gap-2">
-                            Monthly Race
-                            <div className="flex items-center gap-1">
-                              <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
-                              <span className="text-xs text-red-500">LIVE</span>
-                            </div>
-                          </span>
+                        <span className="flex items-center gap-2">
+                          Monthly Race
+                          <div className="flex items-center gap-1">
+                            <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
+                            <span className="text-xs text-red-500">LIVE</span>
+                          </div>
                         </span>
                       </div>
                     </Link>
                     <Link href="/challenges">
                       <div className="px-4 py-2.5 font-bold text-white hover:text-[#D7FF00] hover:bg-[#2A2B31]/50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-2">
-                        <span className="relative">
-                          <span className="absolute -left-2 opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:left-0">→</span>
-                          <span className="ml-0 transition-all duration-200 group-hover:ml-2">
-                            Challenges
-                          </span>
-                        </span>
+                        <span>Challenges</span>
                       </div>
                     </Link>
                   </div>
@@ -274,32 +269,17 @@ export function Layout({ children }: { children: ReactNode }) {
                     </Link>
                     <Link href="/vip-transfer">
                       <div className="px-4 py-2.5 font-bold text-white hover:text-[#D7FF00] hover:bg-[#2A2B31]/50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-2">
-                        <span className="relative">
-                          <span className="absolute -left-2 opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:left-0">→</span>
-                          <span className="ml-0 transition-all duration-200 group-hover:ml-2">
-                            VIP Transfer
-                          </span>
-                        </span>
+                        <span>VIP Transfer</span>
                       </div>
                     </Link>
                     <Link href="/tips-and-strategies">
                       <div className="px-4 py-2.5 font-bold text-white hover:text-[#D7FF00] hover:bg-[#2A2B31]/50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-2">
-                        <span className="relative">
-                          <span className="absolute -left-2 opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:left-0">→</span>
-                          <span className="ml-0 transition-all duration-200 group-hover:ml-2">
-                            Tips & Strategies
-                          </span>
-                        </span>
+                        <span>Tips & Strategies</span>
                       </div>
                     </Link>
                     <Link href="/vip-program">
                       <div className="px-4 py-2.5 font-bold text-white hover:text-[#D7FF00] hover:bg-[#2A2B31]/50 rounded-lg transition-all duration-200 cursor-pointer flex items-center gap-2">
-                        <span className="relative">
-                          <span className="absolute -left-2 opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:left-0">→</span>
-                          <span className="ml-0 transition-all duration-200 group-hover:ml-2">
-                            VIP Program
-                          </span>
-                        </span>
+                        <span>VIP Program</span>
                       </div>
                     </Link>
                   </div>
@@ -594,6 +574,9 @@ export function Layout({ children }: { children: ReactNode }) {
 
           <div className={headerClasses.userSection}>
             <div className="flex items-center gap-2 md:gap-4">
+              {/* User search component */}
+              <UserSearch />
+              
               {/* Debug info - remove in production */}
               {user?.isAdmin && (
                 <div className="text-xs text-[#8A8B91]">

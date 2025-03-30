@@ -819,6 +819,91 @@ const wheelSpinSchema = z.object({
 
 //This function was already in the original code.
 function setupRESTRoutes(app: Express) {
+  // Public user profile route - no authentication required
+  // User search endpoint - this must be defined BEFORE the :userId route
+  app.get("/api/users/search", 
+    createRateLimiter('high'),
+    async (req, res) => {
+      try {
+        const query = req.query.q as string;
+        
+        if (!query || query.length < 2) {
+          return res.status(400).json({ 
+            message: "Search query must be at least 2 characters" 
+          });
+        }
+        
+        // Search for users by username
+        const users = await db.query.users.findMany({
+          where: sql`LOWER(username) LIKE ${`%${query.toLowerCase()}%`}`,
+          limit: 10,
+          columns: {
+            id: true,
+            username: true,
+          }
+        });
+        
+        return res.json({ users });
+      } catch (error) {
+        console.error("User search error:", error);
+        return res.status(500).json({ 
+          message: "An error occurred while searching for users" 
+        });
+      }
+    }
+  );
+  
+  app.get("/api/users/:userId", 
+    createRateLimiter('high'), 
+    async (req, res) => {
+      try {
+        const userId = req.params.userId;
+        if (!userId) {
+          return res.status(400).json({ 
+            status: "error", 
+            message: "User ID is required" 
+          });
+        }
+
+        // Get basic user information (excluding sensitive data)
+        const userId_num = parseInt(userId, 10);
+        if (isNaN(userId_num)) {
+          return res.status(400).json({ 
+            status: "error", 
+            message: "Invalid user ID format" 
+          });
+        }
+        
+        const [user] = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            // Only select fields that exist in the users table
+            createdAt: users.createdAt,
+          })
+          .from(users)
+          .where(eq(users.id, userId_num))
+          .limit(1);
+
+        if (!user) {
+          return res.status(404).json({ 
+            status: "error", 
+            message: "User not found" 
+          });
+        }
+
+        // Return public user profile data
+        res.json(user);
+      } catch (error: unknown) {
+        console.error("Error fetching user profile:", error);
+        res.status(500).json({ 
+          status: "error", 
+          message: "Failed to fetch user profile" 
+        });
+      }
+    }
+  );
+
   app.get("/api/admin/export-logs",
     createRateLimiter('low'),
     async (_req, res) => {
