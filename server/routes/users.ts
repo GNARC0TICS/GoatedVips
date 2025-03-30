@@ -1,10 +1,18 @@
 import { Router } from "express";
-import { db } from "../db";
-import { users } from "../db/schema";
-import type { SelectUser } from "../db/schema";
-import { like, desc } from "drizzle-orm";
+import { db } from "@db";
+import { users } from "@db/schema";
+import type { SelectUser } from "@db/schema";
+import { like, desc, eq } from "drizzle-orm";
 import rateLimit from 'express-rate-limit';
-import type { IpHistoryEntry, LoginHistoryEntry, ActivityLogEntry } from "../db/schema/users";
+import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
+import type { IpHistoryEntry, LoginHistoryEntry, ActivityLogEntry } from "@db/schema/users";
+
+// Setup multer for file uploads
+const upload = multer({ 
+  dest: 'uploads/',
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 const router = Router();
 
@@ -114,6 +122,134 @@ router.put('/api/profile/preferences', async (req, res) => {
         console.error("Preference update error:", error);
         res.status(500).json({ error: 'Server error' });
     }
+});
+
+// Get user by ID - public endpoint 
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Fetch user 
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, id),
+      columns: {
+        // Only include non-sensitive information
+        id: true,
+        username: true,
+        bio: true,
+        profileColor: true,
+        createdAt: true,
+        telegramUsername: true,
+        goatedId: true,
+        // Explicitly exclude sensitive fields
+        password: false,
+        email: false,
+        lastLoginIp: false,
+        registrationIp: false,
+        ipHistory: false,
+        loginHistory: false
+      }
+    });
+    
+    if (!user) {
+      // If user is not found, return placeholder data structure
+      // but with appropriate status code
+      return res.status(404).json({
+        error: "User not found",
+      });
+    }
+    
+    // Return user data
+    res.json(user);
+  } catch (error) {
+    console.error("Error getting user profile:", error);
+    res.status(500).json({ error: "Failed to get user profile" });
+  }
+});
+
+// Create or update user profile
+router.put("/:id/profile", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { bio, profileColor } = req.body;
+    
+    // Check if user exists
+    const existingUser = await db.query.users.findFirst({
+      where: eq(users.id, id),
+      columns: { id: true }
+    });
+    
+    if (!existingUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Update user profile
+    await db
+      .update(users)
+      .set({
+        bio,
+        profileColor,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, id));
+    
+    res.json({ success: true, message: "Profile updated successfully" });
+  } catch (error) {
+    console.error("Error updating user profile:", error);
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
+// Endpoint to create a user profile if it doesn't exist
+router.post("/ensure-profile", async (req, res) => {
+  try {
+    const { username, email } = req.body;
+    
+    // Validate input
+    if (!username || !email) {
+      return res.status(400).json({ 
+        error: "Username and email are required" 
+      });
+    }
+    
+    // Check if user already exists
+    const existingUser = await db.query.users.findFirst({
+      where: eq(users.username, username),
+      columns: { id: true }
+    });
+    
+    if (existingUser) {
+      // User already exists
+      return res.json({ 
+        success: true, 
+        message: "User profile already exists", 
+        id: existingUser.id 
+      });
+    }
+    
+    // If user doesn't exist, create a new profile
+    const userId = uuidv4();
+    await db.insert(users).values({
+      id: userId,
+      username,
+      email,
+      password: '', // empty password since this is just for profile viewing
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      profileColor: '#D7FF00', // Default color
+      bio: '',
+      isAdmin: false
+    });
+    
+    res.json({ 
+      success: true, 
+      message: "User profile created successfully", 
+      id: userId 
+    });
+  } catch (error) {
+    console.error("Error ensuring user profile:", error);
+    res.status(500).json({ error: "Failed to create user profile" });
+  }
 });
 
 

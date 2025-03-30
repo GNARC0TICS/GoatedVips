@@ -85,19 +85,21 @@ export default function UserProfile({ params }: { params: { id: string } }) {
 
   // Fetch basic user data from our API
   const { data: userData, isLoading: isUserLoading } = useQuery({
-    queryKey: [`/api/users/${userId}`],
+    queryKey: [`/users/${userId}`],
     queryFn: async () => {
-      const response = await fetch(`/api/users/${userId}`);
+      const response = await fetch(`/users/${userId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch user data');
       }
       return response.json();
     },
+    retry: 3,
+    retryDelay: 1000,
   });
 
   // Fetch additional stats (this would be implemented in a real API)
   const { data: statsData, isLoading: isStatsLoading, refetch } = useQuery<Omit<UserStats, 'id' | 'username'>>({
-    queryKey: [`/api/users/${userId}/stats`],
+    queryKey: [`/users/${userId}/stats`],
     queryFn: async () => {
       // In a real implementation, this would fetch from the API
       // For now, we'll return mock data based on the user ID
@@ -186,7 +188,7 @@ export default function UserProfile({ params }: { params: { id: string } }) {
     const [color, setColor] = useState(user.profileColor || '#D7FF00');
 
     const handleSubmit = async () => {
-      await fetch(`/api/users/${user.id}/profile`, {
+      await fetch(`/users/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bio, profileColor: color })

@@ -7,6 +7,7 @@ import { log } from "./vite";
 import { API_CONFIG } from "./config/api";
 import { RateLimiterMemory, type RateLimiterRes } from 'rate-limiter-flexible';
 import bonusChallengesRouter from "./routes/bonus-challenges";
+import usersRouter from "./routes/users";
 import { wagerRaces, users, transformationLogs } from "@db/schema";
 
 type RateLimitTier = 'HIGH' | 'MEDIUM' | 'LOW';
@@ -214,7 +215,9 @@ function setupAPIRoutes(app: Express) {
 
   // Mount all API routes under /api prefix
   app.use("/api/bonus", bonusChallengesRouter);
-  app.use("/api",router); //Added this line
+  app.use("/api/users", usersRouter); // For backward compatibility
+  app.use("/users", usersRouter);     // New public profile routes
+  app.use("/api", router); //Added this line
 
 
   // Add other API routes here, ensuring they're all prefixed with /api
@@ -298,7 +301,9 @@ function setupAPIRoutes(app: Express) {
     }
   );
 
-  app.get("/api/admin/analytics",
+  // Admin routes with custom URL path
+  app.get("/goated-supervisor/analytics",
+    requireAdmin, // Ensure admin middleware is applied
     createRateLimiter('low'),
     cacheMiddleware(CACHE_TIMES.LONG),
     async (_req, res) => {
@@ -438,7 +443,8 @@ function setupAPIRoutes(app: Express) {
       }
     }
   );
-  app.get("/api/admin/transformation-metrics",
+  app.get("/goated-supervisor/transformation-metrics",
+    requireAdmin,
     createRateLimiter('medium'),
     cacheMiddleware(CACHE_TIMES.LONG),
     async (_req, res) => {
