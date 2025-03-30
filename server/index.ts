@@ -33,6 +33,8 @@ import { setupAuth } from "./auth";
 import cors from "cors";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
+import { API_CONFIG } from "./config/api";
+import { users } from "../db/schema";
 
 // Convert callback-based exec to Promise-based for cleaner async/await usage
 const execAsync = promisify(exec);
@@ -102,6 +104,205 @@ async function testDbConnection() {
 }
 
 /**
+ * Creates or retrieves a profile for a specific user ID
+ * Used by endpoints to ensure a user profile exists before showing data
+ * @param userId - The user ID (numeric internal ID or external Goated ID)
+ * @returns User object with isNewlyCreated flag if found/created, null otherwise 
+ */
+export async function ensureUserProfile(userId: string): Promise<any> {
+  if (!userId) return null;
+  
+  console.log(`Ensuring profile exists for ID: ${userId}`);
+  
+  try {
+    // First check if this is a numeric ID in our database
+    const isNumericId = /^\d+$/.test(userId);
+    let existingUser = null;
+    
+    // First check if user already exists in our database
+    try {
+      // Try to find by direct ID match first
+      const results = await db.execute(sql`
+        SELECT id, username, goated_id as "goatedId" 
+        FROM users WHERE id::text = ${userId} LIMIT 1
+      `);
+      
+      existingUser = results.rows && results.rows.length > 0 ? results.rows[0] : null;
+      console.log("String ID search for user existence:", results);
+      
+      if (existingUser) {
+        // Add a flag to indicate this was an existing user
+        return {
+          ...existingUser,
+          isNewlyCreated: false
+        };
+      }
+    } catch (findError) {
+      console.log("Error finding user by string ID:", findError);
+      existingUser = null;
+    }
+    
+    // If not found by direct ID, check if it's a goatedId
+    try {
+      const results = await db.execute(sql`
+        SELECT id, username, goated_id as "goatedId"
+        FROM users WHERE goated_id = ${userId} LIMIT 1
+      `);
+      
+      existingUser = results.rows && results.rows.length > 0 ? results.rows[0] : null;
+      
+      if (existingUser) {
+        // Add a flag to indicate this was an existing user
+        return {
+          ...existingUser,
+          isNewlyCreated: false
+        };
+      }
+    } catch (findError) {
+      console.log("Error finding user by Goated ID:", findError);
+    }
+    
+    // No existing user, try to create one from the API if it's numeric (potential Goated ID)
+    if (isNumericId) {
+      const token = process.env.API_TOKEN || API_CONFIG.token;
+      
+      if (!token) {
+        console.warn("API token not available for profile creation");
+        return null;
+      }
+      
+      // Fetch player data directly from the player endpoint
+      const playerUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.player}/${userId}`;
+      console.log(`Fetching player data from ${playerUrl}`);
+      
+      const response = await fetch(playerUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        }
+      });
+      
+      if (!response.ok) {
+        console.error(`Failed to fetch player data: ${response.status}`);
+        return null;
+      }
+      
+      const playerData = await response.json();
+      if (!playerData || !playerData.username) {
+        console.error("Invalid or empty player data returned");
+        return null;
+      }
+      
+      // Create a new profile for this user
+      const newUserId = Math.floor(1000 + Math.random() * 9000);
+      const email = `${playerData.username.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
+      
+      const result = await db.execute(sql`
+        INSERT INTO users (
+          id, username, email, password, created_at, profile_color, bio, is_admin, goated_id
+        ) VALUES (
+          ${newUserId}, ${playerData.username}, ${email}, '', ${new Date()}, '#D7FF00', '', false, ${userId}
+        ) RETURNING id, username, goated_id as "goatedId"
+      `);
+      
+      if (result && result.rows && result.rows.length > 0) {
+        console.log(`Created new profile for ${playerData.username} (${userId})`);
+        // Add a flag to indicate this is a newly created user
+        return {
+          ...result.rows[0],
+          isNewlyCreated: true
+        };
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`Error ensuring profile for ID ${userId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Creates user profiles for all external API users
+ * Ensures profiles exist for everyone in the leaderboard 
+ */
+async function syncUserProfiles() {
+  try {
+    console.log("Syncing user profiles from leaderboard...");
+    const API_TOKEN = process.env.API_TOKEN;
+    
+    const token = API_TOKEN || API_CONFIG.token;
+    if (!token) {
+      console.warn("API token not configured, skipping profile sync");
+      return;
+    }
+    
+    // Fetch leaderboard data to get all users
+    const response = await fetch(
+      `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`, 
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    
+    if (!response.ok) {
+      console.error(`Failed to fetch leaderboard data: ${response.status}`);
+      return;
+    }
+    
+    const leaderboardData = await response.json();
+    
+    // Process all_time data to get unique users
+    const allTimeData = leaderboardData?.data?.all_time?.data || [];
+    let createdCount = 0;
+    let existingCount = 0;
+    
+    console.log(`Processing ${allTimeData.length} users from leaderboard`);
+    
+    // Process each user from the leaderboard
+    for (const player of allTimeData) {
+      try {
+        // Skip entries without uid or name
+        if (!player.uid || !player.name) continue;
+        
+        // Check if user already exists by goatedId
+        const existingUser = await db.select().from(users)
+          .where(sql`goated_id = ${player.uid}`)
+          .limit(1);
+        
+        if (existingUser && existingUser.length > 0) {
+          existingCount++;
+          continue; // Skip existing users
+        }
+        
+        // Create a new profile for this user
+        const newUserId = Math.floor(1000 + Math.random() * 9000);
+        const email = `${player.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
+        
+        await db.execute(sql`
+          INSERT INTO users (
+            id, username, email, password, created_at, profile_color, bio, is_admin, goated_id
+          ) VALUES (
+            ${newUserId}, ${player.name}, ${email}, '', ${new Date()}, '#D7FF00', '', false, ${player.uid}
+          )
+        `);
+        
+        createdCount++;
+      } catch (error) {
+        console.error(`Error creating profile for ${player?.name}:`, error);
+      }
+    }
+    
+    console.log(`Profile sync completed. Created ${createdCount} new profiles, ${existingCount} already existed.`);
+  } catch (error) {
+    console.error("Error syncing profiles from leaderboard:", error);
+  }
+}
+
+/**
  * Main server initialization function
  * Orchestrates the complete server setup process including:
  * - Port availability check
@@ -121,6 +322,10 @@ async function initializeServer() {
 
     await testDbConnection();
     log("info", "Database connection established");
+    
+    // Synchronize user profiles from API
+    await syncUserProfiles();
+    log("info", "User profiles synchronized");
 
     const app = express();
     setupMiddleware(app);

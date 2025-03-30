@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
 import { API_CONFIG } from "../config/api";
 import bcrypt from 'bcrypt';
+import { ensureUserProfile } from "../index";
 
 // Type definitions for missing properties
 type IpHistoryEntry = { ip: string; timestamp: Date; };
@@ -202,12 +203,36 @@ router.get("/:id", async (req, res) => {
     
     // Fetch user based on ID type
     let user;
-    if (isNumericId) {
-      // For numeric IDs, try using raw SQL to avoid type conversion issues
-      const numericId = parseInt(id, 10);
-      console.log(`Parsed numeric ID: ${numericId}`);
+    
+    // Try to find user by ID using CAST to handle both numeric and string IDs
+    try {
+      console.log(`Executing SQL query for ID ${id}`);
+      const results = await db.execute(sql`
+        SELECT 
+          id, 
+          username, 
+          bio, 
+          profile_color as "profileColor", 
+          created_at as "createdAt", 
+          goated_id as "goatedId"
+        FROM users 
+        WHERE id::text = ${id}
+        LIMIT 1
+      `);
+      
+      console.log(`Query results:`, results);
+      // Extract the user from the first row of results
+      user = results.rows && results.rows.length > 0 ? results.rows[0] : null;
+      console.log("Extracted user by ID:", user);
+    } catch (findError) {
+      console.log("Error finding user by ID:", findError);
+      user = null;
+    }
+    
+    // If no user found by ID and it's numeric, check if it's a Goated ID
+    if (!user && isNumericId) {
       try {
-        console.log(`Executing SQL query for numeric ID ${numericId}`);
+        console.log(`Checking if ${id} is a Goated ID`);
         const results = await db.execute(sql`
           SELECT 
             id, 
@@ -217,27 +242,28 @@ router.get("/:id", async (req, res) => {
             created_at as "createdAt", 
             goated_id as "goatedId"
           FROM users 
-          WHERE id = ${numericId}
+          WHERE goated_id = ${id}
           LIMIT 1
         `);
-        console.log(`Query results:`, results);
-        // Extract the user from the first row of results
+        
+        console.log(`Goated ID query results:`, results);
         user = results.rows && results.rows.length > 0 ? results.rows[0] : null;
-        console.log("Extracted user:", user);
-      } catch (findError) {
-        console.log("Error finding user by numeric ID:", findError);
+        console.log("Extracted user by Goated ID:", user);
+      } catch (goatedIdError) {
+        console.log("Error finding user by Goated ID:", goatedIdError);
         user = null;
       }
       
-      // If no user found with numeric ID, try to see if this is a Goated ID
+      // If still no user found, try to fetch and create from the external API
       if (!user) {
         try {
+          console.log(`Attempting to fetch user data from external API for ID ${id}`);
           // Try to fetch this user's data from the external API
           const API_TOKEN = process.env.API_TOKEN;
           if (API_TOKEN) {
             // Attempt to find this user in the wager races API
             const response = await fetch(
-              `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.player}/${numericId}`,
+              `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.player}/${id}`,
               {
                 headers: {
                   Authorization: `Bearer ${API_TOKEN}`,
@@ -249,10 +275,12 @@ router.get("/:id", async (req, res) => {
             if (response.ok) {
               const playerData = await response.json();
               if (playerData && playerData.uid && playerData.name) {
+                console.log(`Found player in API:`, playerData);
                 // Found a player - create a profile for them
-                const userId = uuidv4();
+                const userId = Math.floor(1000 + Math.random() * 9000); // Generate numeric ID for compatibility
                 const email = `${playerData.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
                 
+                console.log(`Creating new user with ID ${userId} for Goated player ${playerData.name}`);
                 await db.execute(sql`
                   INSERT INTO users (
                     id, username, email, password, created_at, updated_at, profile_color, bio, is_admin, goated_id
@@ -270,47 +298,32 @@ router.get("/:id", async (req, res) => {
                   createdAt: new Date(),
                   goatedId: playerData.uid
                 };
+                
+                console.log(`Created and returning new user:`, user);
               }
+            } else {
+              console.log(`API returned non-OK response:`, response.status);
             }
+          } else {
+            console.log(`No API_TOKEN available for external API request`);
           }
         } catch (apiError) {
           console.error("Error creating user from API:", apiError);
           // Continue - we'll return 404 if we can't create the user
         }
       }
-    } else {
-      // For string IDs (UUID format), use raw SQL to avoid type conversion issues
-      try {
-        const results = await db.execute(sql`
-          SELECT 
-            id, 
-            username, 
-            bio, 
-            profile_color as "profileColor", 
-            created_at as "createdAt", 
-            goated_id as "goatedId"
-          FROM users 
-          WHERE id = ${id}
-          LIMIT 1
-        `);
-        console.log(`String ID query results:`, results);
-        // Extract the user from the first row of results
-        user = results.rows && results.rows.length > 0 ? results.rows[0] : null;
-        console.log("Extracted user from string ID:", user);
-      } catch (findError) {
-        console.log("Error finding user by string ID:", findError);
-        user = null;
-      }
     }
     
     if (!user) {
       // If user is not found, return 404
+      console.log(`No user found for ID ${id}`);
       return res.status(404).json({
         error: "User not found",
       });
     }
     
     // Return user data
+    console.log(`Returning user:`, user);
     res.json(user);
   } catch (error) {
     console.error("Error getting user profile:", error);
@@ -324,59 +337,35 @@ router.put("/:id/profile", async (req, res) => {
     const { id } = req.params;
     const { bio, profileColor } = req.body;
     
-    // Check if id is numeric or a string ID
-    const isNumericId = /^\d+$/.test(id);
+    console.log(`Profile update requested for ID: ${id}`);
+    console.log(`Bio: ${bio}, ProfileColor: ${profileColor}`);
     
-    // Check if user exists based on ID type using raw SQL to avoid type conversion issues
-    let existingUser;
-    if (isNumericId) {
-      // For numeric IDs
-      try {
-        const numericId = parseInt(id, 10);
-        const results = await db.execute(sql`
-          SELECT id FROM users WHERE id = ${numericId} LIMIT 1
-        `);
-        console.log(`Numeric ID profile update check results:`, results);
-        existingUser = results.rows && results.rows.length > 0 ? results.rows[0] : null;
-      } catch (findError) {
-        console.log("Error finding user by numeric ID for update:", findError);
-        existingUser = null;
+    // Check if user exists using CAST to handle both numeric and string IDs
+    try {
+      const results = await db.execute(sql`
+        SELECT id FROM users WHERE id::text = ${id} LIMIT 1
+      `);
+      console.log(`Profile update check results:`, results);
+      
+      const existingUser = results.rows && results.rows.length > 0 ? results.rows[0] : null;
+      
+      if (!existingUser) {
+        return res.status(404).json({ error: "User not found" });
       }
-    } else {
-      // For string IDs
-      try {
-        const results = await db.execute(sql`
-          SELECT id FROM users WHERE id = ${id} LIMIT 1
-        `);
-        console.log(`String ID profile update check results:`, results);
-        existingUser = results.rows && results.rows.length > 0 ? results.rows[0] : null;
-      } catch (findError) {
-        console.log("Error finding user by string ID for update:", findError);
-        existingUser = null;
-      }
-    }
-    
-    if (!existingUser) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    
-    // Update user profile using raw SQL to avoid type conversion issues
-    if (isNumericId) {
-      const numericId = parseInt(id, 10);
+      
+      // Update user profile
       await db.execute(sql`
         UPDATE users 
         SET bio = ${bio}, profile_color = ${profileColor}
-        WHERE id = ${numericId}
+        WHERE id::text = ${id}
       `);
-    } else {
-      await db.execute(sql`
-        UPDATE users 
-        SET bio = ${bio}, profile_color = ${profileColor}
-        WHERE id = ${id}
-      `);
+      
+      console.log(`Profile updated successfully for user ${id}`);
+      res.json({ success: true, message: "Profile updated successfully" });
+    } catch (error) {
+      console.error("Error finding or updating user:", error);
+      res.status(500).json({ error: "Failed to update profile" });
     }
-    
-    res.json({ success: true, message: "Profile updated successfully" });
   } catch (error) {
     console.error("Error updating user profile:", error);
     res.status(500).json({ error: "Failed to update profile" });
@@ -430,6 +419,8 @@ router.post("/ensure-profile", async (req, res) => {
     res.status(500).json({ error: "Failed to create user profile" });
   }
 });
+
+// Endpoint for ensuring a user profile exists will be at /ensure-profile-from-id
 
 
 
@@ -670,109 +661,23 @@ router.post("/ensure-profile-from-id", async (req, res) => {
       });
     }
     
-    // Check if ID is numeric (potential Goated ID) or UUID format
-    const isNumericId = /^\d+$/.test(userId);
+    console.log(`Ensuring profile exists for ID: ${userId}`);
     
-    // First check if user already exists in our database
-    let existingUser;
+    // Use our centralized ensureUserProfile function
+    const user = await ensureUserProfile(userId);
     
-    if (isNumericId) {
-      // Check if this is a Goated ID using raw SQL to avoid schema issues
-      try {
-        const results = await db.execute(sql`
-          SELECT id, username FROM users WHERE goated_id = ${userId}::text LIMIT 1
-        `);
-        console.log(`Goated ID search for user existence:`, results);
-        existingUser = results.rows && results.rows.length > 0 ? results.rows[0] : null;
-      } catch (findError) {
-        console.log("Error finding user by Goated ID:", findError);
-        existingUser = null;
-      }
-    } else {
-      // Check by string ID (UUID format) using raw SQL to avoid type conversion issues
-      try {
-        const results = await db.execute(sql`
-          SELECT id, username FROM users WHERE id::text = ${userId}
-          LIMIT 1
-        `);
-        console.log(`String ID search for user existence:`, results);
-        existingUser = results.rows && results.rows.length > 0 ? results.rows[0] : null;
-      } catch (findError) {
-        console.log("Error finding user by string ID:", findError);
-        existingUser = null;
-      }
-    }
-    
-    // If user exists, return success
-    if (existingUser) {
-      return res.json({
-        success: true,
-        message: "User profile already exists",
-        id: existingUser.id,
-        username: existingUser.username
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found with provided ID"
       });
     }
     
-    // If user doesn't exist and ID is numeric, try to fetch from the Goated API
-    if (isNumericId) {
-      try {
-        const API_TOKEN = process.env.API_TOKEN;
-        
-        if (!API_TOKEN) {
-          return res.status(500).json({
-            error: "API_TOKEN is not configured"
-          });
-        }
-        
-        // Attempt to get user data from Goated API
-        const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.player}/${userId}`, {
-          headers: {
-            Authorization: `Bearer ${API_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-        });
-        
-        if (response.ok) {
-          const playerData = await response.json();
-          
-          if (playerData && playerData.uid && playerData.name) {
-            // Create a profile for this user
-            const newUserId = Math.floor(1000 + Math.random() * 9000); // Generate a random numeric ID
-            const email = `${playerData.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
-            
-            // Use raw SQL to insert the new user
-            await db.execute(sql`
-              INSERT INTO users (
-                id, username, email, password, created_at, profile_color, bio, is_admin, goated_id
-              ) VALUES (
-                ${newUserId}, ${playerData.name}, ${email}, '', ${new Date()}, '#D7FF00', '', false, ${playerData.uid}
-              )
-            `);
-            
-            return res.json({
-              success: true,
-              message: "User profile created from Goated API",
-              id: newUserId,
-              username: playerData.name
-            });
-          }
-        }
-        
-        // If we get here, the user doesn't exist in Goated API either
-        return res.status(404).json({
-          error: "User not found in our system or Goated API"
-        });
-      } catch (apiError) {
-        console.error("Error creating user from API:", apiError);
-        return res.status(500).json({
-          error: "Failed to fetch user data from API"
-        });
-      }
-    }
-    
-    // If non-numeric ID, just return not found
-    return res.status(404).json({
-      error: "User not found with provided ID"
+    return res.json({
+      success: true,
+      message: user.isNewlyCreated ? "User profile created successfully" : "User profile already exists",
+      id: user.id,
+      username: user.username,
+      goatedId: user.goatedId
     });
   } catch (error) {
     console.error("Error ensuring user profile from ID:", error);
