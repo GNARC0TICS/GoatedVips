@@ -561,9 +561,44 @@ export function Layout({ children }: { children: ReactNode }) {
                           setOpenMobile(false);
                           window.open("https://www.goated.com/r/SPIN", "_blank");
                         }}
-                        className="w-full bg-[#D7FF00] text-[#14151A] hover:bg-[#D7FF00]/90 transition-colors font-bold"
+                        className="w-full bg-[#D7FF00] text-[#14151A] hover:bg-[#D7FF00]/90 transition-colors font-bold group"
                       >
-                        PLAY NOW →
+                        <span className="flex items-center gap-1">
+                          PLAY NOW
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            width="20" 
+                            height="20" 
+                            viewBox="0 0 24 24"
+                            className="ml-1"
+                          >
+                            <path 
+                              fill="currentColor" 
+                              fillOpacity="0" 
+                              stroke="currentColor" 
+                              strokeDasharray="40" 
+                              strokeDashoffset="40" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              strokeWidth="2" 
+                              d="M8 6l10 6l-10 6Z"
+                            >
+                              <animate 
+                                fill="freeze" 
+                                attributeName="fill-opacity" 
+                                begin="0s" 
+                                dur="0.8s" 
+                                values="0;1" 
+                              />
+                              <animate 
+                                fill="freeze" 
+                                attributeName="stroke-dashoffset" 
+                                dur="0.8s" 
+                                values="40;0" 
+                              />
+                            </path>
+                          </svg>
+                        </span>
                       </Button>
                     </div>
                   </motion.div>
@@ -692,7 +727,42 @@ export function Layout({ children }: { children: ReactNode }) {
                   }
                   className="relative group overflow-hidden text-[#14151A] fill-animation hover:text-[#D7FF00] transition-all duration-3000 font-heading uppercase tracking-tight h-8 md:h-10 px-3 md:px-4 text-sm md:text-base"
                 >
-                  <span className="relative z-10">PLAY →</span>
+                  <span className="relative z-10 flex items-center gap-1">
+                    PLAY
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      width="20" 
+                      height="20" 
+                      viewBox="0 0 24 24"
+                      className="ml-1"
+                    >
+                      <path 
+                        fill="currentColor" 
+                        fillOpacity="0" 
+                        stroke="currentColor" 
+                        strokeDasharray="40" 
+                        strokeDashoffset="40" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth="2" 
+                        d="M8 6l10 6l-10 6Z"
+                      >
+                        <animate 
+                          fill="freeze" 
+                          attributeName="fill-opacity" 
+                          begin="0s" 
+                          dur="0.8s" 
+                          values="0;1" 
+                        />
+                        <animate 
+                          fill="freeze" 
+                          attributeName="stroke-dashoffset" 
+                          dur="0.8s" 
+                          values="40;0" 
+                        />
+                      </path>
+                    </svg>
+                  </span>
                 </Button>
               </div>
             </div>
