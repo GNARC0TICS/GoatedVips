@@ -211,8 +211,6 @@ export default function Home() {
                         How it works <ArrowRight className="h-4 w-4" />
                       </span>
                     </div>
-                  </div>
-                </Link>
 
                 <Link href="/challenges" className="block">
                   <div className="relative group transform transition-all duration-300 hover:scale-[1.02]">
