@@ -1,6 +1,5 @@
 {pkgs}: {
   deps = [
-    pkgs.openssh
     pkgs.killall
     pkgs.mailman
     pkgs.jq

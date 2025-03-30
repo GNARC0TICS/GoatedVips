@@ -87,25 +87,8 @@ export default function SupportManagement() {
           </ScrollArea>
           
           <form
-            onSubmit={async (e) => {
+            onSubmit={(e) => {
               e.preventDefault();
-              if (selectedTicket?.email) {
-                // Send email response
-                await fetch('/api/support/email/respond', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    userEmail: selectedTicket.email,
-                    subject: selectedTicket.subject,
-                    message: message,
-                    ticketId: selectedTicket.id
-                  })
-                });
-                toast({
-                  title: "Response Sent",
-                  description: "Email response has been sent to the user"
-                });
-              }
               sendMessage(message);
             }}
             className="flex gap-2"

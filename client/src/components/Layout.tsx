@@ -153,15 +153,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const [openMobile, setOpenMobile] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: user, isError } = useQuery<SelectUser>({ 
-    queryKey: ["/api/user"],
-    retry: false,
-    refetchOnWindowFocus: false,
-    onError: () => {
-      // Silently handle auth errors
-      return null;
-    }
-  });
+  const { data: user } = useQuery<SelectUser>({ queryKey: ["/api/user"] });
   const isAuthenticated = !!user;
 
   // Scroll to top on location change
@@ -406,6 +398,37 @@ export function Layout({ children }: { children: ReactNode }) {
                     <Link href="/telegram">
                       <div className={dropdownClasses.item}>
                         Telegram Community
+                      </div>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative group">
+                <Link href="/help">
+                  <Button
+                    variant="ghost"
+                    className="flex items-center gap-1 font-heading text-white hover:text-[#D7FF00] transition-colors duration-300 hover:bg-transparent px-2"
+                  >
+                    <span className="font-bold">HELP & FAQ</span>
+                    <ChevronDown className="h-4 w-4 transition-transform duration-300 group-hover:rotate-180" />
+                  </Button>
+                </Link>
+                <div className="absolute left-0 mt-2 w-56 opacity-0 invisible transition-all duration-300 ease-in-out group-hover:opacity-100 group-hover:visible">
+                  <div className="bg-[#1A1B21]/95 backdrop-blur-xl border border-[#2A2B31] rounded-xl shadow-2xl py-2 px-1">
+                    <Link href="/help">
+                      <div className={dropdownClasses.item}>
+                        Help Center
+                      </div>
+                    </Link>
+                    <Link href="/faq">
+                      <div className={dropdownClasses.item}>
+                        FAQ
+                      </div>
+                    </Link>
+                    <Link href="/support">
+                      <div className={dropdownClasses.item}>
+                        Contact Support
                       </div>
                     </Link>
                   </div>

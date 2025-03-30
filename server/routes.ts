@@ -1,7 +1,3 @@
-declare global {
-  var botInstance: any; // TODO: Replace 'any' with proper bot type once available
-}
-
 import { Router, type Express, type Request, type Response, type NextFunction } from "express";
 import { db } from "@db";
 import { sql } from "drizzle-orm";
@@ -114,18 +110,6 @@ const CACHE_TIMES = {
   LONG: 300000     // 5 minutes
 };
 
-//Update the logging implementation to handle multiple arguments
-function logMessage(...args: (string | object)[]): void {
-  const message = args.map(arg => {
-    if (typeof arg === 'object') {
-      return JSON.stringify(arg, null, 2);
-    }
-    return String(arg);
-  }).join(' ');
-  log(message);
-}
-
-
 // Health check endpoint
 router.get("/health", async (_req: Request, res: Response) => {
   try {
@@ -142,13 +126,13 @@ router.get("/health", async (_req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({
       status: "error",
-      message: process.env.NODE_ENV === "production" ? "Health check failed" : error instanceof Error ? error.message : String(error)
+      message: process.env.NODE_ENV === "production" ? "Health check failed" : error.message
     });
   }
 });
 
 // Wager races endpoint
-router.get("/wager-races/current",
+router.get("/wager-races/current", 
   createRateLimiter('high'),
   cacheMiddleware(CACHE_TIMES.SHORT),
   async (_req: Request, res: Response) => {
@@ -173,7 +157,7 @@ router.get("/wager-races/current",
 
       res.json(raceData);
     } catch (error) {
-      logMessage('Error in /wager-races/current:', error);
+      console.error('Error in /wager-races/current:', error);
       res.status(200).json(getDefaultRaceData());
     }
   }
@@ -230,7 +214,7 @@ function setupAPIRoutes(app: Express) {
 
   // Mount all API routes under /api prefix
   app.use("/api/bonus", bonusChallengesRouter);
-  app.use("/api", router); //Added this line
+  app.use("/api",router); //Added this line
 
 
   // Add other API routes here, ensuring they're all prefixed with /api
@@ -252,7 +236,7 @@ function setupAPIRoutes(app: Express) {
           url += `?username=${encodeURIComponent(username)}`;
         }
 
-        logMessage('Fetching affiliate stats from:', url);
+        log('Fetching affiliate stats from:', url);
 
         const response = await fetch(url, {
           headers: {
@@ -263,7 +247,7 @@ function setupAPIRoutes(app: Express) {
 
         if (!response.ok) {
           if (response.status === 401) {
-            logMessage("API Authentication failed - check API token");
+            log("API Authentication failed - check API token");
             throw new ApiError("API Authentication failed", { status: 401 });
           }
           throw new ApiError(`API request failed: ${response.status}`, { status: response.status });
@@ -272,7 +256,7 @@ function setupAPIRoutes(app: Express) {
         const rawData = await response.json();
 
         // More detailed logging of the raw data structure
-        logMessage('Raw API response structure:', {
+        log('Raw API response structure:', {
           hasData: Boolean(rawData),
           dataStructure: typeof rawData,
           keys: Object.keys(rawData),
@@ -286,7 +270,7 @@ function setupAPIRoutes(app: Express) {
 
         const transformedData = await transformLeaderboardData(rawData);
 
-        logMessage('Transformed leaderboard data:', {
+        log('Transformed leaderboard data:', {
           status: transformedData.status,
           totalUsers: transformedData.metadata?.totalUsers,
           dataLengths: {
@@ -299,7 +283,7 @@ function setupAPIRoutes(app: Express) {
 
         res.json(transformedData);
       } catch (error) {
-        logMessage(`Error in /api/affiliate/stats: ${error}`);
+        log(`Error in /api/affiliate/stats: ${error}`);
         res.status(error instanceof ApiError ? error.status || 500 : 500).json({
           status: "error",
           message: error instanceof Error ? error.message : "An unexpected error occurred",
@@ -387,7 +371,7 @@ function setupAPIRoutes(app: Express) {
           mode: "polling"
         });
       } catch (error) {
-        logMessage(`Error checking bot status: ${error}`);
+        log(`Error checking bot status: ${error}`);
         res.status(500).json({
           status: "error",
           message: "Failed to check bot status"
@@ -426,7 +410,7 @@ function setupAPIRoutes(app: Express) {
           lastSpin: lastSpinDate?.toISOString() || null
         });
       } catch (error) {
-        logMessage("Error checking wheel spin eligibility:", error);
+        console.error("Error checking wheel spin eligibility:", error);
         res.status(500).json({
           status: "error",
           message: "Failed to check eligibility"
@@ -474,7 +458,7 @@ function setupAPIRoutes(app: Express) {
           message: "Spin recorded successfully"
         });
       } catch (error) {
-        logMessage("Error recording wheel spin:", error);
+        console.error("Error recording wheel spin:", error);
         res.status(500).json({
           status: "error",
           message: "Failed to record spin"
@@ -487,7 +471,7 @@ function setupAPIRoutes(app: Express) {
     cacheMiddleware(CACHE_TIMES.LONG),
     async (_req, res) => {
       try {
-        logMessage('Executing transformation metrics query...');
+        console.log('Executing transformation metrics query...');
 
         const result = await db.query.transformationLogs.findMany({
           columns: {
@@ -498,7 +482,7 @@ function setupAPIRoutes(app: Express) {
           where: sql`created_at > NOW() - INTERVAL '24 hours'`
         });
 
-        logMessage('Raw query result:', result);
+        console.log('Raw query result:', result);
 
         // Calculate metrics from the result array
         const metrics = {
@@ -510,7 +494,7 @@ function setupAPIRoutes(app: Express) {
             : Date.now()
         };
 
-        logMessage('Calculated metrics:', metrics);
+        console.log('Calculated metrics:', metrics);
 
         const response = {
           status: 'success',
@@ -524,10 +508,10 @@ function setupAPIRoutes(app: Express) {
           }
         };
 
-        logMessage('Processed response:', response);
+        console.log('Processed response:', response);
         res.json(response);
       } catch (error) {
-        logMessage('Error in transformation metrics endpoint:', {
+        console.error('Error in transformation metrics endpoint:', {
           error: error instanceof Error ? {
             message: error.message,
             stack: error.stack,
@@ -550,14 +534,14 @@ function setupAPIRoutes(app: Express) {
     createRateLimiter('low'),
     async (_req, res) => {
       try {
-        logMessage('Fetching logs for export...');
+        console.log('Fetching logs for export...');
 
         const logs = await db.query.transformationLogs.findMany({
           orderBy: (logs, { desc }) => [desc(logs.created_at)],
           limit: 1000 // Limit to last 1000 logs
         });
 
-        logMessage(`Found ${logs.length} logs to export`);
+        console.log(`Found ${logs.length} logs to export`);
 
         const formattedLogs = logs.map(log => ({
           timestamp: log.created_at.toISOString(),
@@ -587,7 +571,7 @@ function setupAPIRoutes(app: Express) {
 
         res.send(csvData);
       } catch (error) {
-        logMessage('Error exporting logs:', error);
+        console.error('Error exporting logs:', error);
         res.status(500).json({
           status: 'error',
           message: 'Failed to export logs',
@@ -678,7 +662,7 @@ function setupWebSocket(httpServer: Server) {
 
 function handleLeaderboardConnection(ws: WebSocket) {
   const clientId = Date.now().toString();
-  logMessage(`Leaderboard WebSocket client connected (${clientId})`);
+  log(`Leaderboard WebSocket client connected (${clientId})`);
 
   ws.isAlive = true;
   const pingInterval = setInterval(() => {
@@ -692,13 +676,13 @@ function handleLeaderboardConnection(ws: WebSocket) {
   });
 
   ws.on("error", (error: Error) => {
-    logMessage(`WebSocket error (${clientId}): ${error.message}`);
+    log(`WebSocket error (${clientId}): ${error.message}`);
     clearInterval(pingInterval);
     ws.terminate();
   });
 
   ws.on("close", () => {
-    logMessage(`Leaderboard WebSocket client disconnected (${clientId})`);
+    log(`Leaderboard WebSocket client disconnected (${clientId})`);
     clearInterval(pingInterval);
   });
 
@@ -713,7 +697,7 @@ function handleLeaderboardConnection(ws: WebSocket) {
 
 function handleTransformationLogsConnection(ws: WebSocket) {
   const clientId = Date.now().toString();
-  logMessage(`Transformation logs WebSocket client connected (${clientId})`);
+  log(`Transformation logs WebSocket client connected (${clientId})`);
 
   // Send initial connection confirmation
   if (ws.readyState === WebSocket.OPEN) {
@@ -740,7 +724,7 @@ function handleTransformationLogsConnection(ws: WebSocket) {
         }
       })
       .catch(error => {
-        logMessage("Error fetching initial logs:", error);
+        console.error("Error fetching initial logs:", error);
       });
   }
 
@@ -758,11 +742,11 @@ function handleTransformationLogsConnection(ws: WebSocket) {
 
   ws.on("close", () => {
     clearInterval(pingInterval);
-    logMessage(`Transformation logs WebSocket client disconnected (${clientId})`);
+    log(`Transformation logs WebSocket client disconnected (${clientId})`);
   });
 
   ws.on("error", (error: Error) => {
-    logMessage(`WebSocket error (${clientId}): ${error.message}`);
+    log(`WebSocket error (${clientId}): ${error.message}`);
     clearInterval(pingInterval);
     ws.terminate();
   });
@@ -860,6 +844,62 @@ const wheelSpinSchema = z.object({
   segmentIndex: z.number(),
   reward: z.string().nullable(),
 });
+
+//This function was already in the original code.
+function setupRESTRoutes(app: Express) {
+  app.get("/api/admin/export-logs",
+    createRateLimiter('low'),
+    async (_req, res) => {
+      try {
+        console.log('Fetching logs for export...');
+
+        const logs = await db.query.transformationLogs.findMany({
+          orderBy: (logs, { desc }) => [desc(logs.created_at)],
+          limit: 1000 // Limit to last 1000 logs
+        });
+
+        console.log(`Found ${logs.length} logs to export`);
+
+        const formattedLogs = logs.map(log => ({
+          timestamp: log.created_at.toISOString(),
+          type: log.type,
+          message: log.message,
+          duration_ms: log.duration_ms?.toString() || '',
+          resolved: log.resolved ? 'Yes' : 'No',
+          error_message: log.error_message || '',
+          payload: log.payload ? JSON.stringify(log.payload) : ''
+        }));
+
+        // Set headers for CSV download
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename=transformation_logs_${new Date().toISOString().split('T')[0]}.csv`);
+
+        // Convert to CSV format
+        const csvData = [
+          // Header row
+          Object.keys(formattedLogs[0] || {}).join(','),
+          // Data rows
+          ...formattedLogs.map(log =>
+            Object.values(log)
+              .map(value => `"${String(value).replace(/"/g, '""')}"`)
+              .join(',')
+          )
+        ].join('\n');
+
+        res.send(csvData);
+      } catch (error) {
+        console.error('Error exporting logs:', error);
+        res.status(500).json({
+          status: 'error',
+          message: 'Failed to export logs',
+          details: process.env.NODE_ENV === 'development'
+            ? error instanceof Error ? error.message : String(error)
+            : undefined
+        });
+      }
+    }
+  );
+}
 
 class ApiError extends Error {
   status?: number;
