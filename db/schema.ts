@@ -9,105 +9,31 @@ import {
   jsonb,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { relations } from "drizzle-orm";
-import {
-  challenges,
-  challengeEntries,
-  telegramBotState,
-  telegramUsers,
-  verificationRequests,
-} from "./schema/telegram";
+import { relations, sql } from "drizzle-orm";
 
+// Users table - using basic schema that still maintains essential fields
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").unique().notNull(),
+  username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  email: text("email").unique().notNull(),
+  email: text("email").notNull().unique(),
   isAdmin: boolean("is_admin").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  lastLogin: timestamp("last_login"),
-  lastLoginIp: text("last_login_ip"),
-  
-  // Email verification fields
-  isEmailVerified: boolean("is_email_verified").default(false),
-  emailVerificationToken: text("email_verification_token"),
-  emailVerificationTokenExpiry: timestamp("email_verification_token_expiry"),
-  emailVerifiedAt: timestamp("email_verified_at"),
-  
-  // Password reset fields
-  passwordResetToken: text("password_reset_token"),
-  passwordResetTokenExpiry: timestamp("password_reset_token_expiry"),
-
-  // Profile customization fields
+  emailVerified: boolean("email_verified").default(false),
+  // Profile fields
   bio: text("bio"),
   profileColor: text("profile_color").default('#D7FF00'),
-
-  // Goated.com account linking fields
-  goatedUid: text("goated_uid").unique(),
+  goatedId: text("goated_id").unique(),
   goatedUsername: text("goated_username"),
-  isGoatedVerified: boolean("is_goated_verified").default(false),
-  goatedVerifiedAt: timestamp("goated_verified_at"),
-
-  // Telegram account linking fields
-  telegramId: text("telegram_id").unique(),
-  telegramUsername: text("telegram_username"),
-  isTelegramVerified: boolean("is_telegram_verified").default(false),
-  telegramVerifiedAt: timestamp("telegram_verified_at"),
+  goatedAccountLinked: boolean("goated_account_linked").default(false),
+  lastActive: timestamp("last_active"),
 });
 
-// User sessions table for tracking login sessions
-export const userSessions = pgTable("user_sessions", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  sessionToken: text("session_token").notNull().unique(),
-  userAgent: text("user_agent"),
-  ipAddress: text("ip_address"),
-  lastActive: timestamp("last_active").defaultNow().notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  rememberMe: boolean("remember_me").default(false).notNull(),
-});
-
-// Refresh tokens for long-term authentication
-export const refreshTokens = pgTable("refresh_tokens", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  token: text("token").notNull().unique(),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  isRevoked: boolean("is_revoked").default(false).notNull(),
-  revokedAt: timestamp("revoked_at"),
-  replacedByToken: text("replaced_by_token"),
-  userAgent: text("user_agent"),
-  ipAddress: text("ip_address"),
-});
-
-// User activity log
-export const userActivityLog = pgTable("user_activity_log", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  action: text("action").notNull(),
-  details: jsonb("details"),
-  ipAddress: text("ip_address"),
-  userAgent: text("user_agent"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const userRelations = relations(users, ({ one, many }) => ({
-  preferences: one(notificationPreferences, {
-    fields: [users.id],
-    references: [notificationPreferences.userId],
-  }),
-  createdRaces: many(wagerRaces),
-  raceParticipations: many(wagerRaceParticipants),
-  // New relations for account linking
-  goatedVerifications: many(goatedVerificationRequests),
-  telegramVerifications: many(telegramVerificationRequests),
-  // Session and activity tracking
-  sessions: many(userSessions),
-  refreshTokens: many(refreshTokens),
-  activityLogs: many(userActivityLog),
+// Simplify relations to avoid module import issues
+export const userRelations = relations(users, ({ many }) => ({
+  // Keep only core relations
+  wheelSpins: many(wheelSpins),
+  wagerRaceParticipations: many(wagerRaceParticipants),
 }));
 
 // Export schemas for validation
@@ -118,17 +44,7 @@ export const selectUserSchema = createSelectSchema(users);
 export type InsertUser = typeof users.$inferInsert;
 export type SelectUser = typeof users.$inferSelect;
 
-// Re-export telegram and verification types
-export {
-  telegramUsers,
-  telegramUserRelations,
-  type InsertTelegramUser,
-  type SelectTelegramUser,
-  verificationRequests,
-  verificationRequestRelations,
-  type InsertVerificationRequest,
-  type SelectVerificationRequest,
-};
+// No re-exports to avoid module reference issues
 
 // Wheel spins table
 export const wheelSpins = pgTable("wheel_spins", {
@@ -285,7 +201,7 @@ export type InsertTicketMessage = typeof ticketMessages.$inferInsert;
 export type SelectTicketMessage = typeof ticketMessages.$inferSelect;
 
 
-export { challenges, challengeEntries } from "./schema/challenges";
+// Temporarily removing challenge imports to resolve issues
 
 export const historicalRaces = pgTable("historical_races", {
   id: serial("id").primaryKey(),

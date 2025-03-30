@@ -194,15 +194,20 @@ router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     
+    console.log(`User profile requested for ID: ${id}`);
+    
     // Check if id is numeric or a string ID
     const isNumericId = /^\d+$/.test(id);
+    console.log(`Is numeric ID: ${isNumericId}`);
     
     // Fetch user based on ID type
     let user;
     if (isNumericId) {
       // For numeric IDs, try using raw SQL to avoid type conversion issues
       const numericId = parseInt(id, 10);
+      console.log(`Parsed numeric ID: ${numericId}`);
       try {
+        console.log(`Executing SQL query for numeric ID ${numericId}`);
         const results = await db.execute(sql`
           SELECT 
             id, 
@@ -215,7 +220,10 @@ router.get("/:id", async (req, res) => {
           WHERE id = ${numericId}
           LIMIT 1
         `);
-        user = results[0] || null;
+        console.log(`Query results:`, results);
+        // Extract the user from the first row of results
+        user = results.rows && results.rows.length > 0 ? results.rows[0] : null;
+        console.log("Extracted user:", user);
       } catch (findError) {
         console.log("Error finding user by numeric ID:", findError);
         user = null;
@@ -285,7 +293,10 @@ router.get("/:id", async (req, res) => {
           WHERE id = ${id}
           LIMIT 1
         `);
-        user = results[0] || null;
+        console.log(`String ID query results:`, results);
+        // Extract the user from the first row of results
+        user = results.rows && results.rows.length > 0 ? results.rows[0] : null;
+        console.log("Extracted user from string ID:", user);
       } catch (findError) {
         console.log("Error finding user by string ID:", findError);
         user = null;
@@ -325,7 +336,8 @@ router.put("/:id/profile", async (req, res) => {
         const results = await db.execute(sql`
           SELECT id FROM users WHERE id = ${numericId} LIMIT 1
         `);
-        existingUser = results[0] || null;
+        console.log(`Numeric ID profile update check results:`, results);
+        existingUser = results.rows && results.rows.length > 0 ? results.rows[0] : null;
       } catch (findError) {
         console.log("Error finding user by numeric ID for update:", findError);
         existingUser = null;
@@ -336,7 +348,8 @@ router.put("/:id/profile", async (req, res) => {
         const results = await db.execute(sql`
           SELECT id FROM users WHERE id = ${id} LIMIT 1
         `);
-        existingUser = results[0] || null;
+        console.log(`String ID profile update check results:`, results);
+        existingUser = results.rows && results.rows.length > 0 ? results.rows[0] : null;
       } catch (findError) {
         console.log("Error finding user by string ID for update:", findError);
         existingUser = null;
@@ -417,6 +430,8 @@ router.post("/ensure-profile", async (req, res) => {
     res.status(500).json({ error: "Failed to create user profile" });
   }
 });
+
+
 
 
 // Placeholder functions (replace with actual implementation)
@@ -623,7 +638,10 @@ router.get("/by-goated-id/:goatedId", async (req, res) => {
         LIMIT 1
       `);
       
-      const user = results[0] || null;
+      console.log(`Goated ID query results:`, results);
+      // Extract the user from the first row of results
+      const user = results.rows && results.rows.length > 0 ? results.rows[0] : null;
+      console.log("Extracted user by Goated ID:", user);
       
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -664,16 +682,25 @@ router.post("/ensure-profile-from-id", async (req, res) => {
         const results = await db.execute(sql`
           SELECT id, username FROM users WHERE goated_id = ${userId}::text LIMIT 1
         `);
-        existingUser = results[0] || null;
+        console.log(`Goated ID search for user existence:`, results);
+        existingUser = results.rows && results.rows.length > 0 ? results.rows[0] : null;
       } catch (findError) {
         console.log("Error finding user by Goated ID:", findError);
         existingUser = null;
       }
     } else {
       // Check by string ID (UUID format) using raw SQL to avoid type conversion issues
-      existingUser = await db.execute(sql`
-        SELECT id, username FROM users WHERE id::text = ${userId}
-      `).then(rows => rows[0] || null);
+      try {
+        const results = await db.execute(sql`
+          SELECT id, username FROM users WHERE id::text = ${userId}
+          LIMIT 1
+        `);
+        console.log(`String ID search for user existence:`, results);
+        existingUser = results.rows && results.rows.length > 0 ? results.rows[0] : null;
+      } catch (findError) {
+        console.log("Error finding user by string ID:", findError);
+        existingUser = null;
+      }
     }
     
     // If user exists, return success

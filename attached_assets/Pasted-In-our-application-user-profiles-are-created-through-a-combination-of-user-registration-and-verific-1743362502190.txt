@@ -1,0 +1,49 @@
+In our application, user profiles are created through a combination of user registration and verification processes. Here’s a breakdown of how it works:
+
+Registration Process
+User Input: Users provide their details (such as username, email, and password) via a form in the frontend.
+Backend Handling:
+The registration data is sent to the backend through an API endpoint that handles user creation.
+The backend validates the input (e.g., checking if the username is already taken).
+User Profiles Creation
+Database Storage: Once validated, the user’s details are stored in the database under the users table.
+Profile Links Community Accounts: Users can also link their profiles to their Goated.com accounts by submitting their UID. Upon verification, stats are updated in the associated user profiles.
+Verification Process
+Email Verification: After registration, an email is sent to the user with a verification link. Clicking this link activates the account.
+Profile Accessibility: Once verified, the user can access their profile, where their wager statistics and related data are displayed.
+Code Snippet Example
+Here’s an illustrative example of how user profile creation might be handled in the backend (in a pseudo-code format):
+
+// Example of user registration endpoint
+app.post('/api/register', async (req, res) => {
+  const { username, email, password } = req.body;
+  // Validate input
+  if (!username || !email || !password) {
+    return res.status(400).send('All fields are required.');
+  }
+  // Hash password before storing (using bcrypt or similar)
+  const hashedPassword = await bcrypt.hash(password, 10);
+  // Create user profile in the database
+  const newUser = await db.users.create({
+    data: {
+      username,
+      email,
+      password: hashedPassword,
+      // Additional fields as necessary
+    },
+  });
+  // Send verification email (using a mail service)
+  sendVerificationEmail(newUser.email);
+  res.status(201).send('User registered. Please verify your email.');
+});
+// Verification process
+app.get('/api/verify-email', async (req, res) => {
+  const { userId } = req.query;
+  // Update user status to verified
+  await db.users.update({
+    where: { id: userId },
+    data: { verified: true },
+  });
+  res.send('Email verified successfully.');
+});
+This process ensures that user profiles are created smoothly while maintaining security and verification. Each profile serves as a central hub for user statistics, activity, and interaction within the GoatedVIPs community.
