@@ -140,14 +140,7 @@ async function initializeServer() {
     server = createServer(app);
     setupWebSocket(server);
 
-    // Initialize Telegram bot integration
-    log("info", "Initializing Telegram bot...");
-    bot = await initializeBot();
-    if (!bot) {
-      log("error", "Failed to initialize Telegram bot - continuing without bot functionality");
-    } else {
-      log("info", "Telegram bot initialized successfully");
-    }
+    // Telegram bot integration removed
 
     // Setup development or production server based on environment
     if (app.get("env") === "development") {
