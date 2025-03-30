@@ -174,9 +174,14 @@ export default function Home() {
                   <div className="relative group transform transition-all duration-300 hover:scale-[1.02]">
                     <div className="absolute inset-0 bg-gradient-to-b from-[#D7FF00]/20 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 blur-sm" />
                     <div className="relative p-6 md:p-8 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm hover:border-[#D7FF00]/50 transition-all duration-300 shadow-lg hover:shadow-[#FFD700]/20 card-hover h-full w-full flex flex-col justify-between">
-                      <h3 className="text-2xl font-heading uppercase mb-4 text-white">
-                        VIP Transfer
-                      </h3>
+                      <div className="flex items-center gap-3 mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" className="text-[#D7FF00]">
+                          <path fill="currentColor" d="M8 3L1 9h2v6h4v-4h2v4h4V9h2zm3.5 6v4.5h-1v-4h-5v4h-1V8L8 5l3.5 3zM9 16v2h6v-2l3 3l-3 3v-2H9v2l-3-3zm14-7h-2v6h-6v-5h4l-5.46-4.89L16 3z" />
+                        </svg>
+                        <h3 className="text-2xl font-heading uppercase text-white">
+                          VIP Transfer
+                        </h3>
+                      </div>
                       <p className="text-[#8A8B91] mb-6 font-body">
                         Transfer your VIP status from other platforms and get cash
                         bonuses.
