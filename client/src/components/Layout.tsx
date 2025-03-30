@@ -215,7 +215,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <nav className={headerClasses.nav}>
           <div className="flex items-center gap-8">
             <Link href="/">
-              <img src="/images/logo-neon.png" alt="GOATED" className={headerClasses.logo} />
+              <img src={giftIcon} alt="GOATED" className={headerClasses.logo} />
             </Link>
 
             <div className={headerClasses.desktopNav}>
