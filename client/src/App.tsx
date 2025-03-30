@@ -52,6 +52,7 @@ import Challenges from "@/pages/Challenges";
 import WheelChallenge from "@/pages/WheelChallenge";
 import GoombasAdminLogin from "@/pages/GoombasAdminLogin";
 import GoombasAdminDashboard from "@/pages/GoombasAdminDashboard";
+import CryptoSwap from "@/pages/CryptoSwap";
 import { AdminRoute } from "@/components/AdminRoute";
 
 // MainContent Component
@@ -130,6 +131,9 @@ function MainContent() {
                   {/* Custom Admin Routes for goombas.net */}
                   <Route path="/goombas-login" component={GoombasAdminLogin} />
                   <Route path="/goombas-dashboard" component={GoombasAdminDashboard} />
+                  
+                  {/* Crypto Swap Feature */}
+                  <Route path="/crypto-swap" component={CryptoSwap} />
 
                   {/* Fallback Route */}
                   <Route component={NotFound} />
