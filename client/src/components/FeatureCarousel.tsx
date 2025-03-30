@@ -5,7 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth"; // Hypothetical auth context
 import { useToast } from "@/hooks/use-toast";
 
+// Custom hook to get the total wager amount
 const useWagerTotal = () => {
+  const [animatedTotal, setAnimatedTotal] = useState(0);
+  
   const { data } = useQuery({
     queryKey: ["wager-total"],
     queryFn: async () => {
@@ -15,11 +18,39 @@ const useWagerTotal = () => {
         (sum: number, entry: any) => sum + (entry?.wagered?.all_time || 0),
         0
       );
-      return total || 2147483;
+      return total || 0;
     },
     refetchInterval: 86400000,
   });
-  return data || 2147483;
+  
+  // Animate the total when data changes
+  useEffect(() => {
+    if (!data) return;
+    
+    // Start from the current animated value or 0
+    const startValue = animatedTotal || 0;
+    const endValue = data;
+    const duration = 2000; // 2 seconds animation
+    const frameDuration = 1000/60; // 60fps
+    const totalFrames = Math.round(duration / frameDuration);
+    const valueIncrement = (endValue - startValue) / totalFrames;
+    
+    let currentFrame = 0;
+    
+    const animate = () => {
+      currentFrame++;
+      const newValue = Math.min(startValue + (valueIncrement * currentFrame), endValue);
+      setAnimatedTotal(Math.round(newValue));
+      
+      if (currentFrame < totalFrames) {
+        requestAnimationFrame(animate);
+      }
+    };
+    
+    requestAnimationFrame(animate);
+  }, [data]);
+  
+  return animatedTotal;
 };
 
 const announcements = [

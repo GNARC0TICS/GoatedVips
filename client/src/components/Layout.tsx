@@ -51,8 +51,14 @@ const headerClasses = {
   nav: "container mx-auto h-16 px-4 flex items-center justify-between",
   logo: "h-8 w-auto relative transition-transform duration-300 hover:scale-105",
   menuButton: "md:hidden relative overflow-hidden group",
-  desktopNav: "hidden md:flex items-center space-x-6",
-  userSection: "flex items-center gap-2 md:gap-4",
+  desktopNav: "hidden md:flex items-center space-x-4",
+  userSection: "flex items-center gap-2 md:gap-3",
+};
+
+const authSectionClasses = {
+  container: "container mx-auto flex justify-end mt-16 pt-2 px-4",
+  wrapper: "hidden md:flex items-center gap-3 z-40 absolute right-4",
+  buttons: "flex items-center gap-2",
 };
 
 const dropdownClasses = {
@@ -87,19 +93,19 @@ const MobileNavLink = React.memo(function MobileNavLink({
   const isActive = location === href;
   const isHome = href === "/";
   return (
-    <motion.div
-      whileTap={{ scale: 0.98 }}
-      onClick={(e) => {
-        e.preventDefault();
-        onClose();
-        window.location.href = href;
-      }}
-      className={`px-4 py-2.5 rounded-lg transition-colors duration-200 cursor-pointer ${
-        isActive ? "bg-[#D7FF00]/10 text-[#D7FF00]" : "text-white hover:bg-[#2A2B31]"
-      } ${isTitle || isHome ? "text-base font-bold" : "text-sm"}`}
-    >
-      {label}
-    </motion.div>
+    <Link href={href}>
+      <motion.div
+        whileTap={{ scale: 0.98 }}
+        onClick={(e) => {
+          onClose();
+        }}
+        className={`px-4 py-2.5 rounded-lg transition-colors duration-200 cursor-pointer ${
+          isActive ? "bg-[#D7FF00]/10 text-[#D7FF00]" : "text-white hover:bg-[#2A2B31]"
+        } ${isTitle || isHome ? "text-base font-bold" : "text-sm"}`}
+      >
+        {label}
+      </motion.div>
+    </Link>
   );
 });
 
@@ -178,6 +184,8 @@ export function Layout({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const [, setLocation] = useLocation();
+  
   const handleLogout = useCallback(async () => {
     try {
       const response = await fetch("/api/logout", {
@@ -200,7 +208,7 @@ export function Layout({ children }: { children: ReactNode }) {
       });
 
       queryClient.clear();
-      window.location.href = '/';
+      setLocation('/');
     } catch (error) {
       console.error("Logout error:", error);
       toast({
@@ -209,14 +217,14 @@ export function Layout({ children }: { children: ReactNode }) {
         variant: "destructive",
       });
     }
-  }, [toast, queryClient]);
+  }, [toast, queryClient, setLocation]);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#14151A]">
       <ParticleBackground />
       <header className={headerClasses.container}>
         <nav className={headerClasses.nav}>
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-6">
             <Link href="/">
               <img src="/images/logo-neon.png" alt="GOATED" className={headerClasses.logo} />
             </Link>
@@ -555,7 +563,15 @@ export function Layout({ children }: { children: ReactNode }) {
                       </>
                     )}
 
-                    <div className="mt-6 px-4 border-t border-[#2A2B31]/50 pt-6">
+                    <div className="mt-6 px-4 border-t border-[#2A2B31]/50 pt-6 space-y-3">
+                      {/* Auth controls if not logged in */}
+                      {!user && (
+                        <div onClick={() => setOpenMobile(false)}>
+                          <AuthModal isMobile={true} />
+                        </div>
+                      )}
+                      
+                      {/* Play button */}
                       <Button
                         onClick={() => {
                           setOpenMobile(false);
@@ -600,6 +616,18 @@ export function Layout({ children }: { children: ReactNode }) {
                           </svg>
                         </span>
                       </Button>
+                      
+                      {/* Logout if logged in */}
+                      {user && (
+                        <Button
+                          onClick={handleLogout}
+                          variant="destructive"
+                          className="w-full"
+                        >
+                          <LogOut className="h-4 w-4 mr-2" />
+                          Logout
+                        </Button>
+                      )}
                     </div>
                   </motion.div>
                 </SheetContent>
@@ -608,167 +636,174 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
 
           <div className={headerClasses.userSection}>
-            <div className="flex items-center gap-2 md:gap-4">
-              {/* User search component */}
+            {/* User search component - Optimized width */}
+            <div className="w-full max-w-[200px] lg:max-w-[240px]">
               <UserSearch />
-              
-              {/* Debug info - remove in production */}
-              {user?.isAdmin && (
-                <div className="text-xs text-[#8A8B91]">
-                  Admin: Yes
-                </div>
-              )}
-              {user?.isAdmin && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-[#D7FF00] hover:text-white relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
-                    >
-                      <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
-                      <Settings className="h-4 w-4 md:h-5 md:w-5 relative z-10" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56 bg-[#1A1B21] border-[#2A2B31]">
-                    <DropdownMenuLabel className="text-[#D7FF00]">Admin Panel</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <Link href="/admin/user-management">
-                      <DropdownMenuItem className="cursor-pointer text-white">
-                        User Management
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/admin/wager-races">
-                      <DropdownMenuItem className="cursor-pointer text-white">
-                        Wager Races
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/admin/bonus-codes">
-                      <DropdownMenuItem className="cursor-pointer text-white">
-                        Bonus Codes
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/admin/notifications">
-                      <DropdownMenuItem className="cursor-pointer text-white">
-                        Notifications
-                      </DropdownMenuItem>
-                    </Link>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-              <div className="flex items-center gap-2 md:gap-4">
-                <UtilityPanelButton />
-                {user ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className="flex items-center gap-1 md:gap-2 text-white px-2 md:px-4 h-8 md:h-10"
-                      >
-                        <User className="h-5 w-5" />
-                        <span className="hidden md:inline">
-                          {user.username}
-                        </span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 bg-[#1A1B21] border-[#2A2B31]">
-                      <DropdownMenuLabel className="text-white">My Account</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <Link href={`/user/${user.id}`}>
-                        <DropdownMenuItem className="cursor-pointer text-white">
-                          Profile
-                        </DropdownMenuItem>
-                      </Link>
-                      <Link href="/notification-preferences">
-                        <DropdownMenuItem className="cursor-pointer text-white">
-                          Settings
-                        </DropdownMenuItem>
-                      </Link>
-                      {user.isAdmin && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuLabel className="text-[#D7FF00]">Admin Panel</DropdownMenuLabel>
-                          <Link href="/admin/user-management">
-                            <DropdownMenuItem className="cursor-pointer text-white">
-                              User Management
-                            </DropdownMenuItem>
-                          </Link>
-                          <Link href="/admin/wager-races">
-                            <DropdownMenuItem className="cursor-pointer text-white">
-                              Wager Races
-                            </DropdownMenuItem>
-                          </Link>
-                          <Link href="/admin/bonus-codes">
-                            <DropdownMenuItem className="cursor-pointer text-white">
-                              Bonus Codes                            </DropdownMenuItem>
-                          </Link>
-                          <Link href="/admin/notifications">
-                            <DropdownMenuItem className="cursor-pointer text-white">
-                              Notifications
-                            </DropdownMenuItem>
-                          </Link>
-                        </>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={handleLogout}
-                        className="text-red-500 cursor-pointer"
-                      >
-                        <LogOut className="h-4 w-4 mr-2" />
-                        Logout
-                      </DropdownMenuItem>                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <AuthModal />
-                )}
-                <Button
-                  onClick={() =>
-                    window.open("https://www.goated.com/r/SPIN", "_blank")
-                  }
-                  className="relative group overflow-hidden text-[#14151A] fill-animation hover:text-[#D7FF00] transition-all duration-3000 font-heading uppercase tracking-tight h-8 md:h-10 px-3 md:px-4 text-sm md:text-base"
-                >
-                  <span className="relative z-10 flex items-center gap-1">
-                    PLAY
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      width="20" 
-                      height="20" 
-                      viewBox="0 0 24 24"
-                      className="ml-1"
-                    >
-                      <path 
-                        fill="currentColor" 
-                        fillOpacity="0" 
-                        stroke="currentColor" 
-                        strokeDasharray="40" 
-                        strokeDashoffset="40" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth="2" 
-                        d="M8 6l10 6l-10 6Z"
-                      >
-                        <animate 
-                          fill="freeze" 
-                          attributeName="fill-opacity" 
-                          begin="0s" 
-                          dur="0.8s" 
-                          values="0;1" 
-                        />
-                        <animate 
-                          fill="freeze" 
-                          attributeName="stroke-dashoffset" 
-                          dur="0.8s" 
-                          values="40;0" 
-                        />
-                      </path>
-                    </svg>
-                  </span>
-                </Button>
-              </div>
             </div>
+            
+            {/* Gift Button */}
+            <UtilityPanelButton />
+
+            {/* Admin Button - Only show when user is admin */}
+            {user?.isAdmin && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-[#D7FF00] hover:text-white relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
+                  >
+                    <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
+                    <Settings className="h-4 w-4 md:h-5 md:w-5 relative z-10" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56 bg-[#1A1B21] border-[#2A2B31]">
+                  <DropdownMenuLabel className="text-[#D7FF00]">Admin Panel</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <Link href="/admin/user-management">
+                    <DropdownMenuItem className="cursor-pointer text-white">
+                      User Management
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link href="/admin/wager-races">
+                    <DropdownMenuItem className="cursor-pointer text-white">
+                      Wager Races
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link href="/admin/bonus-codes">
+                    <DropdownMenuItem className="cursor-pointer text-white">
+                      Bonus Codes
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link href="/admin/notifications">
+                    <DropdownMenuItem className="cursor-pointer text-white">
+                      Notifications
+                    </DropdownMenuItem>
+                  </Link>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {/* Authentication controls are now moved below the header */}
+
+            {/* User Profile Button - Only show when logged in */}
+            {user && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="flex items-center gap-1 md:gap-2 text-white px-2 md:px-4 h-8 md:h-10 hover:text-[#D7FF00] transition-all duration-300"
+                  >
+                    <User className="h-5 w-5" />
+                    <span className="hidden md:inline">
+                      {user.username}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56 bg-[#1A1B21] border-[#2A2B31]">
+                  <DropdownMenuLabel className="text-[#D7FF00]">My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <Link href={`/user/${user.id}`}>
+                    <DropdownMenuItem className="cursor-pointer text-white">
+                      Profile
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link href="/notification-preferences">
+                    <DropdownMenuItem className="cursor-pointer text-white">
+                      Settings
+                    </DropdownMenuItem>
+                  </Link>
+                  {user.isAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-[#D7FF00]">Admin Panel</DropdownMenuLabel>
+                      <Link href="/admin/user-management">
+                        <DropdownMenuItem className="cursor-pointer text-white">
+                          User Management
+                        </DropdownMenuItem>
+                      </Link>
+                      <Link href="/admin/wager-races">
+                        <DropdownMenuItem className="cursor-pointer text-white">
+                          Wager Races
+                        </DropdownMenuItem>
+                      </Link>
+                      <Link href="/admin/bonus-codes">
+                        <DropdownMenuItem className="cursor-pointer text-white">
+                          Bonus Codes
+                        </DropdownMenuItem>
+                      </Link>
+                      <Link href="/admin/notifications">
+                        <DropdownMenuItem className="cursor-pointer text-white">
+                          Notifications
+                        </DropdownMenuItem>
+                      </Link>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="text-red-500 cursor-pointer"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </nav>
       </header>
+      
+      {/* Auth Section - Desktop Only */}
+      <div className={authSectionClasses.container}>
+        <div className={authSectionClasses.wrapper}>
+          {/* PLAY button - always visible */}
+          <Button
+            onClick={() => window.open("https://www.goated.com/r/SPIN", "_blank")}
+            className="relative group overflow-hidden text-[#14151A] fill-animation hover:text-[#D7FF00] transition-all duration-300 font-heading uppercase tracking-tight h-9 md:h-10 px-3 md:px-4 text-sm md:text-base"
+          >
+            <span className="relative z-10 flex items-center gap-1">
+              PLAY
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="20" 
+                height="20" 
+                viewBox="0 0 24 24"
+                className="ml-1"
+              >
+                <path 
+                  fill="currentColor" 
+                  fillOpacity="0" 
+                  stroke="currentColor" 
+                  strokeDasharray="40" 
+                  strokeDashoffset="40" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth="2" 
+                  d="M8 6l10 6l-10 6Z"
+                >
+                  <animate 
+                    fill="freeze" 
+                    attributeName="fill-opacity" 
+                    begin="0s" 
+                    dur="0.8s" 
+                    values="0;1" 
+                  />
+                  <animate 
+                    fill="freeze" 
+                    attributeName="stroke-dashoffset" 
+                    dur="0.8s" 
+                    values="40;0" 
+                  />
+                </path>
+              </svg>
+            </span>
+          </Button>
+          
+          {/* Auth buttons - only when not logged in */}
+          {!isAuthenticated && <AuthModal />}
+        </div>
+      </div>
 
       {children}
       <ScrollToTop />

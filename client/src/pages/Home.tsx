@@ -24,10 +24,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Home() {
-    const { isAuthenticated } = useAuth();
+    const { user } = useAuth();
+    const isAuthenticated = !!user;
   return (
     <div className="min-h-screen bg-[#14151A]">
       <main className="container mx-auto px-4 py-12">

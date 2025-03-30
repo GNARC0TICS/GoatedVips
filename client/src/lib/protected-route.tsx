@@ -7,7 +7,6 @@ import { Redirect, Route } from 'wouter';
 export const PROTECTED_ROUTES = [
   '/bonus-codes',
   '/notification-preferences',
-  '/user/',
   '/admin/',
 ];
 

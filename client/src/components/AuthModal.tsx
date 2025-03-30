@@ -21,8 +21,9 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation } from "@tanstack/react-query";
 
 const loginSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -42,11 +43,15 @@ const registerSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 type RegisterFormData = z.infer<typeof registerSchema>;
 
-export default function AuthModal() {
+interface AuthModalProps {
+  isMobile?: boolean;
+}
+
+export default function AuthModal({ isMobile = false }: AuthModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [isLoading, setIsLoading] = useState(false);
-  const { loginMutation, registerMutation } = useAuth();
+  const { login, register: registerUser } = useAuth();
   const { toast } = useToast();
 
   const loginForm = useForm<LoginFormData>({
@@ -70,22 +75,33 @@ export default function AuthModal() {
   const onSubmit = async (values: LoginFormData | RegisterFormData) => {
     setIsLoading(true);
     try {
-      const mutation = mode === "login" ? loginMutation : registerMutation;
-      const result = await mutation.mutateAsync(values);
-
-      if (result?.ok) {
+      if (mode === "login") {
+        // Handle login
+        const loginValues = values as LoginFormData;
+        await login(loginValues.username, loginValues.password);
+        
         toast({
           title: "Success",
-          description: mode === "login" 
-            ? "Welcome back!" 
-            : "Account created successfully!",
+          description: "Welcome back!",
         });
-        setIsOpen(false);
-        loginForm.reset();
-        registerForm.reset();
       } else {
-        throw new Error(result?.message || "Authentication failed");
+        // Handle registration
+        const registerValues = values as RegisterFormData;
+        await registerUser(
+          registerValues.username, 
+          registerValues.email,
+          registerValues.password
+        );
+        
+        toast({
+          title: "Success",
+          description: "Account created successfully!",
+        });
       }
+      
+      setIsOpen(false);
+      loginForm.reset();
+      registerForm.reset();
     } catch (error) {
       toast({
         variant: "destructive",
@@ -102,7 +118,9 @@ export default function AuthModal() {
       <DialogTrigger asChild>
         <Button 
           variant="outline" 
-          className="font-heading uppercase bg-[#1A1B21] border-[#2A2B31] hover:bg-[#2A2B31] hover:border-[#D7FF00] transition-all duration-300"
+          className={`font-heading uppercase bg-[#1A1B21] border-[#2A2B31] hover:bg-[#2A2B31] hover:border-[#D7FF00] transition-all duration-300 ${
+            isMobile ? "w-full" : ""
+          }`}
         >
           <span className="text-white">LOGIN</span>
           <span className="text-[#8A8B91]"> / </span>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
-import { Gift, MessageCircle, Send, Ticket } from "lucide-react";
+import { MessageCircle, Send, Ticket } from "lucide-react";
 import { FloatingSupport } from "./FloatingSupport";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "./ui/button";
@@ -10,6 +10,54 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+// Custom Gift Icon component using the provided SVG
+const GiftIcon = ({ className }: { className?: string }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width="24" 
+    height="24" 
+    viewBox="0 0 24 24"
+    className={className}
+    fill="none"
+  >
+    <path 
+      d="M20 12V22H4V12" 
+      stroke="currentColor" 
+      strokeWidth="1.5" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    />
+    <path 
+      d="M22 7H2V12H22V7Z" 
+      stroke="currentColor" 
+      strokeWidth="1.5" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    />
+    <path 
+      d="M12 22V7" 
+      stroke="currentColor" 
+      strokeWidth="1.5" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    />
+    <path 
+      d="M12 7H7.5C6.83696 7 6.20107 6.73661 5.73223 6.26777C5.26339 5.79893 5 5.16304 5 4.5C5 3.83696 5.26339 3.20107 5.73223 2.73223C6.20107 2.26339 6.83696 2 7.5 2C11 2 12 7 12 7Z" 
+      stroke="currentColor" 
+      strokeWidth="1.5" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    />
+    <path 
+      d="M12 7H16.5C17.163 7 17.7989 6.73661 18.2678 6.26777C18.7366 5.79893 19 5.16304 19 4.5C19 3.83696 18.7366 3.20107 18.2678 2.73223C17.7989 2.26339 17.163 2 16.5 2C13 2 12 7 12 7Z" 
+      stroke="currentColor" 
+      strokeWidth="1.5" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    />
+  </svg>
+);
 
 export const UtilityPanelButton = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -39,7 +87,7 @@ export const UtilityPanelButton = () => {
           whileTap={{ scale: 0.95 }}
           className="flex flex-col items-center justify-center gap-2 p-4 bg-[#2A2B31]/60 rounded-xl"
         >
-          <Gift className="w-8 h-8 text-[#D7FF00]" />
+          <GiftIcon className="w-8 h-8 text-[#D7FF00]" />
           <span className="text-xs text-[#8A8B91]">Daily Spin</span>
         </motion.button>
 
@@ -98,7 +146,7 @@ export const UtilityPanelButton = () => {
           className="aspect-square p-4 bg-[#2A2B31]/80 backdrop-blur-sm rounded-xl border border-[#2A2B31]/50 hover:bg-[#2A2B31]/90 transition-all relative group flex flex-col items-center justify-between"
         >
           <div className="flex-1 flex items-center justify-center">
-            <Gift className="w-10 h-10 text-[#D7FF00] drop-shadow-[0_0_8px_rgba(215,255,0,0.3)]" />
+            <GiftIcon className="w-10 h-10 text-[#D7FF00] drop-shadow-[0_0_8px_rgba(215,255,0,0.3)]" />
           </div>
           <span className="text-xs text-[#8A8B91] font-medium text-center">Daily Spin</span>
         </motion.button>
@@ -162,7 +210,7 @@ export const UtilityPanelButton = () => {
             onClick={() => setIsOpen(!isOpen)}
             className="relative h-8 w-8 hover:bg-[#D7FF00]/10 focus:outline-none"
           >
-            <Gift className="h-5 w-5 text-white hover:text-[#D7FF00]" />
+            <GiftIcon className="h-5 w-5 text-white hover:text-[#D7FF00]" />
           </Button>
           {isOpen && <MobilePanel />}
         </>
@@ -174,7 +222,7 @@ export const UtilityPanelButton = () => {
               size="icon"
               className="relative h-10 w-10 hover:bg-[#D7FF00]/10 focus:outline-none"
             >
-              <Gift className="h-5 w-5 text-white hover:text-[#D7FF00]" />
+              <GiftIcon className="h-5 w-5 text-white hover:text-[#D7FF00]" />
             </Button>
           </DropdownMenuTrigger>
           <DesktopPanel />

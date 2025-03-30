@@ -11,6 +11,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  isAuthenticated: boolean;
 }
 
 // Create the context with a default undefined value
@@ -120,7 +121,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Provide authentication context to children
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, register, logout }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      error, 
+      login, 
+      register, 
+      logout,
+      isAuthenticated: !!user // Derived property based on user existence
+    }}>
       {children}
     </AuthContext.Provider>
   );

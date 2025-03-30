@@ -100,7 +100,7 @@ export function QuickProfile({ userId, username, children }: QuickProfileProps) 
               <SheetClose asChild>
                 <Button 
                   className="bg-[#2A2B31] text-white hover:bg-[#3A3B41]"
-                  onClick={() => window.location.href = `/user-profile/${userId}`}
+                  onClick={() => window.location.href = `/user/${userId}`}
                 >
                   View Full Profile
                 </Button>
