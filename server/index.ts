@@ -1,4 +1,3 @@
-
 /**
  * Main server entry point for the GoatedVIPs application
  * Handles server initialization, middleware setup, and core service bootstrapping
@@ -8,7 +7,6 @@
  * - Middleware integration
  * - Database connection
  * - WebSocket setup
- * - Telegram bot initialization
  * - Route registration
  * - Error handling
  * 
@@ -28,7 +26,6 @@ import { promisify } from "util";
 import { exec } from "child_process";
 import { sql } from "drizzle-orm";
 import { log } from "./utils/logger";
-import { initializeBot } from "./telegram/bot";
 import { registerRoutes } from "./routes";
 import { initializeAdmin } from "./middleware/admin";
 import { db } from "../db";
@@ -49,7 +46,6 @@ const __dirname = path.dirname(__filename);
 // Global server state management
 let templateCache: string | null = null;  // Caches HTML template for better performance
 let server: any = null;                   // HTTP server instance
-let bot: any = null;                      // Telegram bot instance
 let wss: WebSocketServer | null = null;   // WebSocket server instance
 
 /**
@@ -115,7 +111,6 @@ async function testDbConnection() {
  * - Route registration
  * - Admin initialization
  * - WebSocket setup
- * - Telegram bot initialization
  */
 async function initializeServer() {
   try {
@@ -140,7 +135,6 @@ async function initializeServer() {
     server = createServer(app);
     setupWebSocket(server);
 
-    // Telegram bot integration removed
 
     // Setup development or production server based on environment
     if (app.get("env") === "development") {
@@ -172,14 +166,6 @@ async function initializeServer() {
       // Graceful shutdown handler
       const shutdown = async () => {
         log("info", "Shutting down gracefully...");
-        if (bot) {
-          try {
-            await bot.stopPolling();
-            log("info", "Telegram bot stopped");
-          } catch (error) {
-            log("error", "Error stopping Telegram bot");
-          }
-        }
         if (wss) {
           wss.close(() => {
             log("info", "WebSocket server closed");
@@ -240,7 +226,7 @@ function setupWebSocket(server: any) {
  */
 function setupMiddleware(app: express.Application) {
   app.set('trust proxy', 1);
-  
+
   // CORS configuration for API routes
   app.use('/api', cors({
     origin: process.env.NODE_ENV === 'development'
@@ -334,14 +320,14 @@ function serveStatic(app: express.Application) {
   if (!fs.existsSync(distPath)) {
     throw new Error(`Could not find the build directory: ${distPath}. Please build the client first.`);
   }
-  
+
   // Static file serving with caching
   app.use(express.static(distPath, {
     maxAge: '1d',
     etag: true,
     lastModified: true
   }));
-  
+
   // SPA fallback
   app.get("*", (_req, res, next) => {
     if (req.path.startsWith('/api')) {

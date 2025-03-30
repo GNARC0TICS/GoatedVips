@@ -61,7 +61,6 @@ const cacheMiddleware = (ttl = 30000) => async (req: any, res: any, next: any) =
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { SelectUser } from "@db/schema";
-import { initializeBot } from "./telegram/bot";
 
 class CacheManager {
   private cache: Map<string, { data: any; timestamp: number }>;
@@ -119,7 +118,7 @@ router.get("/health", async (_req: Request, res: Response) => {
       status: "ok",
       timestamp: new Date().toISOString(),
       db: "connected",
-      telegramBot: global.botInstance ? "initialized" : "not initialized",
+      telegramBot: "not initialized", //removed global.botInstance check
     };
 
     res.json(health);
@@ -352,34 +351,6 @@ function setupAPIRoutes(app: Express) {
     }
   );
 
-  app.get("/api/telegram/status",
-    createRateLimiter('medium'),
-    async (_req, res) => {
-      try {
-        const bot = await initializeBot();
-        if (!bot) {
-          return res.status(500).json({
-            status: "error",
-            message: "Bot not initialized"
-          });
-        }
-
-        const botInfo = await bot.getMe();
-        res.json({
-          status: "healthy",
-          username: botInfo.username,
-          timestamp: new Date().toISOString(),
-          mode: "polling"
-        });
-      } catch (error) {
-        log(`Error checking bot status: ${error}`);
-        res.status(500).json({
-          status: "error",
-          message: "Failed to check bot status"
-        });
-      }
-    }
-  );
 
   app.get("/api/wheel/check-eligibility",
     createRateLimiter('high'),
