@@ -25,7 +25,7 @@ const useWagerTotal = () => {
 const announcements = [
   { text: "WAGER RACES", link: "/wager-races" },
   { text: "LIVE LEADERBOARDS", link: "#leaderboard" },
-  { text: "BONUS CODES", link: "/bonus-codes", icon: BonusCodeIcon },
+  { text: "BONUS CODES", link: "/bonus-codes" },
   { text: "AFFILIATE REWARDS", link: "/vip-program" },
   { text: "TELEGRAM GROUP", link: "/telegram" },
   { text: "AIRDROP NEWS", link: "/goated-token" },
