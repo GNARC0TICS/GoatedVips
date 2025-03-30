@@ -272,9 +272,9 @@ const getTrophyIcon = (rank: number) => {
                       <div className="text-4xl font-bold text-[#D7FF00]">
                         <CountdownTimer
                           endDate={new Date(
-                            new Date().getFullYear(),
-                            new Date().getMonth() + 1,
-                            0,
+                            2025, // Fixed year to 2025
+                            2,    // March (0-indexed, so 2 is March)
+                            31,   // End of March
                           ).toISOString()}
                           large={true}
                           onComplete={() => setShowCompletedRace(true)}
@@ -290,9 +290,9 @@ const getTrophyIcon = (rank: number) => {
                       <div className="bg-[#1A1B21]/80 backdrop-blur-sm px-6 py-4 rounded-lg">
                         <CountdownTimer
                           endDate={new Date(
-                            new Date().getFullYear(),
-                            new Date().getMonth() + 1,
-                            1,
+                            2025, // Fixed year to 2025
+                            3,    // April (0-indexed, so 3 is April)
+                            1,    // First day of April
                           ).toISOString()}
                           large={true}
                         />

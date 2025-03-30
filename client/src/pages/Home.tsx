@@ -14,6 +14,7 @@ import {
   MessageSquare,
   Lock,
   Repeat,
+  Search,
 } from "lucide-react";
 import { CryptoSwapHomeWidget } from "@/components/CryptoSwapHomeWidget";
 import { CryptoSwapTooltip } from "@/components/CryptoSwapTooltip";
@@ -28,6 +29,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
+import { UserSearch } from "@/components/UserSearch";
 
 export default function Home() {
     const { user } = useAuth();
@@ -98,7 +100,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-xl text-[#8A8B91] max-w-2xl mx-auto mb-12"
+              className="text-xl text-[#8A8B91] max-w-2xl mx-auto mb-8"
             >
               Join an elite community of players at Goated.com, where your
               wagering transforms into rewards. Compete in exclusive wager races,
@@ -107,6 +109,26 @@ export default function Home() {
               become part of a thriving community where winning strategies are
               shared daily.
             </motion.p>
+            
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="max-w-xl mx-auto mb-12"
+            >
+              <div className="bg-[#1A1B21]/70 backdrop-blur-md border border-[#2A2B31] rounded-lg p-4 flex flex-col items-center">
+                <h3 className="text-white text-lg mb-3 flex items-center gap-2">
+                  <Search className="h-5 w-5 text-[#D7FF00]" />
+                  Find Players
+                </h3>
+                <div className="w-full max-w-md">
+                  <UserSearch />
+                </div>
+                <p className="text-[#8A8B91] text-sm mt-3 text-center">
+                  Search for players by username to view their profile and stats
+                </p>
+              </div>
+            </motion.div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -513,7 +535,7 @@ export default function Home() {
                   href="https://www.Goated.com/r/VIPBOOST" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="inline-block bg-[#D7FF00] text-black font-heading text-xl px-8 py-4 rounded-lg hover:bg-[#D7FF00]/90 transition-all duration-300 transform hover:scale-105"
+                  className="inline-block bg-[#D7FF00] text-black font-heading text-xl px-8 py-4 rounded-lg relative overflow-hidden transition-all duration-300 transform hover:scale-105 hover:shadow-[0_0_25px_rgba(215,255,0,0.5)] before:content-[''] before:absolute before:top-0 before:left-0 before:w-full before:h-full before:bg-gradient-to-r before:from-[#D7FF00]/0 before:via-[#D7FF00]/30 before:to-[#D7FF00]/0 before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-700 before:ease-in-out"
                 >
                   JOIN THE GOATS TODAY! 🐐
                 </a>

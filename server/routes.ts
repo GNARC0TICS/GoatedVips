@@ -180,14 +180,16 @@ function getDefaultRaceData() {
 }
 
 function formatRaceData(stats: any) {
-  const now = new Date();
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  // Force year to 2025 and month to March (index 2)
+  const year = 2025;
+  const month = 2; // March (0-indexed)
+  const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
   const monthlyData = stats?.data?.monthly?.data ?? [];
 
   return {
-    id: `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}`,
+    id: `${year}${(month + 1).toString().padStart(2, '0')}`, // 202503 for March 2025
     status: 'live',
-    startDate: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(),
+    startDate: new Date(year, month, 1).toISOString(),
     endDate: endOfMonth.toISOString(),
     prizePool: 500,
     participants: monthlyData

@@ -116,8 +116,8 @@ export function RaceTimer() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    // Force March 2024 display for current race
-    return "March 2024";
+    // Force March 2025 display for current race
+    return "March 2025";
   };
 
   if (error) {

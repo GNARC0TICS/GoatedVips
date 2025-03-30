@@ -2,11 +2,12 @@ import { Router } from "express";
 import { db } from "@db";
 import { users } from "@db/schema";
 import type { SelectUser } from "@db/schema";
-import { like, desc, eq } from "drizzle-orm";
+import { like, desc, eq, sql } from "drizzle-orm";
 import rateLimit from 'express-rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
 import type { IpHistoryEntry, LoginHistoryEntry, ActivityLogEntry } from "@db/schema/users";
+import { API_CONFIG } from "../config/api";
 
 // Setup multer for file uploads
 const upload = multer({ 
@@ -38,7 +39,6 @@ router.get("/search", async (req, res) => {
       .select()
       .from(users)
       .where(like(users.username, `%${username}%`))
-      .orderBy(desc(users.lastActive))
       .limit(10);
 
     // Map results based on admin view access
@@ -289,5 +289,128 @@ function getVerificationEmailTemplate(verificationCode) {
     </html>`;
 }
 
+
+// Sync profiles for all users in the leaderboard
+router.post("/sync-profiles-from-leaderboard", async (req, res) => {
+  try {
+    const API_TOKEN = process.env.API_TOKEN;
+    
+    if (!API_TOKEN) {
+      return res.status(500).json({
+        error: "API_TOKEN is not configured"
+      });
+    }
+    
+    // Fetch leaderboard data to get all users
+    const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`, {
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+    });
+    
+    if (!response.ok) {
+      return res.status(response.status).json({ 
+        error: "Failed to fetch leaderboard data", 
+        status: response.status 
+      });
+    }
+    
+    const leaderboardData = await response.json();
+    
+    // Process all_time data to get unique users
+    const allTimeData = leaderboardData?.data?.all_time?.data || [];
+    const createdCount = 0;
+    const existingCount = 0;
+    const errors = [];
+    
+    // Process each user from the leaderboard
+    for (const player of allTimeData) {
+      try {
+        // Skip entries without uid or name
+        if (!player.uid || !player.name) continue;
+        
+        // Check if user already exists
+        const existingUser = await db.query.users.findFirst({
+          where: eq(users.goatedId, player.uid),
+          columns: { id: true }
+        });
+        
+        if (existingUser) {
+          existingCount++;
+          continue; // Skip existing users
+        }
+        
+        // Create a new profile for this user
+        const userId = uuidv4();
+        const email = `${player.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
+        
+        await db.insert(users).values({
+          id: userId,
+          username: player.name,
+          email,
+          goatedId: player.uid,
+          password: '', 
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          profileColor: '#D7FF00', // Default color
+          bio: '',
+          isAdmin: false
+        });
+        
+        createdCount++;
+      } catch (error) {
+        console.error(`Error processing user ${player?.name}:`, error);
+        errors.push(`Error creating profile for ${player?.name}: ${error.message}`);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Profile sync completed. Created ${createdCount} new profiles, ${existingCount} already existed.`,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error("Error syncing profiles from leaderboard:", error);
+    res.status(500).json({ error: "Failed to sync profiles from leaderboard" });
+  }
+});
+
+// Endpoint to get profile by Goated ID (uid from API)
+router.get("/by-goated-id/:goatedId", async (req, res) => {
+  try {
+    const { goatedId } = req.params;
+    
+    if (!goatedId) {
+      return res.status(400).json({ error: "Goated ID is required" });
+    }
+    
+    // Find user by Goated ID
+    const user = await db.query.users.findFirst({
+      where: eq(users.goatedId, goatedId),
+      columns: {
+        id: true,
+        username: true,
+        bio: true,
+        profileColor: true,
+        createdAt: true,
+        telegramUsername: true,
+        goatedId: true,
+        // Explicitly exclude sensitive fields
+        password: false,
+        email: false
+      }
+    });
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    res.json(user);
+  } catch (error) {
+    console.error("Error getting user by Goated ID:", error);
+    res.status(500).json({ error: "Failed to get user profile" });
+  }
+});
 
 export default router;

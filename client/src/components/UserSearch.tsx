@@ -1,145 +1,99 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Search, User, X } from 'lucide-react';
-import { useLocation, Link } from 'wouter';
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+import React, { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Search, User } from "lucide-react";
+import { useDebounce } from "@/hooks/use-debounce";
+import { QuickProfile } from "./QuickProfile";
+import { useLocation } from "wouter";
 
-type SearchResult = {
+interface UserResult {
   id: string;
   username: string;
-};
+}
 
 export function UserSearch() {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<UserResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [, setLocation] = useLocation();
-
-  // Handle keyboard shortcut to open search dialog
+  
+  const debouncedQuery = useDebounce(query, 300);
+  
   useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setOpen((open) => !open);
-      }
-    };
-
-    document.addEventListener('keydown', down);
-    return () => document.removeEventListener('keydown', down);
-  }, []);
-
-  // Handle search query
-  useEffect(() => {
-    const searchTimer = setTimeout(async () => {
-      if (query.length >= 2) {
-        setLoading(true);
-        try {
-          const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
-          if (!response.ok) {
-            throw new Error('Failed to search users');
-          }
-          const data = await response.json();
-          setResults(data.users || []);
-        } catch (error) {
-          console.error('Search error:', error);
-          toast({
-            title: 'Error',
-            description: 'Failed to search users. Please try again.',
-            variant: 'destructive',
-          });
-          setResults([]);
-        } finally {
-          setLoading(false);
-        }
-      } else {
+    async function searchUsers() {
+      if (!debouncedQuery || debouncedQuery.length < 3) {
         setResults([]);
+        return;
       }
-    }, 300);
-
-    return () => clearTimeout(searchTimer);
-  }, [query, toast]);
-
-  const handleSelect = (userId: string) => {
-    setLocation(`/user/${userId}`);
-    setOpen(false);
-    setQuery('');
-  };
-
+      
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const response = await fetch(`/api/users/search?username=${encodeURIComponent(debouncedQuery)}`);
+        
+        if (!response.ok) {
+          throw new Error("Failed to search users");
+        }
+        
+        const data = await response.json();
+        setResults(data);
+      } catch (err) {
+        console.error("Error searching users:", err);
+        setError("An error occurred while searching");
+        setResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    searchUsers();
+  }, [debouncedQuery]);
+  
   return (
-    <>
-      <Button
-        variant="outline"
-        className="relative rounded-md h-9 w-9 md:h-10 md:w-fit md:px-4 py-2 bg-[#1A1B21]/50 border-[#2A2B31] hover:bg-[#1A1B21] hover:border-[#D7FF00]/50 overflow-hidden group"
-        onClick={() => {
-          setOpen(true);
-          // Focus after the dialog animation completes
-          setTimeout(() => {
-            const commandInput = document.querySelector('[cmdk-input]') as HTMLInputElement;
-            if (commandInput) commandInput.focus();
-          }, 100);
-        }}
-      >
-        <Search className="h-4 w-4 md:mr-2 text-[#8A8B91] group-hover:text-[#D7FF00] transition-colors" />
-        <span className="hidden md:inline text-sm text-[#8A8B91] group-hover:text-white transition-colors">
-          Search users...
-        </span>
-        <span className="sr-only md:not-sr-only md:absolute md:right-4 md:top-1/2 md:transform md:-translate-y-1/2 md:text-xs md:text-[#8A8B91] md:opacity-60">
-          ⌘K
-        </span>
-      </Button>
-
-      <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput 
-          placeholder="Search users by username..."
+    <div className="w-full relative">
+      <div className="relative mb-1">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#8A8B91]" />
+        <Input
+          placeholder="Search by username (min 3 characters)"
           value={query}
-          onValueChange={setQuery}
+          onChange={(e) => setQuery(e.target.value)}
+          className="pl-9 bg-[#14151A] border-[#2A2B31] focus:border-[#D7FF00] text-white placeholder:text-[#8A8B91]/70"
         />
-        <CommandList>
-          <CommandEmpty>
-            {loading ? (
-              <div className="flex items-center justify-center p-4 text-sm text-[#8A8B91]">
-                <div className="animate-spin h-4 w-4 border-t-2 border-[#D7FF00] rounded-full mr-2" />
-                Searching...
+      </div>
+      
+      {isLoading && (
+        <div className="text-[#8A8B91] text-sm py-2">Searching...</div>
+      )}
+      
+      {error && (
+        <div className="text-red-400 text-sm py-2">{error}</div>
+      )}
+      
+      {!isLoading && !error && results.length > 0 && (
+        <div className="max-h-56 overflow-y-auto bg-[#14151A] border border-[#2A2B31] rounded-md py-1 absolute w-full z-10">
+          {results.map((user) => (
+            <QuickProfile 
+              key={user.id} 
+              userId={user.id} 
+              username={user.username}
+            >
+              <div
+                className="flex items-center gap-2 p-2 hover:bg-[#1A1B21] cursor-pointer"
+              >
+                <User className="h-4 w-4 text-[#8A8B91]" />
+                <span className="text-white">{user.username}</span>
               </div>
-            ) : (
-              <div className="p-4 text-sm text-[#8A8B91]">
-                No users found. Try a different search.
-              </div>
-            )}
-          </CommandEmpty>
-          
-          {results.length > 0 && (
-            <CommandGroup heading="Users">
-              {results.map((result) => (
-                <CommandItem
-                  key={result.id}
-                  onSelect={() => handleSelect(result.id)}
-                  className="flex items-center gap-2 cursor-pointer hover:bg-[#2A2B31]/50"
-                >
-                  <div className="flex items-center gap-2 w-full">
-                    <div className="bg-[#2A2B31] h-7 w-7 rounded-full flex items-center justify-center">
-                      <User className="h-4 w-4 text-[#D7FF00]" />
-                    </div>
-                    <span className="text-white">{result.username}</span>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          )}
-        </CommandList>
-      </CommandDialog>
-    </>
+            </QuickProfile>
+          ))}
+        </div>
+      )}
+      
+      {!isLoading && !error && debouncedQuery.length >= 3 && results.length === 0 && (
+        <div className="text-[#8A8B91] text-sm py-2">
+          No users found matching '{debouncedQuery}'
+        </div>
+      )}
+    </div>
   );
 }
