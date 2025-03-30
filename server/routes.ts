@@ -165,12 +165,13 @@ router.get("/wager-races/current",
 
 // Helper functions
 function getDefaultRaceData() {
-  const now = new Date();
+  const year = new Date().getFullYear();
+  const marchMonth = 2; // 0-based index, so 2 is March
   return {
-    id: `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}`,
+    id: `${year}03`, // 03 for March
     status: 'live',
-    startDate: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(),
-    endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString(),
+    startDate: new Date(year, marchMonth, 1).toISOString(),
+    endDate: new Date(year, marchMonth + 1, 0, 23, 59, 59).toISOString(),
     prizePool: 500,
     participants: []
   };
