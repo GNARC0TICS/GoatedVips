@@ -40,6 +40,7 @@ import {
 import { UtilityPanelButton } from "./UtilityPanel";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import giftIcon from '/client/public/images/GIFT.svg'; // Added import for the new icon
 
 // --- Static Styles (Memoized as constants) ---
 const headerClasses = {
@@ -404,37 +405,6 @@ export function Layout({ children }: { children: ReactNode }) {
                 </div>
               </div>
 
-              <div className="relative group">
-                <Link href="/help">
-                  <Button
-                    variant="ghost"
-                    className="flex items-center gap-1 font-heading text-white hover:text-[#D7FF00] transition-colors duration-300 hover:bg-transparent px-2"
-                  >
-                    <span className="font-bold">HELP & FAQ</span>
-                    <ChevronDown className="h-4 w-4 transition-transform duration-300 group-hover:rotate-180" />
-                  </Button>
-                </Link>
-                <div className="absolute left-0 mt-2 w-56 opacity-0 invisible transition-all duration-300 ease-in-out group-hover:opacity-100 group-hover:visible">
-                  <div className="bg-[#1A1B21]/95 backdrop-blur-xl border border-[#2A2B31] rounded-xl shadow-2xl py-2 px-1">
-                    <Link href="/help">
-                      <div className={dropdownClasses.item}>
-                        Help Center
-                      </div>
-                    </Link>
-                    <Link href="/faq">
-                      <div className={dropdownClasses.item}>
-                        FAQ
-                      </div>
-                    </Link>
-                    <Link href="/support">
-                      <div className={dropdownClasses.item}>
-                        Contact Support
-                      </div>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-
               {user?.isAdmin && (
                 <div className="relative group">
                   <Button
@@ -543,8 +513,8 @@ export function Layout({ children }: { children: ReactNode }) {
                       label={
                         isAuthenticated ? (
                           <div className="flex items-center gap-2">
+                            <img src={giftIcon} alt="Gift" className="h-4 w-4" /> {/* Replaced Gift icon with img tag */}
                             <span>Bonus Codes</span>
-                            <Gift className="h-4 w-4" />
                           </div>
                         ) : (
                           <TooltipProvider>
@@ -719,8 +689,7 @@ export function Layout({ children }: { children: ReactNode }) {
                           </Link>
                           <Link href="/admin/bonus-codes">
                             <DropdownMenuItem className="cursor-pointer text-white">
-                              Bonus Codes
-                            </DropdownMenuItem>
+                              Bonus Codes                            </DropdownMenuItem>
                           </Link>
                           <Link href="/admin/notifications">
                             <DropdownMenuItem className="cursor-pointer text-white">
