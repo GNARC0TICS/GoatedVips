@@ -1,0 +1,666 @@
+@font-face {
+  font-family: "MonaSansCondensed-ExtraBold";
+  src: url("/fonts/MonaSansCondensed-ExtraBold.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-stretch: condensed;
+  font-display: swap;
+}
+
+/* Custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #14151a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2b31;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d7ff00;
+}
+
+/* Custom scrollbar styling for the race timer widget */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(20, 21, 26, 0.3);
+  border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(215, 255, 0, 0.3);
+  border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(215, 255, 0, 0.6);
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-fadeInOut {
+  animation: fadeInOut 5s ease-in-out;
+}
+
+@keyframes glow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(215, 255, 0, 0.2);
+    text-shadow: 0 0 10px rgba(215, 255, 0, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(215, 255, 0, 0.4);
+    text-shadow: 0 0 20px rgba(215, 255, 0, 0.4);
+  }
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-10deg);
+  }
+  75% {
+    transform: rotate(10deg);
+  }
+}
+
+.animate-flicker {
+  animation: flicker 1.5s ease-in-out infinite;
+}
+
+.animate-wiggle {
+  animation: wiggle 2s ease-in-out infinite;
+}
+
+@layer utilities {
+  .dropdown-content-enter {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  .dropdown-content-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+      opacity 200ms,
+      transform 200ms;
+  }
+
+  .mobile-nav-item-enter {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  .mobile-nav-item-enter-active {
+    opacity: 1;
+    transform: translateX(0);
+    transition:
+      opacity 200ms,
+      transform 200ms;
+  }
+}
+
+.glow-text-yellow {
+  text-shadow:
+    0 0 10px rgba(215, 255, 0, 0.5),
+    0 0 20px rgba(215, 255, 0, 0.3),
+    0 0 30px rgba(215, 255, 0, 0.2);
+}
+
+.glow-text-white {
+  text-shadow:
+    0 0 10px rgba(255, 255, 255, 0.5),
+    0 0 20px rgba(255, 255, 255, 0.3),
+    0 0 30px rgba(255, 255, 255, 0.2);
+}
+
+html {
+  scroll-behavior: smooth;
+  background: #14151a;
+  overscroll-behavior: none;
+}
+
+.parallax-container {
+  transform: translateY(var(--parallax-y));
+  transition: transform 0.1s ease-out;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  /* Improved spacing utilities */
+  .layout-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-spacing {
+    @apply py-12 md:py-16 lg:py-24;
+  }
+
+  .content-spacing {
+    @apply space-y-6 md:space-y-8;
+  }
+
+  /* Enhanced responsive paddings */
+  .responsive-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Improved grid layouts */
+  .grid-layout {
+    @apply grid gap-6 md:gap-8 lg:gap-12;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply antialiased text-foreground min-h-screen overflow-x-hidden touch-pan-y;
+    background: linear-gradient(135deg, #14151a 0%, #1a1b21 50%, #14151a 100%);
+    position: relative;
+    max-width: 100vw;
+    overscroll-behavior-y: none;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 0.2;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.4;
+      transform: scale(1.1);
+    }
+  }
+
+  @keyframes gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading font-extrabold uppercase tracking-tight;
+  }
+
+  h1 {
+    @apply text-4xl md:text-5xl;
+  }
+  h2 {
+    @apply text-3xl md:text-4xl;
+  }
+  h3 {
+    @apply text-2xl md:text-3xl;
+  }
+  h4 {
+    @apply text-xl md:text-2xl;
+  }
+  h5 {
+    @apply text-lg md:text-xl;
+  }
+  h6 {
+    @apply text-base md:text-lg;
+  }
+
+  p,
+  span,
+  a {
+    @apply text-sm md:text-base;
+  }
+}
+
+@keyframes fillAnimation {
+  from {
+    background-size: 0% 100%;
+  }
+  to {
+    background-size: 100% 100%;
+  }
+}
+
+@keyframes trophyShake {
+  0% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-5deg);
+  }
+  75% {
+    transform: rotate(5deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@layer components {
+  .header-text {
+    @apply font-heading font-extrabold uppercase tracking-tight;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(
+      145deg,
+      rgba(26, 27, 33, 0.95),
+      rgba(42, 43, 49, 0.8)
+    );
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease-in-out;
+  }
+
+  @keyframes initial-wiggle {
+    0%,
+    100% {
+      transform: rotate(0deg) scale(1);
+    }
+    25% {
+      transform: rotate(-12deg) scale(1.1);
+    }
+    50% {
+      transform: rotate(0deg) scale(1.15);
+    }
+    75% {
+      transform: rotate(12deg) scale(1.1);
+    }
+  }
+
+  @keyframes hover-effect {
+    0% {
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      transform: translateY(-3px) scale(1.05);
+    }
+    100% {
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .wiggle-animation {
+    animation: initial-wiggle 0.8s cubic-bezier(0.36, 0, 0.66, -0.56) forwards;
+  }
+
+  .wiggle-animation:hover {
+    animation: hover-effect 0.4s ease-in-out;
+  }
+
+  .fill-animation {
+    background: linear-gradient(
+      to right,
+      rgba(20, 21, 26, 0.9) 50%,
+      #d7ff00 50%
+    );
+    background-size: 200% 100%;
+    background-position: right bottom;
+    transition: all 0.3s ease-out;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-stretch: condensed;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    border: 2px solid #d7ff00;
+    box-shadow: 0 0 20px rgba(215, 255, 0, 0.15);
+    color: #14151a;
+  }
+
+  .fill-animation:hover {
+    background-position: left bottom;
+    color: #d7ff00 !important;
+    box-shadow: 0 0 30px rgba(215, 255, 0, 0.25);
+    transform: translateY(-1px);
+  }
+
+  .entrance-zoom {
+    animation: entranceZoom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: center;
+  }
+
+  .nav-link {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .nav-link::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: #d7ff00;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  .nav-link:hover::after {
+    transform: translateX(0);
+  }
+}
+
+@keyframes entranceZoom {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-subtle {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(0.95);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+@keyframes scroll {
+  from {
+    transform: translateX(100vw);
+  }
+  to {
+    transform: translateX(-100vw);
+  }
+}
+
+.animate-scroll {
+  animation: scroll 15s linear infinite;
+}
+
+/* Glitch effect for text headers */
+.glitch-text {
+  position: relative;
+  color: white;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  clip: rect(0, 0, 0, 0);
+}
+
+.glitch-text::before {
+  left: -2px;
+  text-shadow: 2px 0 #D7FF00;
+  animation: glitch-animation-1 3s infinite linear alternate-reverse;
+}
+
+.glitch-text::after {
+  left: 2px;
+  text-shadow: -2px 0 #ff00de;
+  animation: glitch-animation-2 2s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-animation-1 {
+  0% {
+    clip: rect(36px, 9999px, 9px, 0);
+  }
+  5% {
+    clip: rect(85px, 9999px, 78px, 0);
+  }
+  10% {
+    clip: rect(32px, 9999px, 11px, 0);
+  }
+  15% {
+    clip: rect(91px, 9999px, 36px, 0);
+  }
+  20% {
+    clip: rect(87px, 9999px, 44px, 0);
+  }
+  25% {
+    clip: rect(16px, 9999px, 48px, 0);
+  }
+  30% {
+    clip: rect(74px, 9999px, 56px, 0);
+  }
+  35% {
+    clip: rect(89px, 9999px, 79px, 0);
+  }
+  40% {
+    clip: rect(4px, 9999px, 12px, 0);
+  }
+  45% {
+    clip: rect(31px, 9999px, 16px, 0);
+  }
+  50% {
+    clip: rect(50px, 9999px, 91px, 0);
+  }
+  55% {
+    clip: rect(88px, 9999px, 33px, 0);
+  }
+  60% {
+    clip: rect(15px, 9999px, 9px, 0);
+  }
+  65% {
+    clip: rect(13px, 9999px, 65px, 0);
+  }
+  70% {
+    clip: rect(71px, 9999px, 37px, 0);
+  }
+  75% {
+    clip: rect(75px, 9999px, 67px, 0);
+  }
+  80% {
+    clip: rect(31px, 9999px, 21px, 0);
+  }
+  85% {
+    clip: rect(43px, 9999px, 95px, 0);
+  }
+  90% {
+    clip: rect(99px, 9999px, 91px, 0);
+  }
+  95% {
+    clip: rect(72px, 9999px, 43px, 0);
+  }
+  100% {
+    clip: rect(15px, 9999px, 25px, 0);
+  }
+}
+
+@keyframes glitch-animation-2 {
+  0% {
+    clip: rect(18px, 9999px, 13px, 0);
+  }
+  5% {
+    clip: rect(93px, 9999px, 35px, 0);
+  }
+  10% {
+    clip: rect(63px, 9999px, 33px, 0);
+  }
+  15% {
+    clip: rect(51px, 9999px, 97px, 0);
+  }
+  20% {
+    clip: rect(41px, 9999px, 45px, 0);
+  }
+  25% {
+    clip: rect(93px, 9999px, 59px, 0);
+  }
+  30% {
+    clip: rect(4px, 9999px, 73px, 0);
+  }
+  35% {
+    clip: rect(80px, 9999px, 23px, 0);
+  }
+  40% {
+    clip: rect(22px, 9999px, 90px, 0);
+  }
+  45% {
+    clip: rect(37px, 9999px, 47px, 0);
+  }
+  50% {
+    clip: rect(38px, 9999px, 46px, 0);
+  }
+  55% {
+    clip: rect(57px, 9999px, 18px, 0);
+  }
+  60% {
+    clip: rect(68px, 9999px, 83px, 0);
+  }
+  65% {
+    clip: rect(47px, 9999px, 76px, 0);
+  }
+  70% {
+    clip: rect(81px, 9999px, 98px, 0);
+  }
+  75% {
+    clip: rect(13px, 9999px, 11px, 0);
+  }
+  80% {
+    clip: rect(10px, 9999px, 86px, 0);
+  }
+  85% {
+    clip: rect(56px, 9999px, 57px, 0);
+  }
+  90% {
+    clip: rect(44px, 9999px, 68px, 0);
+  }
+  95% {
+    clip: rect(77px, 9999px, 47px, 0);
+  }
+  100% {
+    clip: rect(31px, 9999px, 25px, 0);
+  }
+}
+
+/* Glitch effect for buttons */
+.glitch-text-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.playful-button {
+  transition: all 0.3s ease;
+  transform-origin: center;
+}
+
+.playful-button:hover {
+  animation: bounceAndGlow 0.6s ease-in-out;
+  box-shadow: 0 0 15px rgba(215, 255, 0, 0.6);
+}
+
+@keyframes bounceAndGlow {
+  0%, 100% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.1) rotate(2deg);
+  }
+  60% {
+    transform: scale(1.1) rotate(-2deg);
+  }
+  80% {
+    transform: scale(1.05) rotate(1deg);
+  }
+}
+
+/* Play button icon animation */
+.play-icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.play-icon {
+  transition: transform 0.3s ease;
+}
+
+.group:hover .play-icon {
+  transform: scale(1.2);
+}
+
+/* Trigger the SVG animations on hover */
+.group:hover .play-icon-animate {
+  animation-play-state: running !important;
+}
+
+/* Play icon animations are now set to run by default */
+.play-icon-animate {
+  animation-play-state: running !important;
+}
+
+/* No need to override begin attribute anymore since we set it to 0s in the SVG */
+.group:hover .play-icon path animate {
+  animation-play-state: running !important;
+}
