@@ -114,11 +114,15 @@ router.get("/search", async (req, res) => {
         isAdmin: extUser.isAdmin,
         createdAt: extUser.createdAt,
         emailVerified: extUser.emailVerified,
+        // Add profile fields
+        bio: extUser.bio || '',
+        profileColor: extUser.profileColor || '#D7FF00',
+        goatedId: extUser.goatedId || null,
+        goatedUsername: extUser.goatedUsername || null,
         // Only include sensitive data for admin view
         ...(isAdminView && {
           // Telegram related fields
           telegramId: extUser.telegramId,
-          telegramVerifiedAt: extUser.telegramVerifiedAt,
           // Location and activity fields
           lastLoginIp: extUser.lastLoginIp,
           registrationIp: extUser.registrationIp,
@@ -420,8 +424,35 @@ router.post("/ensure-profile", async (req, res) => {
   }
 });
 
-// Endpoint for ensuring a user profile exists will be at /ensure-profile-from-id
-
+// Endpoint for ensuring a user profile exists by ID
+router.post("/ensure-profile-from-id", async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+    
+    console.log(`Request to ensure profile exists for ID: ${userId}`);
+    
+    // Use the ensureUserProfile function from server/index.ts
+    const { ensureUserProfile } = require('../index');
+    const user = await ensureUserProfile(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found with provided ID" });
+    }
+    
+    res.json({
+      success: true,
+      message: user.isNewlyCreated ? "Profile created successfully" : "Profile already exists",
+      user
+    });
+  } catch (error) {
+    console.error("Error ensuring user profile from ID:", error);
+    res.status(500).json({ error: "Failed to ensure user profile exists" });
+  }
+});
 
 
 
@@ -622,7 +653,6 @@ router.get("/by-goated-id/:goatedId", async (req, res) => {
           bio, 
           profile_color as "profileColor", 
           created_at as "createdAt",
-          telegram_username as "telegramUsername",
           goated_id as "goatedId"
         FROM users 
         WHERE goated_id = ${goatedId}

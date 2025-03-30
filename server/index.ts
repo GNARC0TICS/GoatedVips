@@ -128,7 +128,6 @@ export async function ensureUserProfile(userId: string): Promise<any> {
       `);
       
       existingUser = results.rows && results.rows.length > 0 ? results.rows[0] : null;
-      console.log("String ID search for user existence:", results);
       
       if (existingUser) {
         // Add a flag to indicate this was an existing user
@@ -166,52 +165,84 @@ export async function ensureUserProfile(userId: string): Promise<any> {
     if (isNumericId) {
       const token = process.env.API_TOKEN || API_CONFIG.token;
       
-      if (!token) {
-        console.warn("API token not available for profile creation");
-        return null;
-      }
+      // Try to fetch player data from the API
+      let playerData = null;
       
-      // Fetch player data directly from the player endpoint
-      const playerUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.player}/${userId}`;
-      console.log(`Fetching player data from ${playerUrl}`);
-      
-      const response = await fetch(playerUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+      if (token) {
+        try {
+          // Fetch player data directly from the player endpoint
+          const playerUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.player}/${userId}`;
+          console.log(`Fetching player data from ${playerUrl}`);
+          
+          const response = await fetch(playerUrl, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            }
+          });
+          
+          if (response.ok) {
+            playerData = await response.json();
+          } else {
+            console.log(`API returned status ${response.status} for player ${userId}`);
+          }
+        } catch (apiError) {
+          console.error("Error fetching from API:", apiError);
         }
-      });
-      
-      if (!response.ok) {
-        console.error(`Failed to fetch player data: ${response.status}`);
-        return null;
       }
       
-      const playerData = await response.json();
-      if (!playerData || !playerData.username) {
-        console.error("Invalid or empty player data returned");
-        return null;
-      }
-      
-      // Create a new profile for this user
+      // Create a placeholder profile if we couldn't get data from API
+      // This ensures we always have a profile to show, even if API is unavailable
+      const username = playerData?.username || `User_${userId}`;
       const newUserId = Math.floor(1000 + Math.random() * 9000);
-      const email = `${playerData.username.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
+      const email = `${username.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
       
-      const result = await db.execute(sql`
-        INSERT INTO users (
-          id, username, email, password, created_at, profile_color, bio, is_admin, goated_id
-        ) VALUES (
-          ${newUserId}, ${playerData.username}, ${email}, '', ${new Date()}, '#D7FF00', '', false, ${userId}
-        ) RETURNING id, username, goated_id as "goatedId"
-      `);
-      
-      if (result && result.rows && result.rows.length > 0) {
-        console.log(`Created new profile for ${playerData.username} (${userId})`);
-        // Add a flag to indicate this is a newly created user
-        return {
-          ...result.rows[0],
-          isNewlyCreated: true
-        };
+      try {
+        const result = await db.execute(sql`
+          INSERT INTO users (
+            id, username, email, password, created_at, profile_color, bio, is_admin, goated_id
+          ) VALUES (
+            ${newUserId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', 'Profile automatically created', false, ${userId}
+          ) RETURNING id, username, goated_id as "goatedId"
+        `);
+        
+        if (result && result.rows && result.rows.length > 0) {
+          console.log(`Created new profile for ${username} (${userId})`);
+          // Add a flag to indicate this is a newly created user
+          return {
+            ...result.rows[0],
+            isNewlyCreated: true
+          };
+        }
+      } catch (insertError) {
+        console.error(`Failed to create user profile for ID ${userId}:`, insertError);
+      }
+    } else {
+      // Handle non-numeric IDs (like UUIDs)
+      // Create a basic profile with the ID as username
+      try {
+        const shortId = userId.substring(0, 8); // Use first 8 chars of UUID for username
+        const newUserId = Math.floor(1000 + Math.random() * 9000);
+        const username = `User_${shortId}`;
+        const email = `${username.toLowerCase()}@goated.placeholder.com`;
+        
+        const result = await db.execute(sql`
+          INSERT INTO users (
+            id, username, email, password, created_at, profile_color, bio, is_admin, goated_id
+          ) VALUES (
+            ${newUserId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', 'Profile automatically created', false, ${userId}
+          ) RETURNING id, username, goated_id as "goatedId"
+        `);
+        
+        if (result && result.rows && result.rows.length > 0) {
+          console.log(`Created new profile for UUID user ${shortId}`);
+          return {
+            ...result.rows[0],
+            isNewlyCreated: true
+          };
+        }
+      } catch (insertError) {
+        console.error(`Failed to create profile for UUID ${userId}:`, insertError);
       }
     }
     
