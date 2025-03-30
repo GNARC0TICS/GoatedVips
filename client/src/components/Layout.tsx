@@ -40,7 +40,7 @@ import {
 import { UtilityPanelButton } from "./UtilityPanel";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import giftIcon from '/client/public/images/GIFT.png';
+import giftIcon from '/images/GIFT.png';
 
 // --- Static Styles (Memoized as constants) ---
 const headerClasses = {
@@ -705,8 +705,7 @@ export function Layout({ children }: { children: ReactNode }) {
                       >
                         <LogOut className="h-4 w-4 mr-2" />
                         Logout
-                      </DropdownMenuItem>
-                                        </DropdownMenuContent>
+                      </DropdownMenuItem>                    </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (
                   <AuthModal />
