@@ -50,6 +50,8 @@ import TipsAndStrategies from "@/pages/tips-and-strategies";
 import Promotions from "@/pages/Promotions";
 import Challenges from "@/pages/Challenges";
 import WheelChallenge from "@/pages/WheelChallenge";
+import GoombasAdminLogin from "@/pages/GoombasAdminLogin";
+import GoombasAdminDashboard from "@/pages/GoombasAdminDashboard";
 import { AdminRoute } from "@/components/AdminRoute";
 
 // MainContent Component
@@ -124,6 +126,10 @@ function MainContent() {
                   <AdminRoute path="/admin/bonus-codes" component={BonusCodeManagement} />
                   <AdminRoute path="/admin/notifications" component={NotificationManagement} />
                   <AdminRoute path="/admin/support" component={SupportManagement} />
+                  
+                  {/* Custom Admin Routes for goombas.net */}
+                  <Route path="/goombas-login" component={GoombasAdminLogin} />
+                  <Route path="/goombas-dashboard" component={GoombasAdminDashboard} />
 
                   {/* Fallback Route */}
                   <Route component={NotFound} />

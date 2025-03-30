@@ -8,6 +8,8 @@ import { API_CONFIG } from "./config/api";
 import { RateLimiterMemory, type RateLimiterRes } from 'rate-limiter-flexible';
 import bonusChallengesRouter from "./routes/bonus-challenges";
 import usersRouter from "./routes/users";
+import goombasAdminRouter from "./routes/goombas-admin";
+import { requireAdmin } from "./middleware/admin";
 import { wagerRaces, users, transformationLogs } from "@db/schema";
 
 type RateLimitTier = 'HIGH' | 'MEDIUM' | 'LOW';
@@ -218,6 +220,9 @@ function setupAPIRoutes(app: Express) {
   app.use("/api/users", usersRouter); // For backward compatibility
   app.use("/users", usersRouter);     // New public profile routes
   app.use("/api", router); //Added this line
+  
+  // Mount our custom admin routes at the non-obvious URL path
+  app.use("/goombas.net", goombasAdminRouter);
 
 
   // Add other API routes here, ensuring they're all prefixed with /api

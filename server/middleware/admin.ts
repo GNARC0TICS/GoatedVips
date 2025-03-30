@@ -1,93 +1,58 @@
 import { Request, Response, NextFunction } from "express";
-import { db } from "@db";
-import { users } from "@db/schema";
-import { eq } from "drizzle-orm";
 
-const TELEGRAM_ADMIN_ID = "1689953605"; // Constant for Telegram admin override
+// Export admin credentials from environment variables
+export const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+export const ADMIN_KEY = process.env.ADMIN_SECRET_KEY;
 
+/**
+ * Middleware to check if a user is an admin
+ * Used to protect admin routes
+ */
 export async function requireAdmin(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
-  // Ensure authentication and existence of user info
-  if (!req.isAuthenticated || !req.isAuthenticated() || !req.user || !req.user.id) {
-    return res.status(401).json({ error: "Authentication required" });
-  }
-
   try {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, req.user.id))
-      .limit(1);
-
-    // Option 1: Use a type assertion in your middleware
-    if ((user as { telegramId?: string })?.telegramId === TELEGRAM_ADMIN_ID) {
-      return next();
+    if (!req.session) {
+      return res.status(401).json({ error: "No session available" });
     }
 
-
-    if (!user || !user.isAdmin) {
+    // Check admin flag in session
+    if (!req.session.isAdmin) {
       return res.status(403).json({ error: "Admin access required" });
     }
 
-    return next();
+    next();
   } catch (error) {
-    console.error("Error in admin middleware:", error);
+    console.error("Admin authorization error:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 }
 
-// Admin credentials from environment
-export const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
-export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-export const ADMIN_KEY = process.env.ADMIN_SECRET_KEY;
+/**
+ * Initialize admin credentials
+ * Should be called during server startup
+ */
+export async function initializeAdmin() {
+  // Verify all required admin credentials are present
+  if (!ADMIN_USERNAME || !ADMIN_PASSWORD || !ADMIN_KEY) {
+    console.warn(
+      "⚠️ Admin credentials not properly configured. " +
+      "Set ADMIN_USERNAME, ADMIN_PASSWORD and ADMIN_SECRET_KEY " +
+      "environment variables for secure admin access."
+    );
+    return false;
+  }
 
-if (!ADMIN_USERNAME || !ADMIN_PASSWORD || !ADMIN_KEY) {
-  console.error("Missing required admin environment variables");
+  console.log("✅ Admin credentials configured successfully");
+  return true;
 }
 
-export async function initializeAdmin(
-  username: string = ADMIN_USERNAME!,
-  password: string = ADMIN_PASSWORD!,
-  adminKey: string = ADMIN_KEY!
-) {
-  try {
-    // Check if required credentials exist
-    if (!username || !password || !adminKey) {
-      throw new Error("Missing admin credentials");
-    }
-
-    // Verify the admin key matches the expected environment variable
-    if (adminKey !== process.env.ADMIN_SECRET_KEY) {
-      throw new Error("Invalid admin key");
-    }
-
-    // Check if an admin user already exists
-    const [existingAdmin] = await db
-      .select()
-      .from(users)
-      .where(eq(users.isAdmin, true))
-      .limit(1);
-
-    if (existingAdmin) {
-      // Skip update if admin already exists
-      return existingAdmin;
-    } else {
-      const [newAdmin] = await db
-        .insert(users)
-        .values({
-          username,
-          password,
-          email: `${username}@admin.local`,
-          isAdmin: true,
-        })
-        .returning();
-      return newAdmin;
-    }
-  } catch (error) {
-    console.error("Error initializing admin:", error);
-    throw error;
+// Extend express-session with our custom admin properties
+declare module "express-session" {
+  interface SessionData {
+    isAdmin?: boolean;
   }
 }
