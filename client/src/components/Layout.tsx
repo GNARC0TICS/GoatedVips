@@ -751,7 +751,7 @@ export function Layout({ children }: { children: ReactNode }) {
               </DropdownMenu>
             )}
           </div>
-        </</nav>
+        </nav>
       </header>
 
       {/* Auth Section - Desktop Only */}

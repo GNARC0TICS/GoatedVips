@@ -129,8 +129,8 @@ function MainContent() {
                   <AdminRoute path="/admin/support" component={SupportManagement} />
                   
                   {/* Custom Admin Routes for goombas.net */}
-                  <Route path="/goombas-login" component={GoombasAdminLogin} />
-                  <Route path="/goombas-dashboard" component={GoombasAdminDashboard} />
+                  <Route path="/goombas.net/login" component={GoombasAdminLogin} />
+                  <Route path="/goombas.net/dashboard" component={GoombasAdminDashboard} />
                   
                   {/* Crypto Swap Feature */}
                   <Route path="/crypto-swap" component={CryptoSwap} />

@@ -1,165 +1,170 @@
-import express, { Request, Response } from "express";
-import { db } from "db";
-import { users, wagerRaces, bonusCodes, supportTickets } from "@db/schema";
-import { eq, sql, count, and, gte, desc } from "drizzle-orm";
-import * as crypto from "crypto";
-import session from "express-session";
+import { Router, Request, Response } from 'express';
+import { db } from '@db/index';
+import { users, wheelSpins, bonusCodes, wagerRaces, wagerRaceParticipants, supportTickets } from '@db/schema';
+import { count } from 'drizzle-orm';
+import { validateAdminCredentials, requireAdmin } from '../middleware/admin';
 
-const router = express.Router();
+const router = Router();
 
-// Middleware to check admin credentials using environment variables
-const requireGoombasAdmin = async (req: Request, res: Response, next: any) => {
-  // Check if admin is already authenticated in session
-  if (req.session && req.session.isAdmin) {
-    return next();
+// Secure admin login endpoint
+router.post('/goombas.net/login', async (req: Request, res: Response) => {
+  const { username, password, secretKey } = req.body;
+
+  if (!username || !password || !secretKey) {
+    return res.status(400).json({ 
+      message: 'Missing credentials',
+      status: 'error'
+    });
   }
-  return res.status(401).json({ error: "Unauthorized access" });
-};
 
-// Admin login route
-router.post("/login", async (req: Request, res: Response) => {
-  try {
-    const { username, password, adminKey } = req.body;
-
-    // Verify against environment variables
-    const adminUsername = process.env.ADMIN_USERNAME;
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    const adminSecretKey = process.env.ADMIN_SECRET_KEY;
-
-    if (!adminUsername || !adminPassword || !adminSecretKey) {
-      console.error("Admin credentials not properly configured in environment");
-      return res.status(500).json({ error: "Server configuration error" });
-    }
-
-    // Verify all credentials match
-    if (
-      username === adminUsername &&
-      password === adminPassword &&
-      adminKey === adminSecretKey
-    ) {
-      // Set admin session
-      req.session.isAdmin = true;
-      return res.status(200).json({ success: true });
-    }
-
-    // Log failed attempt (security measure)
-    console.warn(`Failed admin login attempt for username: ${username}`);
-    return res.status(401).json({ error: "Invalid credentials" });
-  } catch (error) {
-    console.error("Admin login error:", error);
-    return res.status(500).json({ error: "Server error during login" });
-  }
-});
-
-// Admin logout route
-router.post("/logout", (req: Request, res: Response) => {
-  if (req.session) {
-    req.session.destroy((err) => {
-      if (err) {
-        return res.status(500).json({ error: "Failed to logout" });
-      }
-      return res.status(200).json({ success: true });
+  // Validate admin credentials against environment variables
+  const isValid = validateAdminCredentials(username, password, secretKey);
+  
+  if (isValid) {
+    // Set session flag to indicate admin authentication
+    req.session.isAdmin = true;
+    
+    return res.status(200).json({
+      message: 'Authentication successful',
+      status: 'success'
     });
   } else {
-    return res.status(200).json({ success: true });
+    return res.status(401).json({ 
+      message: 'Invalid credentials',
+      status: 'error'
+    });
   }
 });
 
-// Dashboard statistics route
-router.get("/dashboard", requireGoombasAdmin, async (req: Request, res: Response) => {
+// Admin logout endpoint
+router.post('/goombas.net/logout', requireAdmin, (req: Request, res: Response) => {
+  // Clear admin session
+  req.session.isAdmin = false;
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ 
+        message: 'Error during logout',
+        status: 'error'
+      });
+    }
+    res.status(200).json({ 
+      message: 'Logout successful',
+      status: 'success'
+    });
+  });
+});
+
+// Basic analytics endpoint
+router.get('/goombas.net/analytics', requireAdmin, async (req: Request, res: Response) => {
   try {
-    // Get current date for date filtering
-    const now = new Date();
-    const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+    // Count total users
+    const userCount = await db.select({ count: count() }).from(users);
     
-    // Query database for dashboard statistics
-    const [
-      userCount,
-      activeRacesCount,
-      pendingBonusesCount,
-      openSupportTicketsCount
-    ] = await Promise.all([
-      // Total user count
-      db.select({ count: count() }).from(users).then(result => result[0].count),
-      
-      // Active races count
-      db.select({ count: count() }).from(wagerRaces)
-        .where(and(
-          gte(wagerRaces.endDate, new Date()),
-          eq(wagerRaces.status, 'live')
-        ))
-        .then(result => result[0].count),
-      
-      // Pending bonuses count
-      db.select({ count: count() }).from(bonusCodes)
-        .where(eq(bonusCodes.isUsed, false))
-        .then(result => result[0].count),
-      
-      // Open support tickets count
-      db.select({ count: count() }).from(supportTickets)
-        .where(eq(supportTickets.status, "open"))
-        .then(result => result[0].count)
-    ]);
+    // Get recent users (last 10 registered)
+    const recentUsers = await db.select({
+      id: users.id,
+      username: users.username,
+      email: users.email,
+      createdAt: users.createdAt,
+      isAdmin: users.isAdmin
+    })
+    .from(users)
+    .orderBy(users.createdAt)
+    .limit(10);
 
-    // Build and return dashboard stats
-    const stats = {
-      userCount,
-      activeRaces: activeRacesCount,
-      pendingBonuses: pendingBonusesCount,
-      openSupportTickets: openSupportTicketsCount,
-      lastUpdated: new Date().toISOString()
-    };
+    // Count wheel spins
+    const wheelSpinCount = await db.select({ count: count() }).from(wheelSpins);
+    
+    // Count bonus codes
+    const bonusCodeCount = await db.select({ count: count() }).from(bonusCodes);
+    
+    // Count wager races
+    const wagerRaceCount = await db.select({ count: count() }).from(wagerRaces);
+    
+    // Count wager race participants
+    const wagerRaceParticipantCount = await db.select({ count: count() }).from(wagerRaceParticipants);
 
-    return res.status(200).json({ stats });
+    // Count support tickets
+    const supportTicketCount = await db.select({ count: count() }).from(supportTickets);
+    
+    // Send aggregated analytics data
+    res.status(200).json({
+      totalUsers: userCount[0]?.count || 0,
+      recentUsers,
+      stats: {
+        wheelSpins: wheelSpinCount[0]?.count || 0,
+        bonusCodes: bonusCodeCount[0]?.count || 0,
+        wagerRaces: wagerRaceCount[0]?.count || 0,
+        wagerRaceParticipants: wagerRaceParticipantCount[0]?.count || 0,
+        supportTickets: supportTicketCount[0]?.count || 0,
+      }
+    });
   } catch (error) {
-    console.error("Error fetching dashboard stats:", error);
-    return res.status(500).json({ error: "Failed to fetch dashboard statistics" });
+    console.error('Error fetching analytics:', error);
+    res.status(500).json({ 
+      message: 'Error fetching analytics',
+      status: 'error'
+    });
   }
 });
 
-// Recent activity for admin dashboard
-router.get("/recent-activity", requireGoombasAdmin, async (req: Request, res: Response) => {
+// User management endpoints
+router.get('/goombas.net/users', requireAdmin, async (req: Request, res: Response) => {
   try {
-    // Get recent user registrations
-    const recentUsers = await db.query.users.findMany({
-      orderBy: [desc(users.createdAt)],
-      limit: 5,
-    });
-
-    // Get recent bonus code creations
-    const recentBonusCodes = await db.query.bonusCodes.findMany({
-      orderBy: [desc(sql`${bonusCodes.id}`)],
-      limit: 5,
-    });
-
-    // Get recent support tickets
-    const recentTickets = await db.query.supportTickets.findMany({
-      orderBy: [desc(supportTickets.createdAt)],
-      limit: 5,
-    });
-
-    return res.status(200).json({
-      recentUsers: recentUsers.map(user => ({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        createdAt: user.createdAt,
-      })),
-      recentBonusCodes: recentBonusCodes.map(code => ({
-        id: code.id,
-        code: code.code,
-        isUsed: code.isUsed,
-      })),
-      recentTickets: recentTickets.map(ticket => ({
-        id: ticket.id,
-        subject: ticket.subject,
-        status: ticket.status,
-        createdAt: ticket.createdAt,
-      })),
-    });
+    const allUsers = await db.select().from(users);
+    res.status(200).json(allUsers);
   } catch (error) {
-    console.error("Error fetching recent activity:", error);
-    return res.status(500).json({ error: "Failed to fetch recent activity" });
+    console.error('Error fetching users:', error);
+    res.status(500).json({ 
+      message: 'Error fetching users',
+      status: 'error'
+    });
+  }
+});
+
+// Get a specific user
+router.get('/goombas.net/users/:id', requireAdmin, async (req: Request, res: Response) => {
+  const userId = Number(req.params.id);
+  
+  if (isNaN(userId)) {
+    return res.status(400).json({ 
+      message: 'Invalid user ID',
+      status: 'error'
+    });
+  }
+  
+  try {
+    const user = await db.select().from(users).where(users.id === userId);
+    
+    if (!user || user.length === 0) {
+      return res.status(404).json({ 
+        message: 'User not found',
+        status: 'error'
+      });
+    }
+    
+    res.status(200).json(user[0]);
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ 
+      message: 'Error fetching user',
+      status: 'error'
+    });
+  }
+});
+
+// Check admin auth status
+router.get('/goombas.net/auth-status', (req: Request, res: Response) => {
+  if (req.session.isAdmin) {
+    res.status(200).json({ 
+      isAdmin: true,
+      status: 'success'
+    });
+  } else {
+    res.status(401).json({ 
+      isAdmin: false,
+      status: 'error'
+    });
   }
 });
 

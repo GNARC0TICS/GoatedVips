@@ -27,7 +27,7 @@ import { exec } from "child_process";
 import { sql } from "drizzle-orm";
 import { log } from "./utils/logger";
 import { registerRoutes } from "./routes";
-import { initializeAdmin } from "./middleware/admin";
+import { domainRedirectMiddleware } from "./middleware/domain-handler";
 import { db } from "../db";
 import { setupAuth } from "./auth";
 import cors from "cors";
@@ -127,10 +127,8 @@ async function initializeServer() {
     setupAuth(app);
     registerRoutes(app);
 
-    // Initialize admin after routes
-    await initializeAdmin().catch(error => {
-      log("error", `Admin initialization error: ${error instanceof Error ? error.message : String(error)}`);
-    });
+    // Admin routes are set up through the middleware and routes system
+    log("info", "Admin routes initialized");
 
     server = createServer(app);
     setupWebSocket(server);
@@ -226,6 +224,9 @@ function setupWebSocket(server: any) {
  */
 function setupMiddleware(app: express.Application) {
   app.set('trust proxy', 1);
+  
+  // Domain detection middleware (important to run first)
+  app.use(domainRedirectMiddleware);
 
   // CORS configuration for API routes
   app.use('/api', cors({
@@ -330,7 +331,7 @@ function serveStatic(app: express.Application) {
 
   // SPA fallback
   app.get("*", (_req, res, next) => {
-    if (req.path.startsWith('/api')) {
+    if (_req.path.startsWith('/api')) {
       return next();
     }
     res.sendFile(path.resolve(distPath, "index.html"), {

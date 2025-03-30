@@ -1,108 +1,114 @@
-import React from 'react';
-import { useLocation } from 'wouter';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import * as z from 'zod';
-import { useToast } from '@/hooks/use-toast';
-
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
+import { useLocation } from 'wouter';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
 } from '@/components/ui/card';
-import {
+import { 
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
+  FormMessage
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { AlertCircle, Lock } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
-// Define form schema
-const adminLoginSchema = z.object({
-  username: z.string().min(1, 'Username is required'),
-  password: z.string().min(1, 'Password is required'),
-  adminKey: z.string().min(1, 'Admin key is required'),
+// Login form validation schema
+const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+  secretKey: z.string().min(1, "Secret key is required")
 });
 
-type AdminLoginFormValues = z.infer<typeof adminLoginSchema>;
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function GoombasAdminLogin() {
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [_, setLocation] = useLocation();
 
-  // Initialize form
-  const form = useForm<AdminLoginFormValues>({
-    resolver: zodResolver(adminLoginSchema),
+  // Initialize form with react-hook-form
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: '',
-      password: '',
-      adminKey: '',
-    },
+      username: "",
+      password: "",
+      secretKey: ""
+    }
   });
 
-  async function onSubmit(data: AdminLoginFormValues) {
+  const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
+    setError(null);
     
     try {
       const response = await fetch('/goombas.net/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(data),
+        credentials: 'include'
       });
-
-      const result = await response.json();
-
+      
       if (!response.ok) {
-        throw new Error(result.error || 'Login failed');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Authentication failed');
       }
-
-      // Success - store admin session in localStorage
-      localStorage.setItem('isGoombasAdmin', 'true');
       
       toast({
-        title: 'Login successful',
-        description: 'Welcome to the admin dashboard',
-        variant: 'default',
+        title: "Authentication successful",
+        description: "Redirecting to admin dashboard..."
       });
-
-      // Redirect to admin dashboard
-      setLocation('/goombas-dashboard');
-
-    } catch (error) {
-      console.error('Admin login error:', error);
+      
+      // Navigate to the admin dashboard upon successful login
+      setLocation('/goombas.net/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       toast({
-        title: 'Login failed',
-        description: error instanceof Error ? error.message : 'Invalid credentials',
-        variant: 'destructive',
+        variant: "destructive",
+        title: "Authentication failed",
+        description: err instanceof Error ? err.message : 'An unexpected error occurred'
       });
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#14151A]">
-      <Card className="w-full max-w-md border-[#D7FF00]/20 bg-[#1A1C23]">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold tracking-tight text-[#D7FF00]">
-            Admin Login
+    <div className="flex items-center justify-center min-h-screen bg-background p-4">
+      <Card className="w-full max-w-md shadow-xl border-muted-foreground/20">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
+            <Lock className="h-6 w-6" /> 
+            Admin Access
           </CardTitle>
-          <CardDescription className="text-gray-400">
-            Enter your credentials to access the admin dashboard
+          <CardDescription className="text-center">
+            Secure admin portal for Goombas management
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
@@ -112,12 +118,7 @@ export default function GoombasAdminLogin() {
                   <FormItem>
                     <FormLabel>Username</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="Admin username"
-                        {...field}
-                        disabled={isLoading}
-                        className="bg-[#222328] border-[#36383F]"
-                      />
+                      <Input placeholder="Enter your username" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -131,13 +132,7 @@ export default function GoombasAdminLogin() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Admin password"
-                        {...field}
-                        disabled={isLoading}
-                        className="bg-[#222328] border-[#36383F]"
-                      />
+                      <Input type="password" placeholder="Enter your password" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -146,37 +141,31 @@ export default function GoombasAdminLogin() {
               
               <FormField
                 control={form.control}
-                name="adminKey"
+                name="secretKey"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Admin Key</FormLabel>
+                    <FormLabel>Secret Key</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Admin secret key"
-                        {...field}
-                        disabled={isLoading}
-                        className="bg-[#222328] border-[#36383F]"
-                      />
+                      <Input type="password" placeholder="Enter your secret key" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               
-              <Button
-                type="submit"
+              <Button 
+                type="submit" 
+                className="w-full bg-primary hover:bg-primary/90" 
                 disabled={isLoading}
-                className="w-full bg-[#D7FF00] text-black hover:bg-[#D7FF00]/90"
               >
-                {isLoading ? <LoadingSpinner size="sm" /> : 'Login'}
+                {isLoading ? "Authenticating..." : "Log In"}
               </Button>
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <p className="text-xs text-gray-500">
-            Protected admin access • {new Date().getFullYear()}
+        <CardFooter className="flex flex-col">
+          <p className="px-8 text-center text-sm text-muted-foreground">
+            This is a secure area. Unauthorized access is prohibited and monitored.
           </p>
         </CardFooter>
       </Card>
