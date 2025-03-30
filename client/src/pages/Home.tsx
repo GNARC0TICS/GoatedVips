@@ -362,7 +362,25 @@ export default function Home() {
                   <div className="relative group transform transition-all duration-300 hover:scale-[1.02]">
                     <div className="absolute inset-0 bg-gradient-to-b from-[#D7FF00]/20 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 blur-sm" />
                     <div className="relative p-6 md:p-8 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm hover:border-[#D7FF00]/50 transition-all duration-300 shadow-lg hover:shadow-[#FFD700]/20 card-hover h-full w-full flex flex-col justify-between">
-                      <MessageSquare className="h-8 w-8 text-[#D7FF00] mb-4" />
+                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" className="text-[#D7FF00] mb-4">
+                        <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                          <path stroke-dasharray="20" stroke-dashoffset="20" d="M21 5l-2.5 15M21 5l-12 8.5">
+                            <animate fill="freeze" attributeName="stroke-dashoffset" dur="1s" values="20;0" />
+                          </path>
+                          <path stroke-dasharray="24" stroke-dashoffset="24" d="M21 5l-19 7.5">
+                            <animate fill="freeze" attributeName="stroke-dashoffset" dur="1s" values="24;0" />
+                          </path>
+                          <path stroke-dasharray="14" stroke-dashoffset="14" d="M18.5 20l-9.5 -6.5">
+                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="1s" dur="0.75s" values="14;0" />
+                          </path>
+                          <path stroke-dasharray="10" stroke-dashoffset="10" d="M2 12.5l7 1">
+                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="1s" dur="0.75s" values="10;0" />
+                          </path>
+                          <path stroke-dasharray="8" stroke-dashoffset="8" d="M12 16l-3 3M9 13.5l0 5.5">
+                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="1.75s" dur="0.75s" values="8;0" />
+                          </path>
+                        </g>
+                      </svg>
                       <div className="flex items-center justify-center gap-2 mb-4">
                         <h3 className="text-2xl font-heading uppercase text-white">
                           TELEGRAM GROUP                        </h3>
