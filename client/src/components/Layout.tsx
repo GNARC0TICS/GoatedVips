@@ -185,7 +185,7 @@ export function Layout({ children }: { children: ReactNode }) {
   }, []);
 
   const [, setLocation] = useLocation();
-  
+
   const handleLogout = useCallback(async () => {
     try {
       const response = await fetch("/api/logout", {
@@ -570,7 +570,7 @@ export function Layout({ children }: { children: ReactNode }) {
                           <AuthModal isMobile={true} />
                         </div>
                       )}
-                      
+
                       {/* Play button */}
                       <Button
                         onClick={() => {
@@ -616,7 +616,7 @@ export function Layout({ children }: { children: ReactNode }) {
                           </svg>
                         </span>
                       </Button>
-                      
+
                       {/* Logout if logged in */}
                       {user && (
                         <Button
@@ -640,7 +640,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <div className="w-full max-w-[200px] lg:max-w-[240px]">
               <UserSearch />
             </div>
-            
+
             {/* Gift Button */}
             <UtilityPanelButton />
 
@@ -751,57 +751,35 @@ export function Layout({ children }: { children: ReactNode }) {
               </DropdownMenu>
             )}
           </div>
-        </nav>
+        </</nav>
       </header>
-      
+
       {/* Auth Section - Desktop Only */}
       <div className={authSectionClasses.container}>
         <div className={authSectionClasses.wrapper}>
           {/* PLAY button - always visible */}
-          <Button
-            onClick={() => window.open("https://www.goated.com/r/SPIN", "_blank")}
-            className="relative group overflow-hidden text-[#14151A] fill-animation hover:text-[#D7FF00] transition-all duration-300 font-heading uppercase tracking-tight h-9 md:h-10 px-3 md:px-4 text-sm md:text-base"
-          >
-            <span className="relative z-10 flex items-center gap-1">
-              PLAY
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                width="20" 
-                height="20" 
-                viewBox="0 0 24 24"
-                className="ml-1"
-              >
-                <path 
-                  fill="currentColor" 
-                  fillOpacity="0" 
-                  stroke="currentColor" 
-                  strokeDasharray="40" 
-                  strokeDashoffset="40" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth="2" 
-                  d="M8 6l10 6l-10 6Z"
-                >
-                  <animate 
-                    fill="freeze" 
-                    attributeName="fill-opacity" 
-                    begin="0s" 
-                    dur="0.8s" 
-                    values="0;1" 
-                  />
-                  <animate 
-                    fill="freeze" 
-                    attributeName="stroke-dashoffset" 
-                    dur="0.8s" 
-                    values="40;0" 
-                  />
-                </path>
-              </svg>
-            </span>
-          </Button>
-          
-          {/* Auth buttons - only when not logged in */}
-          {!isAuthenticated && <AuthModal />}
+          <div className="hidden lg:flex items-center gap-2 ml-auto">
+            {isAuthenticated ? (
+              <Link href="/dashboard">
+                <Button className="bg-[#D7FF00] text-black hover:bg-[#D7FF00]/90">
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="outline" className="border-[#2A2B31] hover:bg-[#2A2B31]/50 hover:text-white">
+                    Login / Register
+                  </Button>
+                </Link>
+                <Link href="/play">
+                  <Button className="bg-[#D7FF00] text-black hover:bg-[#D7FF00]/90 uppercase font-heading">
+                    Play Now
+                  </Button>
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

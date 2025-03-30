@@ -31,7 +31,7 @@ export function CryptoSwapTooltip() {
   
   return (
     <div className="fixed bottom-6 left-6 z-40 max-w-sm">
-      <div className="relative bg-[#1A1C23]/80 backdrop-blur-sm border border-[#D7FF00]/30 p-4 rounded-xl shadow-lg shadow-[#D7FF00]/5">
+      <div className="relative bg-[#1A1C23]/60 backdrop-blur-md border border-[#D7FF00]/30 p-4 rounded-xl shadow-lg shadow-[#D7FF00]/10">
         <button
           onClick={handleDismiss}
           className="absolute top-2 right-2 text-gray-400 hover:text-white transition-colors"
@@ -42,7 +42,7 @@ export function CryptoSwapTooltip() {
         
         <div className="mb-3">
           <div className="font-bold text-[#D7FF00] text-lg mb-1 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" className="text-[#D7FF00]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" className="text-[#D7FF00]">
               <path fill="currentColor" d="M9 12.5L6.5 15L9 17.5l2.5-2.5zm6-10a6.5 6.5 0 0 0-6.482 6.018a6.5 6.5 0 1 0 6.964 6.964A6.5 6.5 0 0 0 15 2.5m.323 10.989a6.51 6.51 0 0 0-4.812-4.812a4.5 4.5 0 1 1 4.812 4.812M13.5 15a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0M3 7a4 4 0 0 1 4-4h1.5v2H7a2 2 0 0 0-2 2v1.5H3zm16 10v-1.5h2V17a4 4 0 0 1-4 4h-1.5v-2H17a2 2 0 0 0 2-2" />
             </svg>
             New Feature: Crypto Swap
