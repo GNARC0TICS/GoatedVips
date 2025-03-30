@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect as ReactuseEffect } from "react";
 import { QuickProfile } from "./QuickProfile";
-import { getTierFromWager, getTierIcon } from "@/lib/tier-utils"; // Added import
+import { getTierFromWager, getTierIcon } from "@/lib/tier-utils";
 import { Dialog, DialogContent } from "./ui/dialog";
 
 type MVP = {
@@ -28,7 +28,7 @@ const timeframes = [
     title: "Daily MVP", 
     period: "daily", 
     colors: {
-      primary: "#8B5CF6", // violet
+      primary: "#8B5CF6", 
       accent: "#7C3AED",
       shine: "#A78BFA"
     }
@@ -37,7 +37,7 @@ const timeframes = [
     title: "Weekly MVP", 
     period: "weekly", 
     colors: {
-      primary: "#10B981", // emerald
+      primary: "#10B981", 
       accent: "#059669",
       shine: "#34D399"
     }
@@ -46,7 +46,7 @@ const timeframes = [
     title: "Monthly MVP", 
     period: "monthly", 
     colors: {
-      primary: "#F59E0B", // amber
+      primary: "#F59E0B", 
       accent: "#D97706",
       shine: "#FBBF24"
     }
@@ -68,7 +68,6 @@ function MVPCard({
 }) {
   const [showIncrease, setShowIncrease] = useState(false);
 
-  // Show increase indicator for 10 seconds when wager amount changes
   ReactuseEffect(() => {
     if (mvp?.lastWagerChange) {
       setShowIncrease(true);
@@ -108,19 +107,16 @@ function MVPCard({
             style={{
               '--hover-border-color': `${timeframe.colors.primary}80`,
               '--hover-shadow-color': `${timeframe.colors.primary}40`
-            } as React.CSSProperties}
+            }}
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" style={{ color: timeframe.colors.primary }} className="h-5 w-5">
+            <div className="flex flex-col items-start justify-between h-full"> {/* Modified layout */}
+              <div className="flex items-center gap-2 mb-2"> {/* Icon and title */}
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style={{ color: timeframe.colors.primary }} className="h-6 w-6"> {/* Increased icon size */}
                   <path fill="currentColor" d="m15.2 10.7l1.4 5.3l-4.6-3.8L7.4 16l1.4-5.2l-4.2-3.5L10 7l2-5l2 5l5.4.3zM14 19h-1v-3l-1-1l-1 1v3h-1c-1.1 0-2 .9-2 2v1h8v-1a2 2 0 0 0-2-2" />
                 </svg>
                 <h3 className="text-lg font-heading text-white">{timeframe.title}</h3>
               </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-2"> {/* Avatar and username */}
                 {mvp.avatarUrl ? (
                   <img 
                     loading="lazy"
@@ -148,8 +144,7 @@ function MVPCard({
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-between text-sm bg-black/40 p-2 rounded-lg">
-                <span className="text-white/70">Period Total:</span>
+              <div className="flex items-center justify-center text-sm"> {/* Wager amount */}
                 <div className="flex items-center gap-2">
                   <span className="text-white font-mono font-bold">
                     ${mvp.wagerAmount.toLocaleString()}
@@ -272,7 +267,7 @@ export function MVPCards() {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-0 max-w-5xl mx-auto perspective-1000 px-0">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-w-5xl mx-auto perspective-1000 px-0"> {/* Added gap for better spacing */}
       {timeframes.map((timeframe) => (
         <motion.div
           key={timeframe.period}
@@ -280,7 +275,7 @@ export function MVPCards() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           whileHover={{ scale: 1.02 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
-          className="group relative transform transition-all duration-300 p-2 md:p-3"
+          className="group relative transform transition-all duration-300 p-2 md:p-3 rounded-xl" {/* Added rounded-xl for consistent card shape */}
         >
           <MVPCardMemo 
             timeframe={timeframe}
@@ -290,7 +285,7 @@ export function MVPCards() {
               wagerAmount: mvps[timeframe.period as keyof typeof mvps]?.wagered?.[timeframe.period === 'daily' ? 'today' : timeframe.period === 'weekly' ? 'this_week' : 'this_month'] || 0,
               wagered: mvps[timeframe.period as keyof typeof mvps]?.wagered || { today: 0, this_week: 0, this_month: 0, all_time: 0 },
               avatarUrl: mvps[timeframe.period as keyof typeof mvps]?.avatarUrl,
-              rank: 1 // MVP is always rank 1
+              rank: 1 
             } : undefined}
             isOpen={openCard === timeframe.period}
             onOpenChange={(open) => handleDialogChange(open, timeframe.period)}
