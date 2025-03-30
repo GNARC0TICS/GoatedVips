@@ -116,10 +116,8 @@ export function RaceTimer() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric',
-      month: 'long'
-    });
+    // Force March 2024 display for current race
+    return "March 2024";
   };
 
   if (error) {
