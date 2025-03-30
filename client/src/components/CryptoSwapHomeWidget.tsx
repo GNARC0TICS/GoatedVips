@@ -1,14 +1,15 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Repeat } from 'lucide-react';
 import { Link } from 'wouter';
+import { Repeat, ArrowRight } from 'lucide-react';
 
 export function CryptoSwapHomeWidget() {
   const [isExpanded, setIsExpanded] = useState(false);
   
   return (
-    <Card className="border-[#D7FF00]/20 bg-[#1A1C23] overflow-hidden">
+    <Card className="border-[#D7FF00]/10 bg-[#1A1C23]/90 backdrop-blur-sm overflow-hidden shadow-lg hover:shadow-[#D7FF00]/10 transition-all duration-300">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-center">
           <CardTitle className="text-xl font-bold text-[#D7FF00] flex items-center">
