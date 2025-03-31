@@ -12,6 +12,7 @@ import goombasAdminRouter from "./routes/goombas-admin";
 import { requireAdmin } from "./middleware/admin";
 import { wagerRaces, users, transformationLogs } from "@db/schema";
 import { ensureUserProfile } from "./index";
+import adminToolsRoutes from "./routes/admin-tools"; // Import admin tools routes
 
 type RateLimitTier = 'HIGH' | 'MEDIUM' | 'LOW';
 const rateLimits: Record<RateLimitTier, { points: number; duration: number }> = {
@@ -223,7 +224,7 @@ function setupAPIRoutes(app: Express) {
   app.use("/api/users", usersRouter); // For backward compatibility
   app.use("/users", usersRouter);     // New public profile routes
   app.use("/api", router); //Added this line
-  
+
   // Mount our custom admin routes at the non-obvious URL path
   app.use("/goombas.net", goombasAdminRouter);
 
@@ -244,11 +245,11 @@ function setupAPIRoutes(app: Express) {
         { username: "testuser2", email: "test2@example.com", profileColor: "#10B981" },
         { username: "testuser3", email: "test3@example.com", profileColor: "#3B82F6" }
       ];
-      
+
       let createdCount = 0;
       let existingCount = 0;
       const errors = [];
-      
+
       for (const user of testUsers) {
         try {
           // Check if user already exists
@@ -256,15 +257,15 @@ function setupAPIRoutes(app: Express) {
             .from(users)
             .where(sql`username = ${user.username}`)
             .limit(1);
-          
+
           if (existingUser && existingUser.length > 0) {
             existingCount++;
             continue;
           }
-          
+
           // Generate a unique ID starting from a high number to avoid conflicts
           const randomId = 1000 + Math.floor(Math.random() * 9000);
-          
+
           // Insert the user directly
           await db.execute(sql`
             INSERT INTO users (
@@ -275,7 +276,7 @@ function setupAPIRoutes(app: Express) {
               ${user.profileColor}, 'Test user bio', false, true
             )
           `);
-          
+
           createdCount++;
           console.log(`Created test user: ${user.username} with ID ${randomId}`);
         } catch (insertError) {
@@ -283,7 +284,7 @@ function setupAPIRoutes(app: Express) {
           errors.push(`Failed to create ${user.username}: ${insertError.message || 'Unknown error'}`);
         }
       }
-      
+
       res.json({ 
         success: true, 
         message: `Created ${createdCount} test users, ${existingCount} already existed`,
@@ -904,13 +905,13 @@ function setupRESTRoutes(app: Express) {
       try {
         console.log("User search API called with query:", req.query);
         const query = req.query.q as string;
-        
+
         if (!query || query.length < 2) {
           return res.status(400).json({ 
             message: "Search query must be at least 2 characters" 
           });
         }
-        
+
         // Search for users by username or by Goated username/ID
         const searchResults = await db.execute(sql`
           SELECT
@@ -929,17 +930,17 @@ function setupRESTRoutes(app: Express) {
             goated_id = ${query}
           LIMIT 10
         `);
-        
+
         const users = searchResults.rows || [];
-        
+
         // Enhanced response with profile type information
         const enhancedUsers = users.map(user => ({
           ...user,
           isLinked: user.goatedAccountLinked || false,
           profileType: user.goatedAccountLinked ? 'permanent' : 'standard'
         }));
-        
-        console.log(`Found ${enhancedUsers.length} users matching "${query}"`);
+
+        console.log(`Found ${enhancedUsers.length} users matching "${query}"``);
         return res.json(enhancedUsers);
       } catch (error) {
         console.error("User search error:", error);
@@ -949,7 +950,7 @@ function setupRESTRoutes(app: Express) {
       }
     }
   );
-  
+
   app.get("/api/users/:userId", 
     createRateLimiter('high'), 
     async (req, res) => {
@@ -963,12 +964,12 @@ function setupRESTRoutes(app: Express) {
         }
 
         console.log(`API user profile request for ID: ${userId}`);
-        
+
         // Use our centralized ensureUserProfile function to handle all profile cases
         // This automatically ensures a profile exists (creating it if needed)
         // and returns appropriate fields
         const user = await ensureUserProfile(userId);
-        
+
         if (!user) {
           return res.status(404).json({ 
             status: "error", 
@@ -1066,3 +1067,700 @@ class ApiError extends Error {
     this.code = options?.code;
   }
 }
+// Import admin tools routes
+// Main route initialization
+export function initRoutes(app: Express) {
+  // Apply rate limiting to all routes
+  app.use(createRateLimiter("medium"));
+  app.use("/api/admin/tools", adminToolsRoutes); //Register admin-tools route
+}
+
+let wss: WebSocketServer;
+
+export function transformLeaderboardData(apiData: any) {
+  const data = apiData.data || apiData.results || apiData;
+  if (!Array.isArray(data)) {
+    return {
+      status: "success",
+      metadata: {
+        totalUsers: 0,
+        lastUpdated: new Date().toISOString(),
+      },
+      data: {
+        today: { data: [] },
+        weekly: { data: [] },
+        monthly: { data: [] },
+        all_time: { data: [] },
+      },
+    };
+  }
+
+  const todayData = [...data].sort((a, b) => (b.wagered.today || 0) - (a.wagered.today || 0));
+  const weeklyData = [...data].sort((a, b) => (b.wagered.this_week || 0) - (a.wagered.this_week || 0));
+  const monthlyData = [...data].sort((a, b) => (b.wagered.this_month || 0) - (a.wagered.this_month || 0));
+  const allTimeData = [...data].sort((a, b) => (b.wagered.all_time || 0) - (a.wagered.all_time || 0));
+
+  return {
+    status: "success",
+    metadata: {
+      totalUsers: data.length,
+      lastUpdated: new Date().toISOString(),
+    },
+    data: {
+      today: { data: todayData },
+      weekly: { data: weeklyData },
+      monthly: { data: monthlyData },
+      all_time: { data: allTimeData },
+    },
+  };
+}
+
+export function registerRoutes(app: Express): Server {
+  const httpServer = createServer(app);
+
+  // Register API routes before setupVite is called
+  setupAPIRoutes(app);
+
+  // Setup WebSocket after HTTP server is created but before Vite
+  setupWebSocket(httpServer);
+
+  return httpServer;
+}
+
+function setupWebSocket(httpServer: Server) {
+  wss = new WebSocketServer({ noServer: true });
+
+  httpServer.on("upgrade", (request, socket, head) => {
+    if (request.headers["sec-websocket-protocol"] === "vite-hmr") {
+      return;
+    }
+
+    if (request.url === "/ws/leaderboard") {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, request);
+        handleLeaderboardConnection(ws);
+      });
+    }
+
+    if (request.url === "/ws/transformation-logs") {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, request);
+        handleTransformationLogsConnection(ws);
+      });
+    }
+  });
+}
+
+function handleLeaderboardConnection(ws: WebSocket) {
+  const clientId = Date.now().toString();
+  log(`Leaderboard WebSocket client connected (${clientId})`);
+
+  ws.isAlive = true;
+  const pingInterval = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.ping();
+    }
+  }, 30000);
+
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
+
+  ws.on("error", (error: Error) => {
+    log(`WebSocket error (${clientId}): ${error.message}`);
+    clearInterval(pingInterval);
+    ws.terminate();
+  });
+
+  ws.on("close", () => {
+    log(`Leaderboard WebSocket client disconnected (${clientId})`);
+    clearInterval(pingInterval);
+  });
+
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "CONNECTED",
+      clientId,
+      timestamp: Date.now()
+    }));
+  }
+}
+
+function handleTransformationLogsConnection(ws: WebSocket) {
+  const clientId = Date.now().toString();
+  log(`Transformation logs WebSocket client connected (${clientId})`);
+
+  // Send initial connection confirmation
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "CONNECTED",
+      clientId,
+      timestamp: Date.now()
+    }));
+
+    // Send recent logs on connection
+    db.select()
+      .from(transformationLogs)
+      .orderBy(sql`created_at DESC`)
+      .limit(50)
+      .then(logs => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: "INITIAL_LOGS",
+            logs: logs.map(log => ({
+              ...log,
+              timestamp: log.created_at.toISOString()
+            }))
+          }));
+        }
+      })
+      .catch(error => {
+        console.error("Error fetching initial logs:", error);
+      });
+  }
+
+  // Setup ping/pong for connection health check
+  ws.isAlive = true;
+  const pingInterval = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.ping();
+    }
+  }, 30000);
+
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
+
+  ws.on("close", () => {
+    clearInterval(pingInterval);
+    log(`Transformation logs WebSocket client disconnected (${clientId})`);
+  });
+
+  ws.on("error", (error: Error) => {
+    log(`WebSocket error (${clientId}): ${error.message}`);
+    clearInterval(pingInterval);
+    ws.terminate();
+  });
+}
+
+export function broadcastLeaderboardUpdate(data: any) {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({
+        type: "LEADERBOARD_UPDATE",
+        data
+      }));
+    }
+  });
+}
+
+export function broadcastTransformationLog(log: {
+  type: 'info' | 'error' | 'warning';
+  message: string;
+  data?: any;
+}) {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({
+        type: "TRANSFORMATION_LOG",
+        log: {
+          ...log,
+          timestamp: new Date().toISOString()
+        }
+      }));
+    }
+  });
+}
+
+declare module 'ws' {
+  interface WebSocket {
+    isAlive?: boolean;
+  }
+}
+
+const cacheManager = new CacheManager();
+
+const batchHandler = async (req: any, res: any) => {
+  try {
+    const { requests } = req.body;
+    if (!Array.isArray(requests)) {
+      return res.status(400).json({ error: 'Invalid batch request format' });
+    }
+
+    const results = await Promise.allSettled(
+      requests.map(async (request) => {
+        try {
+          const response = await fetch(
+            `${API_CONFIG.baseUrl}${request.endpoint}`,
+            {
+              headers: {
+                Authorization: `Bearer ${process.env.API_TOKEN || API_CONFIG.token}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          if (!response.ok) {
+            throw new ApiError(`API Error: ${response.status}`, { status: response.status });
+          }
+
+          return await response.json();
+        } catch (error) {
+          const apiError = error as ApiError;
+          return {
+            status: 'error',
+            error: apiError.message || 'Failed to process request',
+            endpoint: request.endpoint
+          };
+        }
+      })
+    );
+
+    res.json({
+      status: 'success',
+      results: results.map(result =>
+        result.status === 'fulfilled' ? result.value : result.reason
+      )
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Batch processing failed',
+      error: (error as Error).message
+    });
+  }
+};
+
+const wheelSpinSchema = z.object({
+  segmentIndex: z.number(),
+  reward: z.string().nullable(),
+});
+
+//This function was already in the original code.
+function setupRESTRoutes(app: Express) {
+  // Public user profile route - no authentication required
+  // User search endpoint - this must be defined BEFORE the :userId route
+  app.get("/api/users/search", 
+    createRateLimiter('high'),
+    async (req, res) => {
+      try {
+        console.log("User search API called with query:", req.query);
+        const query = req.query.q as string;
+
+        if (!query || query.length < 2) {
+          return res.status(400).json({ 
+            message: "Search query must be at least 2 characters" 
+          });
+        }
+
+        // Search for users by username or by Goated username/ID
+        const searchResults = await db.execute(sql`
+          SELECT
+            id,
+            username,
+            bio,
+            profile_color as "profileColor",
+            created_at as "createdAt",
+            goated_id as "goatedId",
+            goated_username as "goatedUsername",
+            goated_account_linked as "goatedAccountLinked"
+          FROM users
+          WHERE 
+            LOWER(username) LIKE ${`%${query.toLowerCase()}%`} OR
+            LOWER(goated_username) LIKE ${`%${query.toLowerCase()}%`} OR
+            goated_id = ${query}
+          LIMIT 10
+        `);
+
+        const users = searchResults.rows || [];
+
+        // Enhanced response with profile type information
+        const enhancedUsers = users.map(user => ({
+          ...user,
+          isLinked: user.goatedAccountLinked || false,
+          profileType: user.goatedAccountLinked ? 'permanent' : 'standard'
+        }));
+
+        console.log(`Found ${enhancedUsers.length} users matching "${query}"`);
+        return res.json(enhancedUsers);
+      } catch (error) {
+        console.error("User search error:", error);
+        return res.status(500).json({ 
+          message: "An error occurred while searching for users" 
+        });
+      }
+    }
+  );
+
+  app.get("/api/users/:userId", 
+    createRateLimiter('high'), 
+    async (req, res) => {
+      try {
+        const userId = req.params.userId;
+        if (!userId) {
+          return res.status(400).json({ 
+            status: "error", 
+            message: "User ID is required" 
+          });
+        }
+
+        console.log(`API user profile request for ID: ${userId}`);
+
+        // Use our centralized ensureUserProfile function to handle all profile cases
+        // This automatically ensures a profile exists (creating it if needed)
+        // and returns appropriate fields
+        const user = await ensureUserProfile(userId);
+
+        if (!user) {
+          return res.status(404).json({ 
+            status: "error", 
+            message: "User not found and could not be created" 
+          });
+        }
+
+        // Return enhanced user profile data
+        res.json({
+          id: user.id,
+          username: user.username,
+          bio: user.bio || "",
+          profileColor: user.profileColor || "#D7FF00",
+          createdAt: user.createdAt,
+          goatedId: user.goatedId,
+          goatedUsername: user.goatedUsername,
+          isLinked: user.goatedAccountLinked || false,
+          profileType: user.isPermanent ? 'permanent' : 
+                      user.isTemporary ? 'temporary' : 
+                      user.isCustom ? 'custom' : 'standard',
+          isNewlyCreated: user.isNewlyCreated || false
+        });
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        res.status(500).json({ 
+          status: "error", 
+          message: "Failed to fetch user profile" 
+        });
+      }
+    }
+  );
+
+  // Admin routes for managing users
+  app.use("/api/admin/users", ensureAdmin, usersRoutes);
+
+  // Admin tools for special operations
+  app.use("/api/admin/tools", adminToolsRoutes);
+
+  // Admin routes for managing VIPs and affiliate program features
+  app.get("/api/admin/export-logs",
+    createRateLimiter('low'),
+    async (_req, res) => {
+      try {
+        console.log('Fetching logs for export...');
+
+        const logs = await db.query.transformationLogs.findMany({
+          orderBy: (logs, { desc }) => [desc(logs.created_at)],
+          limit: 1000 // Limit to last 1000 logs
+        });
+
+        console.log(`Found ${logs.length} logs to export`);
+
+        const formattedLogs = logs.map(log => ({
+          timestamp: log.created_at.toISOString(),
+          type: log.type,
+          message: log.message,
+          duration_ms: log.duration_ms?.toString() || '',
+          resolved: log.resolved ? 'Yes' : 'No',
+          error_message: log.error_message || '',
+          payload: log.payload ? JSON.stringify(log.payload) : ''
+        }));
+
+        // Set headers for CSV download
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename=transformation_logs_${new Date().toISOString().split('T')[0]}.csv`);
+
+        // Convert to CSV format
+        const csvData = [
+          // Header row
+          Object.keys(formattedLogs[0] || {}).join(','),
+          // Data rows
+          ...formattedLogs.map(log =>
+            Object.values(log)
+              .map(value => `"${String(value).replace(/"/g, '""')}"`)
+              .join(',')
+          )
+        ].join('\n');
+
+        res.send(csvData);
+      } catch (error) {
+        console.error('Error exporting logs:', error);
+        res.status(500).json({
+          status: 'error',
+          message: 'Failed to export logs',
+          details: process.env.NODE_ENV === 'development'
+            ? error instanceof Error ? error.message : String(error)
+            : undefined
+        });
+      }
+    }
+  );
+}
+
+let wss: WebSocketServer;
+
+export function transformLeaderboardData(apiData: any) {
+  const data = apiData.data || apiData.results || apiData;
+  if (!Array.isArray(data)) {
+    return {
+      status: "success",
+      metadata: {
+        totalUsers: 0,
+        lastUpdated: new Date().toISOString(),
+      },
+      data: {
+        today: { data: [] },
+        weekly: { data: [] },
+        monthly: { data: [] },
+        all_time: { data: [] },
+      },
+    };
+  }
+
+  const todayData = [...data].sort((a, b) => (b.wagered.today || 0) - (a.wagered.today || 0));
+  const weeklyData = [...data].sort((a, b) => (b.wagered.this_week || 0) - (a.wagered.this_week || 0));
+  const monthlyData = [...data].sort((a, b) => (b.wagered.this_month || 0) - (a.wagered.this_month || 0));
+  const allTimeData = [...data].sort((a, b) => (b.wagered.all_time || 0) - (a.wagered.all_time || 0));
+
+  return {
+    status: "success",
+    metadata: {
+      totalUsers: data.length,
+      lastUpdated: new Date().toISOString(),
+    },
+    data: {
+      today: { data: todayData },
+      weekly: { data: weeklyData },
+      monthly: { data: monthlyData },
+      all_time: { data: allTimeData },
+    },
+  };
+}
+
+export function registerRoutes(app: Express): Server {
+  const httpServer = createServer(app);
+
+  // Register API routes before setupVite is called
+  setupAPIRoutes(app);
+
+  // Setup WebSocket after HTTP server is created but before Vite
+  setupWebSocket(httpServer);
+
+  return httpServer;
+}
+
+function setupWebSocket(httpServer: Server) {
+  wss = new WebSocketServer({ noServer: true });
+
+  httpServer.on("upgrade", (request, socket, head) => {
+    if (request.headers["sec-websocket-protocol"] === "vite-hmr") {
+      return;
+    }
+
+    if (request.url === "/ws/leaderboard") {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, request);
+        handleLeaderboardConnection(ws);
+      });
+    }
+
+    if (request.url === "/ws/transformation-logs") {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, request);
+        handleTransformationLogsConnection(ws);
+      });
+    }
+  });
+}
+
+function handleLeaderboardConnection(ws: WebSocket) {
+  const clientId = Date.now().toString();
+  log(`Leaderboard WebSocket client connected (${clientId})`);
+
+  ws.isAlive = true;
+  const pingInterval = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.ping();
+    }
+  }, 30000);
+
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
+
+  ws.on("error", (error: Error) => {
+    log(`WebSocket error (${clientId}): ${error.message}`);
+    clearInterval(pingInterval);
+    ws.terminate();
+  });
+
+  ws.on("close", () => {
+    log(`Leaderboard WebSocket client disconnected (${clientId})`);
+    clearInterval(pingInterval);
+  });
+
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "CONNECTED",
+      clientId,
+      timestamp: Date.now()
+    }));
+  }
+}
+
+function handleTransformationLogsConnection(ws: WebSocket) {
+  const clientId = Date.now().toString();
+  log(`Transformation logs WebSocket client connected (${clientId})`);
+
+  // Send initial connection confirmation
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "CONNECTED",
+      clientId,
+      timestamp: Date.now()
+    }));
+
+    // Send recent logs on connection
+    db.select()
+      .from(transformationLogs)
+      .orderBy(sql`created_at DESC`)
+      .limit(50)
+      .then(logs => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: "INITIAL_LOGS",
+            logs: logs.map(log => ({
+              ...log,
+              timestamp: log.created_at.toISOString()
+            }))
+          }));
+        }
+      })
+      .catch(error => {
+        console.error("Error fetching initial logs:", error);
+      });
+  }
+
+  // Setup ping/pong for connection health check
+  ws.isAlive = true;
+  const pingInterval = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.ping();
+    }
+  }, 30000);
+
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
+
+  ws.on("close", () => {
+    clearInterval(pingInterval);
+    log(`Transformation logs WebSocket client disconnected (${clientId})`);
+  });
+
+  ws.on("error", (error: Error) => {
+    log(`WebSocket error (${clientId}): ${error.message}`);
+    clearInterval(pingInterval);
+    ws.terminate();
+  });
+}
+
+export function broadcastLeaderboardUpdate(data: any) {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({
+        type: "LEADERBOARD_UPDATE",
+        data
+      }));
+    }
+  });
+}
+
+export function broadcastTransformationLog(log: {
+  type: 'info' | 'error' | 'warning';
+  message: string;
+  data?: any;
+}) {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({
+        type: "TRANSFORMATION_LOG",
+        log: {
+          ...log,
+          timestamp: new Date().toISOString()
+        }
+      }));
+    }
+  });
+}
+
+declare module 'ws' {
+  interface WebSocket {
+    isAlive?: boolean;
+  }
+}
+
+const cacheManager = new CacheManager();
+
+const batchHandler = async (req: any, res: any) => {
+  try {
+    const { requests } = req.body;
+    if (!Array.isArray(requests)) {
+      return res.status(400).json({ error: 'Invalid batch request format' });
+    }
+
+    const results = await Promise.allSettled(
+      requests.map(async (request) => {
+        try {
+          const response = await fetch(
+            `${API_CONFIG.baseUrl}${request.endpoint}`,
+            {
+              headers: {
+                Authorization: `Bearer ${process.env.API_TOKEN || API_CONFIG.token}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          if (!response.ok) {
+            throw new ApiError(`API Error: ${response.status}`, { status: response.status });
+          }
+
+          return await response.json();
+        } catch (error) {
+          const apiError = error as ApiError;
+          return {
+            status: 'error',
+            error: apiError.message || 'Failed to process request',
+            endpoint: request.endpoint
+          };
+        }
+      })
+    );
+
+    res.json({
+      status: 'success',
+      results: results.map(result =>
+        result.status === 'fulfilled' ? result.value : result.reason
+      )
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Batch processing failed',
+      error: (error as Error).message
+    });
+  }
+};
+
+const wheelSpinSchema = z.object({
+  segmentIndex: z.number(),
+  reward: z.string().nullable(),
+});
