@@ -106,6 +106,13 @@ async function testDbConnection() {
 /**
  * Creates or retrieves a profile for a specific user ID
  * Used by endpoints to ensure a user profile exists before showing data
+ * 
+ * This function handles the following scenarios:
+ * 1. Finding existing users by their internal database ID
+ * 2. Finding existing users by their Goated ID
+ * 3. Creating new permanent profiles for users found in the Goated.com API
+ * 4. Creating temporary placeholder profiles for users not found in the API
+ * 
  * @param userId - The user ID (numeric internal ID or external Goated ID)
  * @returns User object with isNewlyCreated flag if found/created, null otherwise 
  */
@@ -123,7 +130,7 @@ export async function ensureUserProfile(userId: string): Promise<any> {
     try {
       // Try to find by direct ID match first
       const results = await db.execute(sql`
-        SELECT id, username, goated_id as "goatedId" 
+        SELECT id, username, goated_id as "goatedId", goated_username as "goatedUsername"
         FROM users WHERE id::text = ${userId} LIMIT 1
       `);
       
@@ -144,7 +151,7 @@ export async function ensureUserProfile(userId: string): Promise<any> {
     // If not found by direct ID, check if it's a goatedId
     try {
       const results = await db.execute(sql`
-        SELECT id, username, goated_id as "goatedId"
+        SELECT id, username, goated_id as "goatedId", goated_username as "goatedUsername"
         FROM users WHERE goated_id = ${userId} LIMIT 1
       `);
       
@@ -183,66 +190,105 @@ export async function ensureUserProfile(userId: string): Promise<any> {
           
           if (response.ok) {
             playerData = await response.json();
+            console.log("Successfully retrieved player data:", playerData);
           } else {
-            console.log(`API returned status ${response.status} for player ${userId}`);
+            console.log(`Failed to fetch player data: ${response.status}`);
           }
         } catch (apiError) {
           console.error("Error fetching from API:", apiError);
         }
       }
       
-      // Create a placeholder profile if we couldn't get data from API
-      // This ensures we always have a profile to show, even if API is unavailable
-      const username = playerData?.username || `User_${userId}`;
-      const newUserId = Math.floor(1000 + Math.random() * 9000);
-      const email = `${username.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
+      // Attempt to retrieve the actual username from the Goated API data
+      const username = playerData?.name || playerData?.username || null;
       
-      try {
-        const result = await db.execute(sql`
-          INSERT INTO users (
-            id, username, email, password, created_at, profile_color, bio, is_admin, goated_id
-          ) VALUES (
-            ${newUserId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', 'Profile automatically created', false, ${userId}
-          ) RETURNING id, username, goated_id as "goatedId"
-        `);
-        
-        if (result && result.rows && result.rows.length > 0) {
-          console.log(`Created new profile for ${username} (${userId})`);
-          // Add a flag to indicate this is a newly created user
-          return {
-            ...result.rows[0],
-            isNewlyCreated: true
-          };
+      if (playerData && username) {
+        // We have valid data from the API, create a permanent profile for this Goated user
+        try {
+          const newUserId = Math.floor(1000 + Math.random() * 9000);
+          const email = `${username.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
+          
+          // Create a more complete profile with the real data from Goated
+          const result = await db.execute(sql`
+            INSERT INTO users (
+              id, username, email, password, created_at, profile_color, 
+              bio, is_admin, goated_id, goated_username, goated_account_linked
+            ) VALUES (
+              ${newUserId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', 
+              'Official Goated.com player profile', false, ${userId}, ${username}, true
+            ) RETURNING id, username, goated_id as "goatedId", goated_username as "goatedUsername"
+          `);
+          
+          if (result && result.rows && result.rows.length > 0) {
+            console.log(`Created permanent profile for Goated player ${username} (${userId})`);
+            return {
+              ...result.rows[0],
+              isNewlyCreated: true,
+              isPermanent: true
+            };
+          }
+        } catch (insertError) {
+          console.error(`Failed to create permanent user profile for Goated ID ${userId}:`, insertError);
         }
-      } catch (insertError) {
-        console.error(`Failed to create user profile for ID ${userId}:`, insertError);
+      } else {
+        // No player data, create a temporary placeholder profile
+        try {
+          const newUserId = Math.floor(1000 + Math.random() * 9000);
+          const tempUsername = `Player_${userId}`;
+          const email = `${tempUsername.toLowerCase()}@goated.placeholder.com`;
+          
+          // Create a placeholder profile with clear indication this is temporary
+          const result = await db.execute(sql`
+            INSERT INTO users (
+              id, username, email, password, created_at, profile_color, 
+              bio, is_admin, goated_id, goated_account_linked
+            ) VALUES (
+              ${newUserId}, ${tempUsername}, ${email}, '', ${new Date()}, '#D7FF00', 
+              'Temporary profile - this player has not been verified with Goated.com yet', false, ${userId}, false
+            ) RETURNING id, username, goated_id as "goatedId", goated_username as "goatedUsername"
+          `);
+          
+          if (result && result.rows && result.rows.length > 0) {
+            console.log(`Created temporary profile for unknown Goated ID ${userId}`);
+            return {
+              ...result.rows[0],
+              isNewlyCreated: true,
+              isTemporary: true
+            };
+          }
+        } catch (insertError) {
+          console.error(`Failed to create temporary user profile for ID ${userId}:`, insertError);
+        }
       }
     } else {
-      // Handle non-numeric IDs (like UUIDs)
-      // Create a basic profile with the ID as username
+      // Handle non-numeric IDs (like UUIDs or custom strings)
       try {
-        const shortId = userId.substring(0, 8); // Use first 8 chars of UUID for username
+        const shortId = userId.substring(0, 8); // Use first 8 chars of UUID/string
         const newUserId = Math.floor(1000 + Math.random() * 9000);
-        const username = `User_${shortId}`;
+        const username = `Player_${shortId}`;
         const email = `${username.toLowerCase()}@goated.placeholder.com`;
         
+        // Clear indication this is a non-Goated profile
         const result = await db.execute(sql`
           INSERT INTO users (
-            id, username, email, password, created_at, profile_color, bio, is_admin, goated_id
+            id, username, email, password, created_at, profile_color, 
+            bio, is_admin, goated_id, goated_account_linked
           ) VALUES (
-            ${newUserId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', 'Profile automatically created', false, ${userId}
-          ) RETURNING id, username, goated_id as "goatedId"
+            ${newUserId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', 
+            'Custom profile - not linked to Goated.com', false, ${userId}, false
+          ) RETURNING id, username, goated_id as "goatedId", goated_username as "goatedUsername"
         `);
         
         if (result && result.rows && result.rows.length > 0) {
-          console.log(`Created new profile for UUID user ${shortId}`);
+          console.log(`Created custom profile for non-numeric ID ${shortId}`);
           return {
             ...result.rows[0],
-            isNewlyCreated: true
+            isNewlyCreated: true,
+            isCustom: true
           };
         }
       } catch (insertError) {
-        console.error(`Failed to create profile for UUID ${userId}:`, insertError);
+        console.error(`Failed to create custom profile for ID ${userId}:`, insertError);
       }
     }
     
@@ -290,6 +336,7 @@ async function syncUserProfiles() {
     const allTimeData = leaderboardData?.data?.all_time?.data || [];
     let createdCount = 0;
     let existingCount = 0;
+    let updatedCount = 0;
     
     console.log(`Processing ${allTimeData.length} users from leaderboard`);
     
@@ -305,29 +352,41 @@ async function syncUserProfiles() {
           .limit(1);
         
         if (existingUser && existingUser.length > 0) {
+          // If user exists but doesn't have the goated username set, update it
+          if (!existingUser[0].goatedUsername) {
+            await db.execute(sql`
+              UPDATE users 
+              SET goated_username = ${player.name}, 
+                  goated_account_linked = true
+              WHERE goated_id = ${player.uid}
+            `);
+            updatedCount++;
+          }
           existingCount++;
-          continue; // Skip existing users
+          continue; // Skip to the next user
         }
         
-        // Create a new profile for this user
+        // Create a new permanent profile for this Goated user
         const newUserId = Math.floor(1000 + Math.random() * 9000);
         const email = `${player.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
         
         await db.execute(sql`
           INSERT INTO users (
-            id, username, email, password, created_at, profile_color, bio, is_admin, goated_id
+            id, username, email, password, created_at, profile_color, 
+            bio, is_admin, goated_id, goated_username, goated_account_linked
           ) VALUES (
-            ${newUserId}, ${player.name}, ${email}, '', ${new Date()}, '#D7FF00', '', false, ${player.uid}
+            ${newUserId}, ${player.name}, ${email}, '', ${new Date()}, '#D7FF00', 
+            'Official Goated.com player profile', false, ${player.uid}, ${player.name}, true
           )
         `);
         
         createdCount++;
       } catch (error) {
-        console.error(`Error creating profile for ${player?.name}:`, error);
+        console.error(`Error creating/updating profile for ${player?.name}:`, error);
       }
     }
     
-    console.log(`Profile sync completed. Created ${createdCount} new profiles, ${existingCount} already existed.`);
+    console.log(`Profile sync completed. Created ${createdCount} new profiles, updated ${updatedCount}, ${existingCount} already existed.`);
   } catch (error) {
     console.error("Error syncing profiles from leaderboard:", error);
   }

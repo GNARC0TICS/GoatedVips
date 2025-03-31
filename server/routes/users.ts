@@ -424,35 +424,7 @@ router.post("/ensure-profile", async (req, res) => {
   }
 });
 
-// Endpoint for ensuring a user profile exists by ID
-router.post("/ensure-profile-from-id", async (req, res) => {
-  try {
-    const { userId } = req.body;
-    
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required" });
-    }
-    
-    console.log(`Request to ensure profile exists for ID: ${userId}`);
-    
-    // Use the ensureUserProfile function from server/index.ts
-    const { ensureUserProfile } = require('../index');
-    const user = await ensureUserProfile(userId);
-    
-    if (!user) {
-      return res.status(404).json({ error: "User not found with provided ID" });
-    }
-    
-    res.json({
-      success: true,
-      message: user.isNewlyCreated ? "Profile created successfully" : "Profile already exists",
-      user
-    });
-  } catch (error) {
-    console.error("Error ensuring user profile from ID:", error);
-    res.status(500).json({ error: "Failed to ensure user profile exists" });
-  }
-});
+// The endpoint for ensuring a user profile exists by ID is implemented at the bottom of this file
 
 
 
@@ -644,7 +616,7 @@ router.get("/by-goated-id/:goatedId", async (req, res) => {
       return res.status(400).json({ error: "Goated ID is required" });
     }
     
-    // Find user by Goated ID using raw SQL to avoid schema issues
+    // First check if user exists already
     try {
       const results = await db.execute(sql`
         SELECT 
@@ -653,29 +625,102 @@ router.get("/by-goated-id/:goatedId", async (req, res) => {
           bio, 
           profile_color as "profileColor", 
           created_at as "createdAt",
-          goated_id as "goatedId"
+          goated_id as "goatedId",
+          goated_username as "goatedUsername",
+          goated_account_linked as "goatedAccountLinked"
         FROM users 
         WHERE goated_id = ${goatedId}
         LIMIT 1
       `);
       
-      console.log(`Goated ID query results:`, results);
       // Extract the user from the first row of results
       const user = results.rows && results.rows.length > 0 ? results.rows[0] : null;
-      console.log("Extracted user by Goated ID:", user);
       
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
+      if (user) {
+        console.log(`Found existing profile for Goated ID ${goatedId}`);
+        return res.json({
+          ...user,
+          isLinked: user.goatedAccountLinked
+        });
       }
       
-      res.json(user);
+      // No existing user, use our improved ensureUserProfile function to create one
+      console.log(`No profile found for Goated ID ${goatedId}, creating one...`);
+      const newUser = await ensureUserProfile(goatedId);
+      
+      if (!newUser) {
+        return res.status(404).json({ 
+          error: "User not found and could not be created" 
+        });
+      }
+      
+      // Return appropriate response based on profile type
+      let profileType = 'standard';
+      if (newUser.isPermanent) profileType = 'permanent';
+      else if (newUser.isTemporary) profileType = 'temporary';
+      else if (newUser.isCustom) profileType = 'custom';
+      
+      return res.json({
+        ...newUser,
+        profileType,
+        isLinked: newUser.goatedAccountLinked || false,
+        isNewlyCreated: true
+      });
     } catch (sqlError) {
-      console.error("SQL error getting user by Goated ID:", sqlError);
+      console.error("Error processing Goated ID request:", sqlError);
       return res.status(500).json({ error: "Database error when fetching user" });
     }
   } catch (error) {
     console.error("Error getting user by Goated ID:", error);
     res.status(500).json({ error: "Failed to get user profile" });
+  }
+});
+
+// GET endpoint for creating user profile (for testing)
+router.get("/test-create-profile/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        error: "User ID is required in URL path" 
+      });
+    }
+    
+    console.log(`[TEST] Ensuring profile exists for ID: ${userId}`);
+    
+    // Use our improved ensureUserProfile function
+    const user = await ensureUserProfile(userId);
+    
+    if (!user) {
+      console.error(`Failed to create profile for ID ${userId}`);
+      return res.status(500).json({
+        error: "Failed to create user profile"
+      });
+    }
+    
+    // Return appropriate response based on profile type
+    let message = "User profile already exists";
+    
+    if (user.isNewlyCreated) {
+      if (user.isPermanent) {
+        message = "Permanent Goated profile created successfully";
+      } else {
+        message = "Temporary placeholder profile created";
+      }
+    }
+    
+    return res.json({
+      success: true,
+      message,
+      user
+    });
+  } catch (error) {
+    console.error("Error creating profile:", error);
+    return res.status(500).json({
+      error: "Failed to process request",
+      message: error instanceof Error ? error.message : "Unknown error"
+    });
   }
 });
 
@@ -693,25 +738,125 @@ router.post("/ensure-profile-from-id", async (req, res) => {
     
     console.log(`Ensuring profile exists for ID: ${userId}`);
     
-    // Use our centralized ensureUserProfile function
+    // Use our improved ensureUserProfile function which now handles
+    // real Goated profile creation with proper usernames and permanent accounts
     const user = await ensureUserProfile(userId);
     
     if (!user) {
-      return res.status(404).json({
-        error: "User not found with provided ID"
+      console.error(`Failed to create profile for ID ${userId}`);
+      return res.status(500).json({
+        error: "Failed to create user profile"
       });
+    }
+    
+    // Return appropriate response based on profile type
+    let message = "User profile already exists";
+    
+    if (user.isNewlyCreated) {
+      if (user.isPermanent) {
+        message = "Permanent Goated profile created successfully";
+      } else if (user.isTemporary) {
+        message = "Temporary profile created - will be linked to Goated account when verified";
+      } else if (user.isCustom) {
+        message = "Custom profile created successfully";
+      } else {
+        message = "User profile created successfully";
+      }
     }
     
     return res.json({
       success: true,
-      message: user.isNewlyCreated ? "User profile created successfully" : "User profile already exists",
+      message: message,
       id: user.id,
       username: user.username,
-      goatedId: user.goatedId
+      goatedId: user.goatedId,
+      goatedUsername: user.goatedUsername,
+      isLinked: user.goatedAccountLinked || false,
+      profileType: user.isPermanent ? 'permanent' : 
+                   user.isTemporary ? 'temporary' : 
+                   user.isCustom ? 'custom' : 'standard'
     });
   } catch (error) {
     console.error("Error ensuring user profile from ID:", error);
     res.status(500).json({ error: "Failed to process user profile request" });
+  }
+});
+
+// Enhanced test endpoint to verify all profile creation paths
+router.get("/test-profile-creation/:type/:userId", async (req, res) => {
+  try {
+    const { userId, type } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        error: "User ID is required in URL path" 
+      });
+    }
+    
+    console.log(`[ENHANCED TEST] Testing profile creation for ID: ${userId}, Type: ${type}`);
+    
+    // Simulate different API response scenarios based on the type parameter
+    let user;
+    
+    switch (type) {
+      case 'api-success':
+        // Simulate a successful API response by directly calling ensureUserProfile
+        user = await ensureUserProfile(userId);
+        break;
+        
+      case 'api-error':
+        // Simulate API error by temporarily modifying the API endpoint URL
+        const originalBaseUrl = API_CONFIG.baseUrl;
+        API_CONFIG.baseUrl = 'https://invalid-api-url.com';
+        user = await ensureUserProfile(userId);
+        // Restore the original URL after test
+        API_CONFIG.baseUrl = originalBaseUrl;
+        break;
+        
+      case 'non-numeric':
+        // Test with a non-numeric ID string
+        user = await ensureUserProfile(`test-${userId}`);
+        break;
+        
+      default:
+        // Default case - just call ensureUserProfile normally
+        user = await ensureUserProfile(userId);
+    }
+    
+    if (!user) {
+      console.error(`Failed to create profile for ID ${userId} with test type ${type}`);
+      return res.status(500).json({
+        error: "Failed to create user profile",
+        testType: type
+      });
+    }
+    
+    // Return detailed information about the created profile for debugging
+    return res.json({
+      success: true,
+      testType: type,
+      user: {
+        id: user.id,
+        username: user.username,
+        goatedId: user.goatedId,
+        goatedUsername: user.goatedUsername,
+        isNewlyCreated: user.isNewlyCreated,
+        isPermanent: user.isPermanent,
+        isTemporary: user.isTemporary,
+        isCustom: user.isCustom,
+        goatedAccountLinked: user.goatedAccountLinked,
+        profileType: user.isPermanent ? 'permanent' : 
+                   user.isTemporary ? 'temporary' : 
+                   user.isCustom ? 'custom' : 'standard'
+      }
+    });
+  } catch (error) {
+    console.error(`Error in enhanced profile test (type: ${req.params.type}):`, error);
+    return res.status(500).json({
+      error: "Failed to process enhanced test request",
+      testType: req.params.type,
+      message: error instanceof Error ? error.message : "Unknown error"
+    });
   }
 });
 

@@ -11,6 +11,7 @@ import usersRouter from "./routes/users";
 import goombasAdminRouter from "./routes/goombas-admin";
 import { requireAdmin } from "./middleware/admin";
 import { wagerRaces, users, transformationLogs } from "@db/schema";
+import { ensureUserProfile } from "./index";
 
 type RateLimitTier = 'HIGH' | 'MEDIUM' | 'LOW';
 const rateLimits: Record<RateLimitTier, { points: number; duration: number }> = {
@@ -910,18 +911,36 @@ function setupRESTRoutes(app: Express) {
           });
         }
         
-        // Search for users by username
-        const users = await db.query.users.findMany({
-          where: sql`LOWER(username) LIKE ${`%${query.toLowerCase()}%`}`,
-          limit: 10,
-          columns: {
-            id: true,
-            username: true,
-          }
-        });
+        // Search for users by username or by Goated username/ID
+        const searchResults = await db.execute(sql`
+          SELECT
+            id,
+            username,
+            bio,
+            profile_color as "profileColor",
+            created_at as "createdAt",
+            goated_id as "goatedId",
+            goated_username as "goatedUsername",
+            goated_account_linked as "goatedAccountLinked"
+          FROM users
+          WHERE 
+            LOWER(username) LIKE ${`%${query.toLowerCase()}%`} OR
+            LOWER(goated_username) LIKE ${`%${query.toLowerCase()}%`} OR
+            goated_id = ${query}
+          LIMIT 10
+        `);
         
-        console.log("Search results:", users);
-        return res.json({ users });
+        const users = searchResults.rows || [];
+        
+        // Enhanced response with profile type information
+        const enhancedUsers = users.map(user => ({
+          ...user,
+          isLinked: user.goatedAccountLinked || false,
+          profileType: user.goatedAccountLinked ? 'permanent' : 'standard'
+        }));
+        
+        console.log(`Found ${enhancedUsers.length} users matching "${query}"`);
+        return res.json(enhancedUsers);
       } catch (error) {
         console.error("User search error:", error);
         return res.status(500).json({ 
@@ -943,49 +962,35 @@ function setupRESTRoutes(app: Express) {
           });
         }
 
-        // Check if id is numeric or a string ID
-        const isNumericId = /^\d+$/.test(userId);
+        console.log(`API user profile request for ID: ${userId}`);
         
-        let user;
+        // Use our centralized ensureUserProfile function to handle all profile cases
+        // This automatically ensures a profile exists (creating it if needed)
+        // and returns appropriate fields
+        const user = await ensureUserProfile(userId);
         
-        if (isNumericId) {
-          // For numeric IDs (older format)
-          const userId_num = parseInt(userId, 10);
-          [user] = await db
-            .select({
-              id: users.id,
-              username: users.username,
-              bio: users.bio,
-              profileColor: users.profileColor,
-              createdAt: users.createdAt,
-            })
-            .from(users)
-            .where(eq(users.id, userId_num))
-            .limit(1);
-        } else {
-          // For string IDs like UUID (new format)
-          [user] = await db
-            .select({
-              id: users.id,
-              username: users.username,
-              bio: users.bio,
-              profileColor: users.profileColor,
-              createdAt: users.createdAt,
-            })
-            .from(users)
-            .where(eq(users.id, userId))
-            .limit(1);
-        }
-
         if (!user) {
           return res.status(404).json({ 
             status: "error", 
-            message: "User not found" 
+            message: "User not found and could not be created" 
           });
         }
 
-        // Return public user profile data
-        res.json(user);
+        // Return enhanced user profile data
+        res.json({
+          id: user.id,
+          username: user.username,
+          bio: user.bio || "",
+          profileColor: user.profileColor || "#D7FF00",
+          createdAt: user.createdAt,
+          goatedId: user.goatedId,
+          goatedUsername: user.goatedUsername,
+          isLinked: user.goatedAccountLinked || false,
+          profileType: user.isPermanent ? 'permanent' : 
+                      user.isTemporary ? 'temporary' : 
+                      user.isCustom ? 'custom' : 'standard',
+          isNewlyCreated: user.isNewlyCreated || false
+        });
       } catch (error) {
         console.error("Error fetching user profile:", error);
         res.status(500).json({ 
