@@ -1079,41 +1079,6 @@ export function initRoutes(app: Express) {
 // let wss: WebSocketServer;
 
 // transformLeaderboardData function is already defined above - removing duplicate function
-  const data = apiData.data || apiData.results || apiData;
-  if (!Array.isArray(data)) {
-    return {
-      status: "success",
-      metadata: {
-        totalUsers: 0,
-        lastUpdated: new Date().toISOString(),
-      },
-      data: {
-        today: { data: [] },
-        weekly: { data: [] },
-        monthly: { data: [] },
-        all_time: { data: [] },
-      },
-    };
-  }
-
-  const todayData = [...data].sort((a, b) => (b.wagered.today || 0) - (a.wagered.today || 0));
-  const weeklyData = [...data].sort((a, b) => (b.wagered.this_week || 0) - (a.wagered.this_week || 0));
-  const monthlyData = [...data].sort((a, b) => (b.wagered.this_month || 0) - (a.wagered.this_month || 0));
-  const allTimeData = [...data].sort((a, b) => (b.wagered.all_time || 0) - (a.wagered.all_time || 0));
-
-  return {
-    status: "success",
-    metadata: {
-      totalUsers: data.length,
-      lastUpdated: new Date().toISOString(),
-    },
-    data: {
-      today: { data: todayData },
-      weekly: { data: weeklyData },
-      monthly: { data: monthlyData },
-      all_time: { data: allTimeData },
-    },
-  };
 }
 
 export function registerRoutes(app: Express): Server {
