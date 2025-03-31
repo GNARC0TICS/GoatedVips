@@ -4,8 +4,8 @@ export const API_CONFIG = {
   token: process.env.API_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJNZ2xjTU9DNEl6cWpVbzVhTXFBVyIsInNlc3Npb24iOiJwaVJKVGs4NHp4SVIiLCJpYXQiOjE3NDMyOTY4NDksImV4cCI6MTc0MzM4MzI0OX0.KiIq4FHDL0ZIrbRTdJQMO3as0dRFjalpJLiPbC2ka0U",
   endpoints: {
     leaderboard: "/affiliate/referral-leaderboard/2RW440E",
-    health: "/health"
-    // Removed invalid player endpoint
+    health: "/health",
+    player: "/player" // Endpoint to get player data by ID
   },
   fallbackData: {
     // Fallback data structure when API is unavailable

@@ -16,38 +16,30 @@ type LoginHistoryEntry = { timestamp: Date; success: boolean; ip?: string; };
 type ActivityLogEntry = { action: string; timestamp: Date; details?: any; };
 
 // Extended user type with optional fields we might need
-interface ExtendedUser {
-  // Base fields from SelectUser
-  id: number;
-  username: string;
-  password: string;
-  email: string;
-  isAdmin: boolean;
-  createdAt: Date;
-  emailVerified: boolean | null;
-  bio: string | null;
-  profileColor: string | null;
-  goatedId: string | null;
-  goatedUsername: string | null;
-  goatedAccountLinked: boolean | null;
-  lastActive: Date | null;
-  telegramUsername?: string | null;
+interface ExtendedUser extends SelectUser {
+  // Basic fields from schema.ts
+  bio?: string;
+  profileColor?: string;
+  goatedId?: string;
+  goatedUsername?: string;
+  goatedAccountLinked?: boolean;
+  lastActive?: Date;
+  telegramUsername?: string;
   
   // Extended fields
-  telegramVerifiedAt?: Date | null;
-  telegramId?: string | null;
-  lastLoginIp?: string | null;
-  registrationIp?: string | null;
-  country?: string | null;
-  city?: string | null;
-  ipHistory?: IpHistoryEntry[] | null;
-  loginHistory?: LoginHistoryEntry[] | null;
-  activityLogs?: ActivityLogEntry[] | null;
-  suspiciousActivity?: boolean | null;
-  updatedAt?: Date | null;
+  telegramVerifiedAt?: Date;
+  lastLoginIp?: string;
+  registrationIp?: string;
+  country?: string;
+  city?: string;
+  ipHistory?: IpHistoryEntry[];
+  loginHistory?: LoginHistoryEntry[];
+  activityLogs?: ActivityLogEntry[];
+  suspiciousActivity?: boolean;
+  updatedAt?: Date;
   
   // Security fields that might be added later
-  twoFactorEnabled?: boolean | null;
+  twoFactorEnabled?: boolean;
 }
 
 // Setup multer for file uploads
@@ -194,7 +186,7 @@ router.put('/api/profile/preferences', async (req, res) => {
     try {
         const { preferences } = req.body;
         // Update user preferences in the database
-        await updateUserPreferences(req.user?.id || 0, preferences); // Placeholder function
+        await updateUserPreferences(req.user.id, preferences); // Placeholder function
         res.json({ message: 'Preferences updated successfully' });
     } catch (error) {
         console.error("Preference update error:", error);
@@ -266,16 +258,16 @@ router.get("/:id", async (req, res) => {
         user = null;
       }
       
-      // If still no user found, try to find in leaderboard API and create profile
+      // If still no user found, try to fetch and create from the external API
       if (!user) {
         try {
-          console.log(`Attempting to find user in leaderboard API for ID ${id}`);
-          // Try to fetch leaderboard data to find this user
-          const API_TOKEN = process.env.API_TOKEN || API_CONFIG.token;
+          console.log(`Attempting to fetch user data from external API for ID ${id}`);
+          // Try to fetch this user's data from the external API
+          const API_TOKEN = process.env.API_TOKEN;
           if (API_TOKEN) {
-            // Fetch the leaderboard data which contains all users
+            // Attempt to find this user in the wager races API
             const response = await fetch(
-              `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`,
+              `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.player}/${id}`,
               {
                 headers: {
                   Authorization: `Bearer ${API_TOKEN}`,
@@ -285,53 +277,33 @@ router.get("/:id", async (req, res) => {
             );
             
             if (response.ok) {
-              const leaderboardData = await response.json();
-              
-              // Search for the user in different time periods
-              const timeframes = ['today', 'weekly', 'monthly', 'all_time'];
-              let foundUser = null;
-              
-              // Look through all timeframes to find the user
-              for (const timeframe of timeframes) {
-                const users = leaderboardData?.data?.[timeframe]?.data || [];
-                
-                // Find the user with the matching UID
-                foundUser = users.find((u: any) => u.uid === id);
-                
-                if (foundUser) {
-                  console.log(`Found user ${id} in ${timeframe} leaderboard data:`, foundUser);
-                  break;
-                }
-              }
-              
-              if (foundUser && foundUser.name) {
-                console.log(`Found player in leaderboard API:`, foundUser);
+              const playerData = await response.json();
+              if (playerData && playerData.uid && playerData.name) {
+                console.log(`Found player in API:`, playerData);
                 // Found a player - create a profile for them
                 const userId = Math.floor(1000 + Math.random() * 9000); // Generate numeric ID for compatibility
-                const email = `${foundUser.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
+                const email = `${playerData.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
                 
-                console.log(`Creating new user with ID ${userId} for Goated player ${foundUser.name}`);
+                console.log(`Creating new user with ID ${userId} for Goated player ${playerData.name}`);
                 await db.execute(sql`
                   INSERT INTO users (
-                    id, username, email, password, created_at, updated_at, profile_color, bio, is_admin, goated_id, goated_username, goated_account_linked
+                    id, username, email, password, created_at, updated_at, profile_color, bio, is_admin, goated_id
                   ) VALUES (
-                    ${userId}, ${foundUser.name}, ${email}, '', ${new Date()}, ${new Date()}, '#D7FF00', 'Official Goated.com player profile', false, ${id}, ${foundUser.name}, true
+                    ${userId}, ${playerData.name}, ${email}, '', ${new Date()}, ${new Date()}, '#D7FF00', '', false, ${playerData.uid}
                   )
                 `);
                 
                 // Now return the newly created user
                 user = {
                   id: userId,
-                  username: foundUser.name,
-                  bio: 'Official Goated.com player profile',
+                  username: playerData.name,
+                  bio: '',
                   profileColor: '#D7FF00',
                   createdAt: new Date(),
-                  goatedId: id
+                  goatedId: playerData.uid
                 };
                 
                 console.log(`Created and returning new user:`, user);
-              } else {
-                console.log(`User ID ${id} not found in any leaderboard timeframe`);
               }
             } else {
               console.log(`API returned non-OK response:`, response.status);
@@ -540,7 +512,7 @@ router.post("/create-test-users", async (req, res) => {
         console.log(`Created test user: ${user.username} with ID ${randomId}`);
       } catch (insertError) {
         console.error(`Error creating test user ${user.username}:`, insertError);
-        errors.push(`Failed to create ${user.username}: ${(insertError as Error).message}`);
+        errors.push(`Failed to create ${user.username}: ${insertError.message}`);
       }
     }
     
@@ -611,16 +583,16 @@ router.post("/sync-profiles-from-leaderboard", async (req, res) => {
         
         await db.execute(sql`
           INSERT INTO users (
-            id, username, email, password, created_at, profile_color, bio, is_admin, goated_id, goated_username, goated_account_linked
+            id, username, email, password, created_at, profile_color, bio, is_admin, goated_id
           ) VALUES (
-            ${userId}, ${player.name}, ${email}, '', ${new Date()}, '#D7FF00', 'Official Goated.com player profile', false, ${player.uid}, ${player.name}, true
+            ${userId}, ${player.name}, ${email}, '', ${new Date()}, '#D7FF00', '', false, ${player.uid}
           )
         `);
         
         createdCount++;
       } catch (error) {
         console.error(`Error processing user ${player?.name}:`, error);
-        errors.push(`Error creating profile for ${player?.name}: ${(error as Error).message}`);
+        errors.push(`Error creating profile for ${player?.name}: ${error.message}`);
       }
     }
     
