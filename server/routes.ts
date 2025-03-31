@@ -1075,9 +1075,10 @@ export function initRoutes(app: Express) {
   app.use("/api/admin/tools", adminToolsRoutes); //Register admin-tools route
 }
 
-let wss: WebSocketServer;
+// WebSocket server already declared above - removing duplicate declaration
+// let wss: WebSocketServer;
 
-export function transformLeaderboardData(apiData: any) {
+// transformLeaderboardData function is already defined above - removing duplicate function
   const data = apiData.data || apiData.results || apiData;
   if (!Array.isArray(data)) {
     return {
