@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, ChevronDown, ChevronUp, History, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trophy, ChevronDown, ChevronUp, History, X, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
