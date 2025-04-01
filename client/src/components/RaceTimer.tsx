@@ -2,6 +2,11 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, ChevronDown, ChevronUp, AlertCircle, History, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
 
 const SpeedIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" {...props}>
@@ -23,11 +28,6 @@ const SpeedIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <rect width="24" height="24" fill="currentColor" mask="url(#lineMdSpeedTwotoneLoop0)" />
   </svg>
 );
-import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
 
 interface RaceParticipant {
   uid: string;
@@ -279,7 +279,7 @@ export function RaceTimer() {
                     </div>
                   </motion.div>
                 )}
-              </div>
+              </AnimatePresence>
             </div>
           </motion.div>
         )}
