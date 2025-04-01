@@ -110,25 +110,7 @@ export default function Home() {
               shared daily.
             </motion.p>
             
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="max-w-xl mx-auto mb-12"
-            >
-              <div className="bg-[#1A1B21]/70 backdrop-blur-md border border-[#2A2B31] rounded-lg p-4 flex flex-col items-center">
-                <h3 className="text-white text-lg mb-3 flex items-center gap-2">
-                  <Search className="h-5 w-5 text-[#D7FF00]" />
-                  Find Players
-                </h3>
-                <div className="w-full max-w-md">
-                  <UserSearch />
-                </div>
-                <p className="text-[#8A8B91] text-sm mt-3 text-center">
-                  Search for players by username to view their profile and stats
-                </p>
-              </div>
-            </motion.div>
+            
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
