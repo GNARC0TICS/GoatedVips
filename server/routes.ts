@@ -1,4 +1,5 @@
 import { Router, type Express, type Request, type Response, type NextFunction } from "express";
+import compression from "compression";
 import { db } from "@db";
 import { sql } from "drizzle-orm";
 import { createServer, type Server } from "http";
@@ -105,6 +106,7 @@ class CacheManager {
 
 // Router setup
 const router = Router();
+router.use(compression());
 
 // Constants
 const CACHE_TIMES = {
