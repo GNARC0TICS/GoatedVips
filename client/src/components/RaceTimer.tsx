@@ -174,20 +174,21 @@ export function RaceTimer() {
   return (
     <div className="fixed top-1/2 right-0 transform -translate-y-1/2 z-50">
       <AnimatePresence>
-        <motion.div
-          initial={{ x: "100%" }}
-          animate={{ x: isContentVisible ? 0 : "calc(100% - 48px)" }}
-          exit={{ x: "100%" }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="flex items-start"
-        >
-          <button
-            onClick={() => setIsContentVisible(!isContentVisible)}
-            className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-4 flex items-center hover:bg-[#1A1B21] transition-colors group"
+        {isVisible && (
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: isContentVisible ? 0 : "calc(100% - 48px)" }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="flex items-start"
           >
-            <ChevronRight className={`h-5 w-5 text-[#D7FF00] group-hover:scale-110 transition-all transform ${isContentVisible ? 'rotate-180' : ''}`} />
-          </button>
-          <div className="w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden">
+            <button
+              onClick={() => setIsContentVisible(!isContentVisible)}
+              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-4 flex items-center hover:bg-[#1A1B21] transition-colors group"
+            >
+              <ChevronRight className={`h-5 w-5 text-[#D7FF00] group-hover:scale-110 transition-all transform ${isContentVisible ? 'rotate-180' : ''}`} />
+            </button>
+            <div className="w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden">
               <div 
                 className="p-4 cursor-pointer"
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -278,10 +279,10 @@ export function RaceTimer() {
                     </div>
                   </motion.div>
                 )}
-              </AnimatePresence>
+              </div>
             </div>
           </motion.div>
-        </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
