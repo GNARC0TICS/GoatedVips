@@ -1,33 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, ChevronDown, ChevronUp, AlertCircle, History, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trophy, History, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-
-const SpeedIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" {...props}>
-    <mask id="lineMdSpeedTwotoneLoop0">
-      <path fill="#fff" fillOpacity="0" stroke="#fff" strokeDasharray="56" strokeDashoffset="56" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 19v0c-0.3 0 -0.59 -0.15 -0.74 -0.41c-0.8 -1.34 -1.26 -2.91 -1.26 -4.59c0 -4.97 4.03 -9 9 -9c4.97 0 9 4.03 9 9c0 1.68 -0.46 3.25 -1.26 4.59c-0.15 0.26 -0.44 0.41 -0.74 0.41Z">
-        <animate fill="freeze" attributeName="fill-opacity" begin="0.3s" dur="0.15s" values="0;0.3" />
-        <animate fill="freeze" attributeName="stroke-dashoffset" dur="0.6s" values="56;0" />
-      </path>
-      <g transform="rotate(-100 12 14)">
-        <path d="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z">
-          <animate fill="freeze" attributeName="d" begin="0.4s" dur="0.2s" values="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z;M16 14C16 16.21 14.21 18 12 18C9.79 18 8 16.21 8 14C8 11.79 12 0 12 0C12 0 16 11.79 16 14Z" />
-        </path>
-        <path fill="#fff" d="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z">
-          <animate fill="freeze" attributeName="d" begin="0.4s" dur="0.2s" values="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z;M14 14C14 15.1 13.1 16 12 16C10.9 16 10 15.1 10 14C10 12.9 12 4 12 4C12 4 14 12.9 14 14Z" />
-        </path>
-        <animateTransform attributeName="transform" begin="0.4s" dur="6s" repeatCount="indefinite" type="rotate" values="-100 12 14;45 12 14;45 12 14;45 12 14;20 12 14;10 12 14;0 12 14;35 12 14;45 12 14;55 12 14;50 12 14;15 12 14;-20 12 14;-100 12 14" />
-      </g>
-    </mask>
-    <rect width="24" height="24" fill="currentColor" mask="url(#lineMdSpeedTwotoneLoop0)" />
-  </svg>
-);
 
 interface RaceParticipant {
   uid: string;
@@ -45,13 +21,42 @@ interface RaceData {
   participants: RaceParticipant[];
 }
 
+const SpeedIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" {...props}>
+    <mask id="lineMdSpeedTwotoneLoop0">
+      <path fill="#fff" fillOpacity="0" stroke="#fff" strokeDasharray="56" strokeDashoffset="56" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 19v0c-0.3 0 -0.59 -0.15 -0.74 -0.41c-0.8 -1.34 -1.26 -2.91 -1.26 -4.59c0 -4.97 4.03 -9 9 -9c4.97 0 9 4.03 9 9c0 1.68 -0.46 3.25 -1.26 4.59c-0.15 0.26 -0.44 0.41 -0.74 0.41Z">
+        <animate fill="freeze" attributeName="fill-opacity" begin="0.3s" dur="0.15s" values="0;0.3"/>
+        <animate fill="freeze" attributeName="stroke-dashoffset" dur="0.6s" values="56;0"/>
+      </path>
+      <g transform="rotate(-100 12 14)">
+        <path d="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z">
+          <animate fill="freeze" attributeName="d" begin="0.4s" dur="0.2s" values="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z;M16 14C16 16.21 14.21 18 12 18C9.79 18 8 16.21 8 14C8 11.79 12 0 12 0C12 0 16 11.79 16 14Z"/>
+        </path>
+        <path fill="#fff" d="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z">
+          <animate fill="freeze" attributeName="d" begin="0.4s" dur="0.2s" values="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z;M14 14C14 15.1 13.1 16 12 16C10.9 16 10 15.1 10 14C10 12.9 12 4 12 4C12 4 14 12.9 14 14Z"/>
+        </path>
+        <animateTransform attributeName="transform" begin="0.4s" dur="6s" repeatCount="indefinite" type="rotate" values="-100 12 14;45 12 14;45 12 14;45 12 14;20 12 14;10 12 14;0 12 14;35 12 14;45 12 14;55 12 14;50 12 14;15 12 14;-20 12 14;-100 12 14"/>
+      </g>
+    </mask>
+    <rect width="24" height="24" fill="currentColor" mask="url(#lineMdSpeedTwotoneLoop0)"/>
+  </svg>
+);
+
 export function RaceTimer() {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded] = useState(true);
   const [showPrevious, setShowPrevious] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<string>("");
-  const [isVisible, setIsVisible] = useState(true);
+  const [timeLeft, setTimeLeft] = useState("");
+  const [isVisible] = useState(true);
   const [isContentVisible, setIsContentVisible] = useState(false);
   const { toast } = useToast();
+
+  const fetchRaceData = async (endpoint: string): Promise<RaceData> => {
+    const response = await fetch(endpoint);
+    if (!response.ok) {
+      throw new Error('Failed to fetch race data');
+    }
+    return response.json();
+  };
 
   const { 
     data: currentRaceData, 
@@ -59,13 +64,7 @@ export function RaceTimer() {
     isLoading: isCurrentLoading 
   } = useQuery<RaceData, Error>({
     queryKey: ["/api/wager-races/current"],
-    queryFn: async () => {
-      const response = await fetch('/api/wager-races/current');
-      if (!response.ok) {
-        throw new Error('Failed to fetch current race data');
-      }
-      return response.json();
-    },
+    queryFn: () => fetchRaceData('/api/wager-races/current'),
     refetchInterval: 30000,
     retry: 3,
     enabled: isVisible && !showPrevious,
@@ -84,25 +83,15 @@ export function RaceTimer() {
     data: previousRaceData, 
     error: previousError, 
     isLoading: isPreviousLoading 
-  } = useQuery<RaceData | null, Error>({
+  } = useQuery<RaceData, Error>({
     queryKey: ["/api/wager-races/previous"],
-    queryFn: async () => {
-      const response = await fetch('/api/wager-races/previous');
-      if (!response.ok) {
-        throw new Error('Failed to fetch previous race data');
-      }
-      const data = await response.json();
-      return data ? {
-        ...data,
-        startDate: data.startDate || new Date().toISOString(),
-        endDate: data.endDate || new Date().toISOString()
-      } : null;
-    },
+    queryFn: () => fetchRaceData('/api/wager-races/previous'),
     enabled: isVisible && showPrevious
   });
 
   const raceData = showPrevious ? previousRaceData : currentRaceData;
   const error = showPrevious ? previousError : currentError;
+  const isLoading = showPrevious ? isPreviousLoading : isCurrentLoading;
 
   useEffect(() => {
     if (!currentRaceData?.endDate) return;
@@ -129,47 +118,7 @@ export function RaceTimer() {
     return () => clearInterval(interval);
   }, [currentRaceData?.endDate]);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return "March 2025";
-  };
-
-  if (error) {
-    return (
-      <motion.div 
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="fixed top-1/2 right-0 transform -translate-y-1/2 z-50"
-      >
-        <div className="bg-destructive/90 backdrop-blur-sm border border-destructive/50 rounded-l-lg p-4 text-destructive-foreground">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5" />
-            <span>Unable to load race data</span>
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
-
-  const isLoading = showPrevious ? isPreviousLoading : isCurrentLoading;
-  if (isLoading) {
-    return (
-      <motion.div 
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="fixed top-1/2 right-0 transform -translate-y-1/2 z-50"
-      >
-        <div className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg p-4">
-          <div className="flex items-center justify-center gap-2">
-            <div className="animate-spin w-4 h-4 border-2 border-[#D7FF00] border-t-transparent rounded-full" />
-            <span className="text-[#8A8B91]">Loading race data...</span>
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
-
-  if (!raceData && !isVisible) return null;
+  if (error || isLoading || (!raceData && !isVisible)) return null;
 
   return (
     <div className="fixed top-1/2 right-0 transform -translate-y-1/2 z-50">
@@ -209,20 +158,14 @@ export function RaceTimer() {
 
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-[#8A8B91] text-sm">
-                    {formatDate(raceData.startDate)}
+                    {new Date(raceData.startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                   </span>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowPrevious(!showPrevious);
-                      }}
-                      className="p-1 rounded hover:bg-[#2A2B31] transition-colors"
-                    >
-                      <History className="h-4 w-4 text-[#8A8B91]" />
-                    </button>
-                    
-                  </div>
+                  <button 
+                    onClick={() => setShowPrevious(!showPrevious)}
+                    className="p-1 rounded hover:bg-[#2A2B31] transition-colors"
+                  >
+                    <History className="h-4 w-4 text-[#8A8B91]" />
+                  </button>
                 </div>
               </div>
 
@@ -240,7 +183,7 @@ export function RaceTimer() {
                           Prize Pool: ${raceData.prizePool.toLocaleString()}
                         </span>
                       </div>
-                      {raceData.participants.map((participant: RaceParticipant, index: number) => (
+                      {raceData.participants.map((participant, index) => (
                         <div 
                           key={participant.uid}
                           className="flex items-center justify-between py-2"
