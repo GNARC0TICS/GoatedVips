@@ -9,11 +9,9 @@ import { RateLimiterMemory, type RateLimiterRes } from 'rate-limiter-flexible';
 import bonusChallengesRouter from "./routes/bonus-challenges";
 import usersRouter from "./routes/users";
 import goombasAdminRouter from "./routes/goombas-admin";
-import adminRouter from "./routes/admin";
 import { requireAdmin } from "./middleware/admin";
 import { wagerRaces, users, transformationLogs } from "@db/schema";
 import { ensureUserProfile } from "./index";
-import { processLeaderboardData, transformLeaderboardData } from "./utils/leaderboard";
 
 type RateLimitTier = 'HIGH' | 'MEDIUM' | 'LOW';
 const rateLimits: Record<RateLimitTier, { points: number; duration: number }> = {
@@ -228,9 +226,6 @@ function setupAPIRoutes(app: Express) {
   
   // Mount our custom admin routes at the non-obvious URL path
   app.use("/goombas.net", goombasAdminRouter);
-  
-  // Mount the admin API routes with requireAdmin middleware
-  app.use("/api/admin", requireAdmin, adminRouter);
 
 
   // Add other API routes here, ensuring they're all prefixed with /api
@@ -347,8 +342,7 @@ function setupAPIRoutes(app: Express) {
           nestedDataLength: rawData?.data?.length,
         });
 
-        // Use our centralized utility to process the data (which applies boosting)
-        const transformedData = await processLeaderboardData(rawData);
+        const transformedData = await transformLeaderboardData(rawData);
 
         log('Transformed leaderboard data:', {
           status: transformedData.status,
@@ -400,10 +394,7 @@ function setupAPIRoutes(app: Express) {
         }
 
         const rawData = await response.json();
-        
-        // Use our processLeaderboardData utility to boost Ruffrollr777's wager
-        const processedData = await processLeaderboardData(rawData);
-        const data = processedData.data?.monthly?.data || [];
+        const data = rawData.data || rawData.results || rawData;
 
         const totals = data.reduce((acc: any, entry: any) => {
           acc.dailyTotal += entry.wagered?.today || 0;
@@ -643,6 +634,44 @@ function setupAPIRoutes(app: Express) {
 }
 
 let wss: WebSocketServer;
+
+export function transformLeaderboardData(apiData: any) {
+  const data = apiData.data || apiData.results || apiData;
+  if (!Array.isArray(data)) {
+    return {
+      status: "success",
+      metadata: {
+        totalUsers: 0,
+        lastUpdated: new Date().toISOString(),
+      },
+      data: {
+        today: { data: [] },
+        weekly: { data: [] },
+        monthly: { data: [] },
+        all_time: { data: [] },
+      },
+    };
+  }
+
+  const todayData = [...data].sort((a, b) => (b.wagered.today || 0) - (a.wagered.today || 0));
+  const weeklyData = [...data].sort((a, b) => (b.wagered.this_week || 0) - (a.wagered.this_week || 0));
+  const monthlyData = [...data].sort((a, b) => (b.wagered.this_month || 0) - (a.wagered.this_month || 0));
+  const allTimeData = [...data].sort((a, b) => (b.wagered.all_time || 0) - (a.wagered.all_time || 0));
+
+  return {
+    status: "success",
+    metadata: {
+      totalUsers: data.length,
+      lastUpdated: new Date().toISOString(),
+    },
+    data: {
+      today: { data: todayData },
+      weekly: { data: weeklyData },
+      monthly: { data: monthlyData },
+      all_time: { data: allTimeData },
+    },
+  };
+}
 
 export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);

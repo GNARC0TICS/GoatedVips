@@ -203,24 +203,6 @@ export type SelectTicketMessage = typeof ticketMessages.$inferSelect;
 
 // Temporarily removing challenge imports to resolve issues
 
-// Import wager overrides
-import { 
-  wagerOverrides,
-  wagerOverrideRelations,
-  insertWagerOverrideSchema,
-  selectWagerOverrideSchema
-} from "./schema/wager-overrides";
-
-export { 
-  wagerOverrides,
-  wagerOverrideRelations,
-  insertWagerOverrideSchema,
-  selectWagerOverrideSchema
-} from "./schema/wager-overrides";
-
-export type InsertWagerOverride = typeof wagerOverrides.$inferInsert;
-export type SelectWagerOverride = typeof wagerOverrides.$inferSelect;
-
 export const historicalRaces = pgTable("historical_races", {
   id: serial("id").primaryKey(),
   month: text("month").notNull(),

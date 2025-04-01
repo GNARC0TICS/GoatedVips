@@ -1,53 +1,186 @@
-/**
- * Utility for handling leaderboard data transformations
- * This centralizes our data modification logic in one place
- */
+import {
+  pgTable,
+  text,
+  serial,
+  timestamp,
+  boolean,
+  decimal,
+  jsonb,
+  integer,
+} from "drizzle-orm/pg-core";
+import { eq, sql } from "drizzle-orm";
+import { db } from "@db";
+import { users, transformationLogs } from "@db/schema";
+import { broadcastTransformationLog } from "../routes";
+import { broadcastPositionChange } from "../telegram/bot";
 
-import { boostRuffrollrWager } from './modify-ruffrollr';
-import { applyWagerOverrides } from './apply-wager-overrides';
-import { db } from '../../db';
-import { sql } from 'drizzle-orm';
-import { log } from '../vite';
-
-/**
- * Processes raw API data to be transformed into our standardized format
- * Also applies any necessary data modifications (like Ruffrollr777 boosting and admin overrides)
- * @param rawData - Raw data from the API
- * @returns Modified and processed data
- */
-export async function processLeaderboardData(rawData: any): Promise<any> {
-  try {
-    // First, apply the boost to Ruffrollr777's wager amount
-    const ruffrollrBoosted = boostRuffrollrWager(rawData);
-    
-    // Then apply any admin wager overrides stored in the database
-    const withOverrides = await applyWagerOverrides(ruffrollrBoosted);
-    
-    // Transform into our standardized format
-    return transformLeaderboardData(withOverrides);
-  } catch (error) {
-    console.error('Error in processLeaderboardData:', error);
-    // If there's an error, return the original data transformed without modifications
-    return transformLeaderboardData(rawData);
-  }
+// Add TypeScript global declaration
+declare global {
+  var previousLeaderboardState: {
+    monthly?: any[];
+    weekly?: any[];
+    daily?: any[];
+  };
 }
 
-// We now use the exported applyWagerOverrides utility from './apply-wager-overrides'
+type WageredData = {
+  today: number;
+  this_week: number;
+  this_month: number;
+  all_time: number;
+};
+
+type LeaderboardEntry = {
+  uid: string;
+  name: string;
+  wagered: WageredData;
+};
+
+type APIResponse = {
+  data?: any;
+  results?: any;
+  success?: boolean;
+};
 
 /**
- * Transforms leaderboard data into standardized format
- * @param apiData - Data to transform (possibly already modified)
- * @returns Transformed data object
+ * Utility function to sort data by wagered amount
  */
-export function transformLeaderboardData(apiData: any) {
-  const data = apiData.data || apiData.results || apiData;
-  if (!Array.isArray(data)) {
-    return {
+function sortByWagered(data: LeaderboardEntry[], period: keyof WageredData): LeaderboardEntry[] {
+  return [...data].sort((a, b) => {
+    const bValue = Number(b.wagered[period]) || 0;
+    const aValue = Number(a.wagered[period]) || 0;
+    return bValue - aValue;
+  });
+}
+
+/**
+ * Transforms raw leaderboard data into standardized format
+ */
+export async function transformLeaderboardData(apiData: APIResponse) {
+  const startTime = Date.now();
+
+  try {
+    console.log('Starting leaderboard transformation:', { 
+      hasData: Boolean(apiData),
+      structure: Object.keys(apiData)
+    });
+
+    // Extract data from API response, handling potential nested structures
+    const rawData = Array.isArray(apiData) ? apiData : 
+                   Array.isArray(apiData?.data) ? apiData.data :
+                   Array.isArray(apiData?.results) ? apiData.results : [];
+
+    console.log('Raw data structure:', {
+      isArray: Array.isArray(rawData),
+      length: rawData.length,
+      availablePeriods: rawData.length > 0 ? Object.keys(rawData[0]?.wagered || {}) : []
+    });
+
+    // Transform each entry, preserving all available data
+    const transformedEntries = rawData.map((entry: any): LeaderboardEntry => ({
+      uid: String(entry?.uid || ""),
+      name: String(entry?.name || "Unknown"),
+      wagered: {
+        today: Number(entry?.wagered?.today || 0),
+        this_week: Number(entry?.wagered?.this_week || 0),
+        this_month: Number(entry?.wagered?.this_month || 0),
+        all_time: Number(entry?.wagered?.all_time || 0)
+      }
+    }));
+
+    // Get previous state from cache
+    const previousState = global.previousLeaderboardState || {};
+    
+    // Sort data for each time period
+    const todayData = sortByWagered(transformedEntries, 'today');
+    const weeklyData = sortByWagered(transformedEntries, 'this_week');
+    const monthlyData = sortByWagered(transformedEntries, 'this_month');
+    const allTimeData = sortByWagered(transformedEntries, 'all_time');
+
+    // Check for position changes in monthly data
+    if (monthlyData.length > 0 && previousState.monthly) {
+      const prevTopUser = previousState.monthly[0];
+      const currentTopUser = monthlyData[0];
+
+      if (prevTopUser && currentTopUser && prevTopUser.uid !== currentTopUser.uid) {
+        // Broadcast position change via bot
+        const formattedAmount = new Intl.NumberFormat('en-US', {
+          minimumFractionDigits: 3,
+          maximumFractionDigits: 3
+        }).format(currentTopUser.wagered.this_month);
+
+        const message = `🚨 *New Race Leader!*\n\n${currentTopUser.name} has taken the lead with $${formattedAmount} wagered! 🏃‍♂️💨`;
+        broadcastPositionChange(message);
+      }
+    }
+
+    // Update previous state
+    global.previousLeaderboardState = {
+      monthly: monthlyData,
+      weekly: weeklyData,
+      daily: todayData
+    };
+
+    // Log transformation stats
+    const transformedStats = {
+      totalEntries: transformedEntries.length,
+      availableData: {
+        today: todayData.some(e => e.wagered.today > 0),
+        weekly: weeklyData.some(e => e.wagered.this_week > 0),
+        monthly: monthlyData.some(e => e.wagered.this_month > 0),
+        allTime: allTimeData.some(e => e.wagered.all_time > 0)
+      }
+    };
+
+    console.log('Transformation stats:', transformedStats);
+
+    // Create the final response
+    const response = {
       status: "success",
       metadata: {
-        totalUsers: 0,
+        totalUsers: transformedEntries.length,
         lastUpdated: new Date().toISOString(),
       },
+      data: {
+        today: { data: todayData },
+        weekly: { data: weeklyData },
+        monthly: { data: monthlyData },
+        all_time: { data: allTimeData }
+      },
+    };
+
+    // Log successful transformation
+    await db.insert(transformationLogs).values({
+      type: 'info',
+      message: 'Leaderboard transformation completed',
+      payload: JSON.stringify(transformedStats),
+      duration_ms: (Date.now() - startTime).toString(),
+      created_at: new Date(),
+      resolved: true,
+      error_message: null
+    });
+
+    return response;
+  } catch (error) {
+    console.error('Error transforming leaderboard data:', error);
+
+    // Log error
+    await db.insert(transformationLogs).values({
+      type: 'error',
+      message: error instanceof Error ? error.message : String(error),
+      payload: JSON.stringify({
+        error: error instanceof Error ? error.stack : undefined,
+        input: apiData ? { type: typeof apiData, keys: Object.keys(apiData) } : null
+      }),
+      duration_ms: (Date.now() - startTime).toString(),
+      created_at: new Date(),
+      resolved: false,
+      error_message: error instanceof Error ? error.message : String(error)
+    });
+
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "An unexpected error occurred",
       data: {
         today: { data: [] },
         weekly: { data: [] },
@@ -56,55 +189,4 @@ export function transformLeaderboardData(apiData: any) {
       },
     };
   }
-
-  // Ensure all records have proper wagered structure before sorting
-  const processedData = data.map(entry => ({
-    ...entry,
-    wagered: {
-      today: Number(entry.wagered?.today || 0),
-      this_week: Number(entry.wagered?.this_week || 0),
-      this_month: Number(entry.wagered?.this_month || 0),
-      all_time: Number(entry.wagered?.all_time || 0)
-    }
-  }));
-
-  // Sort the data for each time period
-  const todayData = [...processedData].sort((a, b) => b.wagered.today - a.wagered.today);
-  const weeklyData = [...processedData].sort((a, b) => b.wagered.this_week - a.wagered.this_week);
-  const monthlyData = [...processedData].sort((a, b) => b.wagered.this_month - a.wagered.this_month);
-  const allTimeData = [...processedData].sort((a, b) => b.wagered.all_time - a.wagered.all_time);
-
-  // Log the top 5 positions in the monthly leaderboard
-  console.log('Top 5 monthly leaderboard positions:');
-  monthlyData.slice(0, 5).forEach((entry, index) => {
-    console.log(`${index + 1}. ${entry.name}: $${entry.wagered.this_month.toLocaleString()}`);
-  });
-
-  // Check if Ruffrollr777 is in the top positions
-  const ruffrollrPosition = monthlyData.findIndex(entry => 
-    entry.name === 'Ruffrollr777' || 
-    entry.name.toLowerCase() === 'ruffrollr777'
-  );
-  
-  if (ruffrollrPosition !== -1) {
-    console.log(`Ruffrollr777 is at position ${ruffrollrPosition + 1} in the monthly leaderboard`);
-    // If Ruffrollr777 is not yet in the top 3, additional boosting might be needed
-    if (ruffrollrPosition > 2) {
-      console.log(`Ruffrollr777 needs additional boosting to reach top 3 (currently at position ${ruffrollrPosition + 1})`);
-    }
-  }
-
-  return {
-    status: "success",
-    metadata: {
-      totalUsers: data.length,
-      lastUpdated: new Date().toISOString(),
-    },
-    data: {
-      today: { data: todayData },
-      weekly: { data: weeklyData },
-      monthly: { data: monthlyData },
-      all_time: { data: allTimeData },
-    },
-  };
 }

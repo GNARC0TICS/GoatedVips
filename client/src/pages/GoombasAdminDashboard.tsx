@@ -304,21 +304,6 @@ export default function GoombasAdminDashboard() {
               </Card>
             </div>
             
-            {/* Admin Tools */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <Card className="bg-primary/5 hover:bg-primary/10 transition-colors cursor-pointer" onClick={() => setLocation('/admin/wager-overrides')}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-primary">
-                    <BarChart3 className="h-5 w-5" />
-                    Wager Overrides
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm">Manage user wager amount overrides</p>
-                </CardContent>
-              </Card>
-            </div>
-            
             {/* Recent Users */}
             <Card className="mb-6">
               <CardHeader>

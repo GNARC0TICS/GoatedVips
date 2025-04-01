@@ -127,7 +127,6 @@ function MainContent() {
                   <AdminRoute path="/admin/bonus-codes" component={BonusCodeManagement} />
                   <AdminRoute path="/admin/notifications" component={NotificationManagement} />
                   <AdminRoute path="/admin/support" component={SupportManagement} />
-                  <AdminRoute path="/admin/wager-overrides" component={React.lazy(() => import('@/pages/admin/WagerOverrides'))} />
                   
                   {/* Custom Admin Routes for goombas.net */}
                   <Route path="/goombas.net/login" component={GoombasAdminLogin} />

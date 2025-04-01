@@ -110,7 +110,7 @@ async function testDbConnection() {
  * This function handles the following scenarios:
  * 1. Finding existing users by their internal database ID
  * 2. Finding existing users by their Goated ID
- * 3. Creating new permanent profiles for users found in the Goated.com API
+ * 3. Creating new permanent profiles for users found in the Goated.com leaderboard API
  * 4. Creating temporary placeholder profiles for users not found in the API
  * 
  * @param userId - The user ID (numeric internal ID or external Goated ID)
@@ -168,20 +168,20 @@ export async function ensureUserProfile(userId: string): Promise<any> {
       console.log("Error finding user by Goated ID:", findError);
     }
     
-    // No existing user, try to create one from the API if it's numeric (potential Goated ID)
+    // No existing user, try to fetch user data from the leaderboard API if it's numeric (potential Goated ID)
     if (isNumericId) {
       const token = process.env.API_TOKEN || API_CONFIG.token;
       
-      // Try to fetch player data from the API
-      let playerData = null;
+      // Try to fetch user data from the leaderboard API
+      let userData = null;
       
       if (token) {
         try {
-          // Fetch player data directly from the player endpoint
-          const playerUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.player}/${userId}`;
-          console.log(`Fetching player data from ${playerUrl}`);
+          // Fetch leaderboard data which contains all users
+          const leaderboardUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`;
+          console.log(`Fetching leaderboard data to find user ${userId}`);
           
-          const response = await fetch(playerUrl, {
+          const response = await fetch(leaderboardUrl, {
             headers: {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
@@ -189,20 +189,40 @@ export async function ensureUserProfile(userId: string): Promise<any> {
           });
           
           if (response.ok) {
-            playerData = await response.json();
-            console.log("Successfully retrieved player data:", playerData);
+            const leaderboardData = await response.json();
+            
+            // Search for the user in different time periods
+            const timeframes = ['today', 'weekly', 'monthly', 'all_time'];
+            
+            // Look through all timeframes to find the user
+            for (const timeframe of timeframes) {
+              const users = leaderboardData?.data?.[timeframe]?.data || [];
+              
+              // Find the user with the matching UID
+              const foundUser = users.find((user: any) => user.uid === userId);
+              
+              if (foundUser) {
+                userData = foundUser;
+                console.log("Successfully found user in leaderboard data:", userData);
+                break;
+              }
+            }
+            
+            if (!userData) {
+              console.log(`User ID ${userId} not found in any leaderboard timeframe`);
+            }
           } else {
-            console.log(`Failed to fetch player data: ${response.status}`);
+            console.log(`Failed to fetch leaderboard data: ${response.status}`);
           }
         } catch (apiError) {
-          console.error("Error fetching from API:", apiError);
+          console.error("Error fetching from leaderboard API:", apiError);
         }
       }
       
       // Attempt to retrieve the actual username from the Goated API data
-      const username = playerData?.name || playerData?.username || null;
+      const username = userData?.name || null;
       
-      if (playerData && username) {
+      if (userData && username) {
         // We have valid data from the API, create a permanent profile for this Goated user
         try {
           const newUserId = Math.floor(1000 + Math.random() * 9000);
@@ -231,11 +251,12 @@ export async function ensureUserProfile(userId: string): Promise<any> {
           console.error(`Failed to create permanent user profile for Goated ID ${userId}:`, insertError);
         }
       } else {
-        // No player data, create a temporary placeholder profile
+        // No user data found in leaderboard, create a temporary placeholder profile
         try {
           const newUserId = Math.floor(1000 + Math.random() * 9000);
-          const tempUsername = `Player_${userId}`;
-          const email = `${tempUsername.toLowerCase()}@goated.placeholder.com`;
+          // Use 'Goated User' instead of 'Player_' to match the site's branding
+          const tempUsername = `Goated User ${userId}`;
+          const email = `user_${userId}@goated.placeholder.com`;
           
           // Create a placeholder profile with clear indication this is temporary
           const result = await db.execute(sql`
@@ -265,8 +286,8 @@ export async function ensureUserProfile(userId: string): Promise<any> {
       try {
         const shortId = userId.substring(0, 8); // Use first 8 chars of UUID/string
         const newUserId = Math.floor(1000 + Math.random() * 9000);
-        const username = `Player_${shortId}`;
-        const email = `${username.toLowerCase()}@goated.placeholder.com`;
+        const username = `Goated Custom ${shortId}`;
+        const email = `custom_${shortId}@goated.placeholder.com`;
         
         // Clear indication this is a non-Goated profile
         const result = await db.execute(sql`
