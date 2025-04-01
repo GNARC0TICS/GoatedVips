@@ -49,7 +49,8 @@ export function RaceTimer() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showPrevious, setShowPrevious] = useState(false);
   const [timeLeft, setTimeLeft] = useState<string>("");
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [isContentVisible, setIsContentVisible] = useState(false);
   const { toast } = useToast();
 
   const { 
@@ -173,23 +174,19 @@ export function RaceTimer() {
   return (
     <div className="fixed top-1/2 right-0 transform -translate-y-1/2 z-50">
       <AnimatePresence>
-        {!isVisible ? (
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="flex items-center"
+        <motion.div
+          initial={{ x: "100%" }}
+          animate={{ x: isContentVisible ? 0 : "calc(100% - 48px)" }}
+          exit={{ x: "100%" }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="flex items-start"
+        >
+          <button
+            onClick={() => setIsContentVisible(!isContentVisible)}
+            className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-4 flex items-center hover:bg-[#1A1B21] transition-colors group"
           >
-            <button
-              onClick={() => setIsVisible(true)}
-              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg p-4 flex items-center gap-2 hover:bg-[#1A1B21] transition-colors group"
-            >
-              <SpeedIcon className="h-5 w-5 text-[#D7FF00] group-hover:scale-110 transition-transform" />
-              <span className="font-heading text-white">Race Timer</span>
-            </button>
-          </motion.div>
-        ) : (
+            <ChevronRight className={`h-5 w-5 text-[#D7FF00] group-hover:scale-110 transition-all transform ${isContentVisible ? 'rotate-180' : ''}`} />
+          </button>
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
@@ -198,10 +195,10 @@ export function RaceTimer() {
             className="flex items-start"
           >
             <button
-              onClick={() => setIsVisible(false)}
+              onClick={() => setIsContentVisible(false)}
               className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-4 flex items-center hover:bg-[#1A1B21] transition-colors group"
             >
-              <ChevronRight className="h-5 w-5 text-[#D7FF00] group-hover:scale-110 transition-transform" />
+              <ChevronRight className="h-5 w-5 text-[#D7FF00] group-hover:scale-110 transition-transform rotate-180" />
             </button>
 
             <div className="w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden">
