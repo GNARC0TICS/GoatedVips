@@ -190,8 +190,6 @@ export function RaceTimer() {
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="flex items-start"
           >
             <button
@@ -295,7 +293,7 @@ export function RaceTimer() {
               </AnimatePresence>
             </div>
           </motion.div>
-        )}
+        </motion.div>
       </AnimatePresence>
     </div>
   );
