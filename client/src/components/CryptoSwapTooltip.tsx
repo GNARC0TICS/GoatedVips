@@ -6,6 +6,7 @@ import { Link } from 'wouter';
 
 export function CryptoSwapTooltip() {
   const [isVisible, setIsVisible] = useState(false);
+  const [position, setPosition] = useState({ bottom: 6, left: 6 });
   
   // Check if we've already shown the tooltip in this session
   useEffect(() => {
@@ -15,6 +16,16 @@ export function CryptoSwapTooltip() {
       // Show tooltip after a short delay
       const timer = setTimeout(() => {
         setIsVisible(true);
+        
+        // Check if RaceTimer exists and adjust position accordingly
+        const raceTimer = document.querySelector('[data-component="race-timer"]');
+        if (raceTimer) {
+          const raceTimerRect = raceTimer.getBoundingClientRect();
+          // If the RaceTimer is at the bottom-right, shift the crypto tooltip to the left
+          if (raceTimerRect.right > window.innerWidth - 100 && raceTimerRect.bottom > window.innerHeight - 100) {
+            setPosition({ bottom: 100, left: 6 });
+          }
+        }
       }, 2000);
       
       return () => clearTimeout(timer);
@@ -30,7 +41,7 @@ export function CryptoSwapTooltip() {
   if (!isVisible) return null;
   
   return (
-    <div className="fixed bottom-6 left-6 z-40 max-w-sm">
+    <div className="fixed z-40 max-w-sm" style={{ bottom: `${position.bottom}px`, left: `${position.left}px` }}>
       <div className="relative bg-[#1A1C23]/60 backdrop-blur-md border border-[#D7FF00]/30 p-4 rounded-xl shadow-lg shadow-[#D7FF00]/10">
         <button
           onClick={handleDismiss}
