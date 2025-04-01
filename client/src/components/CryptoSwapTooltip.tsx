@@ -30,7 +30,7 @@ export function CryptoSwapTooltip() {
   if (!isVisible) return null;
   
   return (
-    <div className="fixed top-6 left-6 z-40 max-w-sm">
+    <div className="fixed bottom-6 left-6 z-40 max-w-sm">
       <div className="relative bg-[#1A1C23]/60 backdrop-blur-md border border-[#D7FF00]/30 p-4 rounded-xl shadow-lg shadow-[#D7FF00]/10">
         <button
           onClick={handleDismiss}
