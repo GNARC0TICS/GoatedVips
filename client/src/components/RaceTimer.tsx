@@ -46,7 +46,7 @@ interface RaceData {
 }
 
 export function RaceTimer() {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const [showPrevious, setShowPrevious] = useState(false);
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [isVisible, setIsVisible] = useState(true);
@@ -189,10 +189,7 @@ export function RaceTimer() {
               <ChevronRight className={`h-5 w-5 text-[#D7FF00] group-hover:scale-110 transition-all transform ${isContentVisible ? 'rotate-180' : ''}`} />
             </button>
             <div className="w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden">
-              <div 
-                className="p-4 cursor-pointer"
-                onClick={() => setIsExpanded(!isExpanded)}
-              >
+              <div className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Trophy className="h-5 w-5 text-[#D7FF00]" />
@@ -224,11 +221,7 @@ export function RaceTimer() {
                     >
                       <History className="h-4 w-4 text-[#8A8B91]" />
                     </button>
-                    {isExpanded ? (
-                      <ChevronUp className="h-4 w-4 text-[#8A8B91]" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-[#8A8B91]" />
-                    )}
+                    
                   </div>
                 </div>
               </div>
