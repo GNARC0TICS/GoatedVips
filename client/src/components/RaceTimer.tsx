@@ -183,7 +183,6 @@ export function RaceTimer() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="fixed bottom-4 right-4 z-50 w-80"
-            data-component="race-timer"
           >
             <div className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-lg shadow-lg overflow-hidden relative">
               <button 
