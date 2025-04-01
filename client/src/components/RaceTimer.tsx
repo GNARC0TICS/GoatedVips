@@ -187,19 +187,7 @@ export function RaceTimer() {
           >
             <ChevronRight className={`h-5 w-5 text-[#D7FF00] group-hover:scale-110 transition-all transform ${isContentVisible ? 'rotate-180' : ''}`} />
           </button>
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            className="flex items-start"
-          >
-            <button
-              onClick={() => setIsContentVisible(false)}
-              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-4 flex items-center hover:bg-[#1A1B21] transition-colors group"
-            >
-              <ChevronRight className="h-5 w-5 text-[#D7FF00] group-hover:scale-110 transition-transform rotate-180" />
-            </button>
-
-            <div className="w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden">
+          <div className="w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden">
               <div 
                 className="p-4 cursor-pointer"
                 onClick={() => setIsExpanded(!isExpanded)}
