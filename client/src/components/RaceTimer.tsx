@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, ChevronDown, ChevronUp, Clock, AlertCircle, History, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trophy, ChevronDown, ChevronUp, History, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -24,11 +23,26 @@ interface RaceData {
   participants: RaceParticipant[];
 }
 
+function SvgSpinnersClock(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" {...props}>
+      <path fill="currentColor" d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,20a9,9,0,1,1,9-9A9,9,0,0,1,12,21Z"></path>
+      <rect width={2} height={7} x={11} y={6} fill="currentColor" rx={1}>
+        <animateTransform attributeName="transform" dur="9s" repeatCount="indefinite" type="rotate" values="0 12 12;360 12 12"></animateTransform>
+      </rect>
+      <rect width={2} height={9} x={11} y={11} fill="currentColor" rx={1}>
+        <animateTransform attributeName="transform" dur="0.75s" repeatCount="indefinite" type="rotate" values="0 12 12;360 12 12"></animateTransform>
+      </rect>
+    </svg>
+  );
+}
+
 export function RaceTimer() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showPrevious, setShowPrevious] = useState(false);
   const [timeLeft, setTimeLeft] = useState<string>("");
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isClockAnimating, setIsClockAnimating] = useState(true);
   const { toast } = useToast();
 
   const { 
@@ -48,6 +62,9 @@ export function RaceTimer() {
     retry: 3,
     enabled: isVisible && !showPrevious,
     staleTime: 60000,
+    onSuccess: () => {
+      setIsClockAnimating(false);
+    },
     onError: (error: Error) => {
       console.error('Race data fetch error:', error);
       toast({
@@ -78,6 +95,13 @@ export function RaceTimer() {
     },
     enabled: isVisible && showPrevious
   });
+
+  const handleTabClick = () => {
+    setIsVisible(!isVisible);
+    if (!isVisible) {
+      setIsClockAnimating(true);
+    }
+  };
 
   const raceData = showPrevious ? previousRaceData : currentRaceData;
   const error = showPrevious ? previousError : currentError;
@@ -112,78 +136,27 @@ export function RaceTimer() {
     return "March 2025";
   };
 
-  if (error) {
-    return (
-      <motion.div 
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="fixed top-1/2 right-0 transform -translate-y-1/2 z-50"
-      >
-        <div className="bg-destructive/90 backdrop-blur-sm border border-destructive/50 rounded-l-lg p-4 text-destructive-foreground">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5" />
-            <span>Unable to load race data</span>
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
-
-  const isLoading = showPrevious ? isPreviousLoading : isCurrentLoading;
-  if (isLoading) {
-    return (
-      <motion.div 
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="fixed top-1/2 right-0 transform -translate-y-1/2 z-50"
-      >
-        <div className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg p-4">
-          <div className="flex items-center justify-center gap-2">
-            <div className="animate-spin w-4 h-4 border-2 border-[#D7FF00] border-t-transparent rounded-full" />
-            <span className="text-[#8A8B91]">Loading race data...</span>
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
-
-  if (!raceData && !isVisible) return null;
-
   return (
     <div className="fixed top-1/2 right-0 transform -translate-y-1/2 z-50">
       <AnimatePresence>
-        {!isVisible ? (
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="flex items-center"
+        <div className="flex items-start">
+          <button
+            onClick={handleTabClick}
+            className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-4 flex items-center hover:bg-[#1A1B21] transition-colors group"
           >
-            <button
-              onClick={() => setIsVisible(true)}
-              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg p-4 flex items-center gap-2 hover:bg-[#1A1B21] transition-colors group"
-            >
-              <Clock className="h-5 w-5 text-[#D7FF00] group-hover:scale-110 transition-transform" />
-              <span className="font-heading text-white">Race Timer</span>
-            </button>
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="flex items-start"
-          >
-            <button
-              onClick={() => setIsVisible(false)}
-              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-4 flex items-center hover:bg-[#1A1B21] transition-colors group"
-            >
-              <ChevronRight className="h-5 w-5 text-[#D7FF00] group-hover:scale-110 transition-transform" />
-            </button>
+            <SvgSpinnersClock 
+              className={`w-5 h-5 text-[#D7FF00] ${isClockAnimating ? '' : 'animate-none'}`}
+            />
+          </button>
 
-            <div className="w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden">
+          {isVisible && (
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden"
+            >
               <div 
                 className="p-4 cursor-pointer"
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -275,9 +248,9 @@ export function RaceTimer() {
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
-          </motion.div>
-        )}
+            </motion.div>
+          )}
+        </div>
       </AnimatePresence>
     </div>
   );
