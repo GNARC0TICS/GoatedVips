@@ -10,10 +10,14 @@ import { RateLimiterMemory, type RateLimiterRes } from 'rate-limiter-flexible';
 
 // Custom logger that can handle objects
 function log(message: string | object, source = "express") {
-  if (typeof message === 'object') {
-    console.log(`[${source}]`, message);
+  const formattedTime = new Date().toLocaleTimeString("en-US", {
+    hour12: false,
+  });
+
+  if (typeof message === "object") {
+    console.log(`${formattedTime} [${source}]`, message);
   } else {
-    viteLog(message, source);
+    viteLog(`${formattedTime} [${source}] ${message}`, source);
   }
 }
 import bonusChallengesRouter from "./routes/bonus-challenges";
@@ -386,12 +390,22 @@ function setupAPIRoutes(app: Express) {
           nestedData: Boolean(rawData?.data),
           nestedDataLength: rawData?.data?.length,
         };
-        log('Raw API response structure:');
-        console.log(apiStructureInfo);
+        log('Raw API response structure:', apiStructureInfo);
 
         const transformedData = await transformLeaderboardData(rawData);
 
-        const dataInfo = {
+        interface DataInfo {
+          status: string;
+          totalUsers?: number;
+          dataLengths: {
+            today?: number;
+            weekly?: number;
+            monthly?: number;
+            allTime?: number;
+          };
+        }
+
+        const dataInfo: DataInfo = {
           status: transformedData.status,
           totalUsers: transformedData.metadata?.totalUsers,
           dataLengths: {
@@ -401,8 +415,7 @@ function setupAPIRoutes(app: Express) {
             allTime: transformedData.data?.all_time?.data?.length,
           }
         };
-        log('Transformed leaderboard data:');
-        console.log(dataInfo);
+        log('Transformed leaderboard data:', dataInfo);
 
         res.json(transformedData);
       } catch (error) {
