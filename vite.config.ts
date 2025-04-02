@@ -9,6 +9,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 export default defineConfig({
   plugins: [react(), runtimeErrorOverlay(), themePlugin()],
+  server: {
+    allowedHosts: true, // Allow all hosts in development mode
+    host: true, // Listen on all addresses
+  },
   resolve: {
     alias: {
       "@db": path.resolve(__dirname, "db"),
