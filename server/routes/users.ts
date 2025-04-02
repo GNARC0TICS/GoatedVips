@@ -1,4 +1,4 @@
-import { Router } from "express";
+ import { Router } from "express";
 import { db } from "@db";
 import { users } from "@db/schema";
 import type { SelectUser } from "@db/schema";
@@ -9,6 +9,8 @@ import multer from 'multer';
 import { API_CONFIG } from "../config/api";
 import bcrypt from 'bcrypt';
 import { ensureUserProfile } from "../index";
+import { getApiToken, getApiHeaders } from "../utils/api-token";
+import { findUserByGoatedId } from "../utils/api-utils";
 
 // Type definitions for missing properties
 type IpHistoryEntry = { ip: string; timestamp: Date; };
@@ -155,50 +157,37 @@ router.get("/search", async (req, res) => {
   }
 });
 
-// Authentication routes 
-router.post("/login", loginLimiter, async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        // Implement login logic here, including secure password handling
-        // and potentially using JWT for authentication.
-        const user = await authenticateUser(username, password); // Placeholder function
-        if (user) {
-            // Generate and send JWT or other authentication token
-            const token = generateToken(user); // Placeholder function
-            res.json({ token });
-        } else {
-            res.status(401).json({ error: 'Invalid credentials' });
-        }
-    } catch (error) {
-        console.error("Login error:", error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
+// Authentication routes have been removed as they are handled by the main auth.ts implementation
 
-
-// Profile image handling route
-router.post('/api/profile/image', upload.single('image'), async (req, res) => {
-    //Handle profile image upload.  Requires multer or similar middleware
-    try {
-        // Save image to storage (e.g., cloudinary, local storage)
-        const imageUrl = await saveProfileImage(req.file); // Placeholder function
-        res.json({ imageUrl });
-    } catch (error) {
-        console.error("Image upload error:", error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
+// NOTE: Profile image upload has been temporarily disabled
+// until type compatibility issues are resolved.
+// The saveProfileImage function is still available for future implementation.
 
 // User preferences route
-router.put('/api/profile/preferences', async (req, res) => {
+router.put('/profile/preferences', async (req, res) => {
     try {
+        if (!req.user) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+        
         const { preferences } = req.body;
+        if (!preferences || typeof preferences !== 'object') {
+            return res.status(400).json({ error: 'Valid preferences object is required' });
+        }
+        
         // Update user preferences in the database
-        await updateUserPreferences(req.user?.id || 0, preferences); // Placeholder function
-        res.json({ message: 'Preferences updated successfully' });
+        await updateUserPreferences(req.user.id, preferences);
+        res.json({
+            success: true,
+            message: 'Preferences updated successfully',
+            preferences
+        });
     } catch (error) {
         console.error("Preference update error:", error);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({
+            error: 'Failed to update preferences',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
     }
 });
 
@@ -270,74 +259,37 @@ router.get("/:id", async (req, res) => {
       if (!user) {
         try {
           console.log(`Attempting to find user in leaderboard API for ID ${id}`);
-          // Try to fetch leaderboard data to find this user
-          const API_TOKEN = process.env.API_TOKEN || API_CONFIG.token;
-          if (API_TOKEN) {
-            // Fetch the leaderboard data which contains all users
-            const response = await fetch(
-              `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${API_TOKEN}`,
-                  "Content-Type": "application/json",
-                }
-              }
-            );
+          // Try to find the user directly using our new utility function
+          const foundUser = await findUserByGoatedId(id);
+          
+          if (foundUser) {
+            console.log(`Found player in leaderboard API:`, foundUser);
+            // Found a player - create a profile for them
+            const userId = Math.floor(1000 + Math.random() * 9000); // Generate numeric ID for compatibility
+            const email = `${foundUser.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
             
-            if (response.ok) {
-              const leaderboardData = await response.json();
-              
-              // Search for the user in different time periods
-              const timeframes = ['today', 'weekly', 'monthly', 'all_time'];
-              let foundUser = null;
-              
-              // Look through all timeframes to find the user
-              for (const timeframe of timeframes) {
-                const users = leaderboardData?.data?.[timeframe]?.data || [];
-                
-                // Find the user with the matching UID
-                foundUser = users.find((u: any) => u.uid === id);
-                
-                if (foundUser) {
-                  console.log(`Found user ${id} in ${timeframe} leaderboard data:`, foundUser);
-                  break;
-                }
-              }
-              
-              if (foundUser && foundUser.name) {
-                console.log(`Found player in leaderboard API:`, foundUser);
-                // Found a player - create a profile for them
-                const userId = Math.floor(1000 + Math.random() * 9000); // Generate numeric ID for compatibility
-                const email = `${foundUser.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
-                
-                console.log(`Creating new user with ID ${userId} for Goated player ${foundUser.name}`);
-                await db.execute(sql`
-                  INSERT INTO users (
-                    id, username, email, password, created_at, updated_at, profile_color, bio, is_admin, goated_id, goated_username, goated_account_linked
-                  ) VALUES (
-                    ${userId}, ${foundUser.name}, ${email}, '', ${new Date()}, ${new Date()}, '#D7FF00', 'Official Goated.com player profile', false, ${id}, ${foundUser.name}, true
-                  )
-                `);
-                
-                // Now return the newly created user
-                user = {
-                  id: userId,
-                  username: foundUser.name,
-                  bio: 'Official Goated.com player profile',
-                  profileColor: '#D7FF00',
-                  createdAt: new Date(),
-                  goatedId: id
-                };
-                
-                console.log(`Created and returning new user:`, user);
-              } else {
-                console.log(`User ID ${id} not found in any leaderboard timeframe`);
-              }
-            } else {
-              console.log(`API returned non-OK response:`, response.status);
-            }
+            console.log(`Creating new user with ID ${userId} for Goated player ${foundUser.name}`);
+            await db.execute(sql`
+              INSERT INTO users (
+                id, username, email, password, created_at, profile_color, bio, is_admin, goated_id, goated_username, goated_account_linked
+              ) VALUES (
+                ${userId}, ${foundUser.name}, ${email}, '', ${new Date()}, '#D7FF00', 'Official Goated.com player profile', false, ${id}, ${foundUser.name}, true
+              )
+            `);
+            
+            // Now return the newly created user
+            user = {
+              id: userId,
+              username: foundUser.name,
+              bio: 'Official Goated.com player profile',
+              profileColor: '#D7FF00',
+              createdAt: new Date(),
+              goatedId: id
+            };
+            
+            console.log(`Created and returning new user:`, user);
           } else {
-            console.log(`No API_TOKEN available for external API request`);
+            console.log(`User ID ${id} not found in Goated API`);
           }
         } catch (apiError) {
           console.error("Error creating user from API:", apiError);
@@ -454,29 +406,7 @@ router.post("/ensure-profile", async (req, res) => {
 
 // The endpoint for ensuring a user profile exists by ID is implemented at the bottom of this file
 
-
-
-// Placeholder functions (replace with actual implementation)
-async function authenticateUser(username: string, password: string): Promise<any> {
-    // Implement authentication logic here
-    return null; // Replace with user object or null if authentication fails
-}
-
-function generateToken(user: any): string | null {
-    // Implement JWT token generation or other authentication token generation here
-    return null; // Replace with generated token
-}
-
-async function saveProfileImage(file: any): Promise<string | null> {
-    // Implement image saving logic (e.g., cloudinary, local storage)
-    return null; // Replace with image URL
-}
-
-async function updateUserPreferences(userId: string | number, preferences: any): Promise<void> {
-    // Implement user preference update logic
-    return; // Replace with successful operation or error handling
-}
-
+// Function to generate verification email template (moved above but kept)
 function getVerificationEmailTemplate(verificationCode: string): string {
     // Implement your themed email template generation here.  This should return an HTML string.
     // Example:
@@ -492,6 +422,42 @@ function getVerificationEmailTemplate(verificationCode: string): string {
     </html>`;
 }
 
+// Helper function for profile image handling
+async function saveProfileImage(file: any): Promise<string | null> {
+    if (!file) {
+        console.error("No file provided for upload");
+        return null;
+    }
+    
+    try {
+        // For now, return a simple URL pattern based on the file
+        // In a real implementation, this would upload to a storage service
+        const filename = file.filename || `profile-${Date.now()}`;
+        return `/uploads/${filename}`;
+    } catch (error) {
+        console.error("Error saving profile image:", error);
+        return null;
+    }
+}
+
+// Helper function for user preferences
+async function updateUserPreferences(userId: string | number, preferences: any): Promise<void> {
+    if (!userId) {
+        throw new Error("User ID is required");
+    }
+    
+    try {
+        // Update user preferences in the database
+        await db.execute(sql`
+            UPDATE users
+            SET preferences = jsonb_set(preferences, '{}', ${JSON.stringify(preferences)})
+            WHERE id::text = ${String(userId)}
+        `);
+    } catch (error) {
+        console.error(`Error updating preferences for user ${userId}:`, error);
+        throw new Error("Failed to update user preferences");
+    }
+}
 
 // Create test users endpoint for development
 router.post("/create-test-users", async (req, res) => {
@@ -704,188 +670,6 @@ router.get("/by-goated-id/:goatedId", async (req, res) => {
   }
 });
 
-// GET endpoint for creating user profile (for testing)
-router.get("/test-create-profile/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    
-    if (!userId) {
-      return res.status(400).json({ 
-        error: "User ID is required in URL path" 
-      });
-    }
-    
-    console.log(`[TEST] Ensuring profile exists for ID: ${userId}`);
-    
-    // Use our improved ensureUserProfile function
-    const user = await ensureUserProfile(userId);
-    
-    if (!user) {
-      console.error(`Failed to create profile for ID ${userId}`);
-      return res.status(500).json({
-        error: "Failed to create user profile"
-      });
-    }
-    
-    // Return appropriate response based on profile type
-    let message = "User profile already exists";
-    
-    if (user.isNewlyCreated) {
-      if (user.isPermanent) {
-        message = "Permanent Goated profile created successfully";
-      } else {
-        message = "Temporary placeholder profile created";
-      }
-    }
-    
-    return res.json({
-      success: true,
-      message,
-      user
-    });
-  } catch (error) {
-    console.error("Error creating profile:", error);
-    return res.status(500).json({
-      error: "Failed to process request",
-      message: error instanceof Error ? error.message : "Unknown error"
-    });
-  }
-});
-
-// Endpoint to create a user profile from ID (numeric or UUID)
-router.post("/ensure-profile-from-id", async (req, res) => {
-  try {
-    const { userId } = req.body;
-    
-    // Validate input
-    if (!userId) {
-      return res.status(400).json({ 
-        error: "User ID is required" 
-      });
-    }
-    
-    console.log(`Ensuring profile exists for ID: ${userId}`);
-    
-    // Use our improved ensureUserProfile function which now handles
-    // real Goated profile creation with proper usernames and permanent accounts
-    const user = await ensureUserProfile(userId);
-    
-    if (!user) {
-      console.error(`Failed to create profile for ID ${userId}`);
-      return res.status(500).json({
-        error: "Failed to create user profile"
-      });
-    }
-    
-    // Return appropriate response based on profile type
-    let message = "User profile already exists";
-    
-    if (user.isNewlyCreated) {
-      if (user.isPermanent) {
-        message = "Permanent Goated profile created successfully";
-      } else if (user.isTemporary) {
-        message = "Temporary profile created - will be linked to Goated account when verified";
-      } else if (user.isCustom) {
-        message = "Custom profile created successfully";
-      } else {
-        message = "User profile created successfully";
-      }
-    }
-    
-    return res.json({
-      success: true,
-      message: message,
-      id: user.id,
-      username: user.username,
-      goatedId: user.goatedId,
-      goatedUsername: user.goatedUsername,
-      isLinked: user.goatedAccountLinked || false,
-      profileType: user.isPermanent ? 'permanent' : 
-                   user.isTemporary ? 'temporary' : 
-                   user.isCustom ? 'custom' : 'standard'
-    });
-  } catch (error) {
-    console.error("Error ensuring user profile from ID:", error);
-    res.status(500).json({ error: "Failed to process user profile request" });
-  }
-});
-
-// Enhanced test endpoint to verify all profile creation paths
-router.get("/test-profile-creation/:type/:userId", async (req, res) => {
-  try {
-    const { userId, type } = req.params;
-    
-    if (!userId) {
-      return res.status(400).json({ 
-        error: "User ID is required in URL path" 
-      });
-    }
-    
-    console.log(`[ENHANCED TEST] Testing profile creation for ID: ${userId}, Type: ${type}`);
-    
-    // Simulate different API response scenarios based on the type parameter
-    let user;
-    
-    switch (type) {
-      case 'api-success':
-        // Simulate a successful API response by directly calling ensureUserProfile
-        user = await ensureUserProfile(userId);
-        break;
-        
-      case 'api-error':
-        // Simulate API error by temporarily modifying the API endpoint URL
-        const originalBaseUrl = API_CONFIG.baseUrl;
-        API_CONFIG.baseUrl = 'https://invalid-api-url.com';
-        user = await ensureUserProfile(userId);
-        // Restore the original URL after test
-        API_CONFIG.baseUrl = originalBaseUrl;
-        break;
-        
-      case 'non-numeric':
-        // Test with a non-numeric ID string
-        user = await ensureUserProfile(`test-${userId}`);
-        break;
-        
-      default:
-        // Default case - just call ensureUserProfile normally
-        user = await ensureUserProfile(userId);
-    }
-    
-    if (!user) {
-      console.error(`Failed to create profile for ID ${userId} with test type ${type}`);
-      return res.status(500).json({
-        error: "Failed to create user profile",
-        testType: type
-      });
-    }
-    
-    // Return detailed information about the created profile for debugging
-    return res.json({
-      success: true,
-      testType: type,
-      user: {
-        id: user.id,
-        username: user.username,
-        goatedId: user.goatedId,
-        goatedUsername: user.goatedUsername,
-        isNewlyCreated: user.isNewlyCreated,
-        isPermanent: user.isPermanent,
-        isTemporary: user.isTemporary,
-        isCustom: user.isCustom,
-        goatedAccountLinked: user.goatedAccountLinked,
-        profileType: user.isPermanent ? 'permanent' : 
-                   user.isTemporary ? 'temporary' : 
-                   user.isCustom ? 'custom' : 'standard'
-      }
-    });
-  } catch (error) {
-    console.error(`Error in enhanced profile test (type: ${req.params.type}):`, error);
-    return res.status(500).json({
-      error: "Failed to process enhanced test request",
-      testType: req.params.type,
-      message: error instanceof Error ? error.message : "Unknown error"
-    });
-  }
-});
+// Production endpoints only - test endpoints removed
 
 export default router;

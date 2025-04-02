@@ -1,11 +1,15 @@
-
+/**
+ * API configuration for Goated.com integration
+ * Defines endpoints and fallback data structures
+ * 
+ * NOTE: API token is no longer stored here. It's now managed through
+ * environment variables and accessed via the api-token.ts utility.
+ */
 export const API_CONFIG = {
   baseUrl: "https://api.goated.com/user2",
-  token: process.env.API_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJNZ2xjTU9DNEl6cWpVbzVhTXFBVyIsInNlc3Npb24iOiJwaVJKVGs4NHp4SVIiLCJpYXQiOjE3NDMyOTY4NDksImV4cCI6MTc0MzM4MzI0OX0.KiIq4FHDL0ZIrbRTdJQMO3as0dRFjalpJLiPbC2ka0U",
   endpoints: {
     leaderboard: "/affiliate/referral-leaderboard/2RW440E",
     health: "/health"
-    // Removed invalid player endpoint
   },
   fallbackData: {
     // Fallback data structure when API is unavailable
