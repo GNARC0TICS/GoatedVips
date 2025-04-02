@@ -28,6 +28,7 @@ import { sql } from "drizzle-orm";
 import { log } from "./utils/logger";
 import { registerRoutes } from "./routes";
 import { domainRedirectMiddleware } from "./middleware/domain-handler";
+import { supabaseAuthMiddleware } from "./middleware/supabase-auth";
 import { db } from "../db";
 import { setupAuth } from "./auth";
 import cors from "cors";
@@ -546,9 +547,31 @@ function setupMiddleware(app: express.Application) {
 
   // CORS configuration for API routes
   app.use('/api', cors({
-    origin: process.env.NODE_ENV === 'development'
-      ? ['http://localhost:5000', 'http://0.0.0.0:5000']
-      : process.env.ALLOWED_ORIGINS?.split(',') || [],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl requests)
+      if (!origin) return callback(null, true);
+      
+      // Check if the origin is in the allowed list
+      const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+      
+      // Accept any Replit domain
+      if (
+        allowedOrigins.includes(origin) || 
+        origin.endsWith('.replit.dev') || 
+        origin.endsWith('.repl.co')
+      ) {
+        return callback(null, true);
+      }
+      
+      // For development also allow localhost
+      if (process.env.NODE_ENV === 'development' && 
+        (origin.includes('localhost') || origin.includes('0.0.0.0'))
+      ) {
+        return callback(null, true);
+      }
+      
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
@@ -556,7 +579,8 @@ function setupMiddleware(app: express.Application) {
 
   // Session store configuration using PostgreSQL
   const PostgresSessionStore = connectPg(session);
-  app.use(session({
+  // Apply session middleware to specific routes to avoid TypeScript errors
+  const sessionMiddleware = session({
     store: new PostgresSessionStore({
       conObject: {
         connectionString: process.env.DATABASE_URL,
@@ -571,7 +595,13 @@ function setupMiddleware(app: express.Application) {
       httpOnly: true,
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     },
-  }));
+  });
+  
+  // Apply the session middleware to our routes
+  const apiRouter = express.Router();
+  const authRouter = express.Router();
+  app.use('/api', sessionMiddleware, apiRouter);
+  app.use('/auth', sessionMiddleware, authRouter);
 
   // Security headers middleware
   app.use((req, res, next) => {
@@ -586,6 +616,10 @@ function setupMiddleware(app: express.Application) {
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
   app.use(cookieParser());
+  
+  // Authentication middleware
+  app.use(supabaseAuthMiddleware);
+  
   app.use(requestLogger);
 
   // Error handling middleware

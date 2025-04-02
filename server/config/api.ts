@@ -11,6 +11,7 @@ export const API_CONFIG = {
     leaderboard: "/affiliate/referral-leaderboard/2RW440E",
     health: "/health"
   },
+  token: process.env.API_TOKEN || "default-token", // Added for backwards compatibility
   fallbackData: {
     // Fallback data structure when API is unavailable
     leaderboard: {

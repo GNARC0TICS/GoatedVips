@@ -1,5 +1,5 @@
 
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 import { Redirect, Route } from 'wouter';
 
@@ -10,9 +10,9 @@ export function AdminRoute({
   path: string;
   component: React.ComponentType<any>;
 }) {
-  const { user, isLoading, isAdmin } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
 
-  if (isLoading) {
+  if (loading) {
     return (
       <Route path={path}>
         <div className="flex items-center justify-center min-h-screen">

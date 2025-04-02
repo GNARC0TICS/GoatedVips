@@ -1,5 +1,5 @@
 
 import { requiresAuth } from './protected-route';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/AuthContext';
 
 export { requiresAuth, useAuth };

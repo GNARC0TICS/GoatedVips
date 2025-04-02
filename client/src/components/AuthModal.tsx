@@ -21,12 +21,13 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 
 const loginSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
+  username: z.string().min(3, "Username must be at least 3 characters")
+    .or(z.string().email("Please enter a valid email or username")), // Support either username or email
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -51,7 +52,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [isLoading, setIsLoading] = useState(false);
-  const { login, register: registerUser } = useAuth();
+  const { signIn, signUp } = useAuth();
   const { toast } = useToast();
 
   const loginForm = useForm<LoginFormData>({
@@ -78,7 +79,11 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
       if (mode === "login") {
         // Handle login
         const loginValues = values as LoginFormData;
-        await login(loginValues.username, loginValues.password);
+        // For login, we'll use username as email since Supabase requires email
+        // This is a simplification - in a production environment, we'd likely need a more robust solution
+        const { error } = await signIn(loginValues.username, loginValues.password);
+        
+        if (error) throw error;
         
         toast({
           title: "Success",
@@ -87,11 +92,13 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
       } else {
         // Handle registration
         const registerValues = values as RegisterFormData;
-        await registerUser(
-          registerValues.username, 
+        const { error } = await signUp(
           registerValues.email,
-          registerValues.password
+          registerValues.password,
+          { username: registerValues.username }
         );
+        
+        if (error) throw error;
         
         toast({
           title: "Success",
@@ -147,7 +154,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel>Username or Email</FormLabel>
                     <FormControl>
                       <Input {...field} className="bg-[#2A2B31]" />
                     </FormControl>

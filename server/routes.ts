@@ -4,13 +4,23 @@ import { db } from "@db";
 import { sql } from "drizzle-orm";
 import { createServer, type Server } from "http";
 import { WebSocket, WebSocketServer } from "ws";
-import { log } from "./vite";
+import { log as viteLog } from "./vite";
 import { API_CONFIG } from "./config/api";
 import { RateLimiterMemory, type RateLimiterRes } from 'rate-limiter-flexible';
+
+// Custom logger that can handle objects
+function log(message: string | object, source = "express") {
+  if (typeof message === 'object') {
+    console.log(`[${source}]`, message);
+  } else {
+    viteLog(message, source);
+  }
+}
 import bonusChallengesRouter from "./routes/bonus-challenges";
 import usersRouter from "./routes/users";
 import goombasAdminRouter from "./routes/goombas-admin";
 import { requireAdmin } from "./middleware/admin";
+import { requireAuth } from "./middleware/supabase-auth";
 import { wagerRaces, users, transformationLogs } from "@db/schema";
 import { ensureUserProfile } from "./index";
 
@@ -131,7 +141,31 @@ router.get("/health", async (_req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({
       status: "error",
-      message: process.env.NODE_ENV === "production" ? "Health check failed" : error.message
+      message: process.env.NODE_ENV === "production" ? "Health check failed" : error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// Current authenticated user endpoint
+router.get("/user", requireAuth, async (req: Request, res: Response) => {
+  try {
+    // User is already authenticated through requireAuth middleware
+    // We can safely access req.user
+    res.json({
+      user: {
+        id: (req as any).user.id,
+        email: (req as any).user.email,
+        isAdmin: (req as any).user.isAdmin,
+        createdAt: (req as any).user.created_at,
+        updatedAt: (req as any).user.updated_at,
+        userMetadata: (req as any).user.user_metadata || {},
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching user data:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to retrieve user data"
     });
   }
 });
@@ -234,6 +268,15 @@ function setupAPIRoutes(app: Express) {
   app.get("/api/health", (_req, res) => {
     res.json({ status: "healthy" });
   });
+  
+  // Supabase configuration endpoint - provides client-side with necessary Supabase config
+  app.get("/api/supabase-config", (_req, res) => {
+    // Only exposing the public anon key is safe - this is designed to be public
+    res.json({
+      url: process.env.SUPABASE_URL,
+      anonKey: process.env.SUPABASE_ANON_KEY
+    });
+  });
 
   app.post("/api/batch", createRateLimiter('medium'), batchHandler);
 
@@ -282,7 +325,7 @@ function setupAPIRoutes(app: Express) {
           console.log(`Created test user: ${user.username} with ID ${randomId}`);
         } catch (insertError) {
           console.error(`Error creating test user ${user.username}:`, insertError);
-          errors.push(`Failed to create ${user.username}: ${insertError.message || 'Unknown error'}`);
+          errors.push(`Failed to create ${user.username}: ${insertError instanceof Error ? insertError.message : 'Unknown error'}`);
         }
       }
       
@@ -332,7 +375,7 @@ function setupAPIRoutes(app: Express) {
         const rawData = await response.json();
 
         // More detailed logging of the raw data structure
-        log('Raw API response structure:', {
+        const apiStructureInfo = {
           hasData: Boolean(rawData),
           dataStructure: typeof rawData,
           keys: Object.keys(rawData),
@@ -342,11 +385,13 @@ function setupAPIRoutes(app: Express) {
           successValue: rawData?.success,
           nestedData: Boolean(rawData?.data),
           nestedDataLength: rawData?.data?.length,
-        });
+        };
+        log('Raw API response structure:');
+        console.log(apiStructureInfo);
 
         const transformedData = await transformLeaderboardData(rawData);
 
-        log('Transformed leaderboard data:', {
+        const dataInfo = {
           status: transformedData.status,
           totalUsers: transformedData.metadata?.totalUsers,
           dataLengths: {
@@ -355,7 +400,9 @@ function setupAPIRoutes(app: Express) {
             monthly: transformedData.data?.monthly?.data?.length,
             allTime: transformedData.data?.all_time?.data?.length,
           }
-        });
+        };
+        log('Transformed leaderboard data:');
+        console.log(dataInfo);
 
         res.json(transformedData);
       } catch (error) {

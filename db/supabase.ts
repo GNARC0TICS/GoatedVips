@@ -4,39 +4,53 @@
  * This file provides Supabase client instances and database connection for the application.
  * It handles both authenticated and public API access to Supabase.
  */
-
 import { createClient } from '@supabase/supabase-js';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import * as schema from './schema';
 
-// Environment variables from Supabase dashboard
-// These should be set in .env file or environment variables
-export const SUPABASE_URL = process.env.SUPABASE_URL || "https://cfbfiqcbwkaimjrzkhdf.supabase.co";
-export const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmYmZpcWNid2thaW1qcnpraGRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM1NjM4NTUsImV4cCI6MjA1OTEzOTg1NX0.hp3VtHm7H5rPfms2hY-0Oa8kh6LZ7ByXqx0cUIe4xQk";
-export const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || ""; // Add your service key here
-export const DATABASE_URL = process.env.DATABASE_URL || `postgres://postgres:[YOUR-PASSWORD]@db.cfbfiqcbwkaimjrzkhdf.supabase.co:5432/postgres`;
+// Environment variables for Supabase
+export const SUPABASE_URL = process.env.SUPABASE_URL || '';
+export const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+export const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
-// Supabase client with anonymous key (for frontend)
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Database URL for direct Postgres connection via Drizzle
+export const DATABASE_URL = process.env.DATABASE_URL || '';
 
-// Supabase admin client with service key (for backend operations)
-// Only available if service key is provided
-export const supabaseAdmin = process.env.SUPABASE_SERVICE_KEY 
-  ? createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY) 
+// Initialize Supabase client with anonymous key (public access)
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+  },
+});
+
+// Initialize Supabase admin client with service role key (admin access)
+export const supabaseAdmin = SUPABASE_SERVICE_KEY 
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
   : null;
 
-// Database client for Drizzle ORM
-// Will be initialized when DATABASE_URL is properly configured
-let db: ReturnType<typeof drizzle> | null = null;
-
-if (DATABASE_URL && DATABASE_URL.includes("[YOUR-PASSWORD]") === false) {
+// Get current authenticated user from Supabase
+export const getCurrentUser = async () => {
   try {
-    const queryClient = postgres(DATABASE_URL);
-    db = drizzle(queryClient);
-    console.log("Supabase database connection initialized");
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    return data.user;
   } catch (error) {
-    console.error("Failed to initialize Supabase database connection:", error);
+    console.error('Error getting current user:', error);
+    return null;
   }
-}
+};
 
-export { db };
+// Database connection for Drizzle ORM
+const sql = DATABASE_URL
+  ? postgres(DATABASE_URL, { max: 10, ssl: true })
+  : null;
+
+// Initialize Drizzle ORM with schema
+export const db = sql ? drizzle(sql, { schema }) : null;

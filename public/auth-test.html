@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Auth Test</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .output {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+        .error {
+            color: #D8000C;
+            background-color: #FFBABA;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 3px;
+        }
+        .success {
+            color: #4F8A10;
+            background-color: #DFF2BF;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 3px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Supabase Auth Test</h1>
+    
+    <div class="container">
+        <!-- Sign Up Form -->
+        <div class="card" id="signupCard">
+            <h2>Sign Up</h2>
+            <form id="signupForm">
+                <div class="form-group">
+                    <label for="signupEmail">Email</label>
+                    <input type="email" id="signupEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupPassword">Password</label>
+                    <input type="password" id="signupPassword" required>
+                </div>
+                <button type="submit">Sign Up</button>
+            </form>
+            <div id="signupMessage" class="hidden"></div>
+        </div>
+
+        <!-- Sign In Form -->
+        <div class="card" id="signinCard">
+            <h2>Sign In</h2>
+            <form id="signinForm">
+                <div class="form-group">
+                    <label for="signinEmail">Email</label>
+                    <input type="email" id="signinEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="signinPassword">Password</label>
+                    <input type="password" id="signinPassword" required>
+                </div>
+                <button type="submit">Sign In</button>
+            </form>
+            <div id="signinMessage" class="hidden"></div>
+        </div>
+
+        <!-- User Info -->
+        <div class="card" id="userInfoCard">
+            <h2>User Info</h2>
+            <div id="userInfo" class="output">Not logged in</div>
+            <button id="getUserButton">Get User</button>
+            <button id="signOutButton">Sign Out</button>
+        </div>
+
+        <!-- API Test -->
+        <div class="card" id="apiTestCard">
+            <h2>API Test</h2>
+            <button id="testApiButton">Test API Endpoint</button>
+            <div id="apiResponse" class="output">No response yet</div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Supabase client
+        // We need to use the actual Supabase URL, not the server URL
+        const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT.supabase.co';
+        
+        // This is safe to expose as it's the anon key
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // Replace with actual anon key
+        
+        // For local testing, we'll use environment variables
+        let fetchedConfig = {};
+        
+        // Fetch the configuration from our server
+        async function fetchSupabaseConfig() {
+            try {
+                const response = await fetch('/api/supabase-config');
+                fetchedConfig = await response.json();
+                console.log('Fetched Supabase config:', fetchedConfig);
+                initSupabase();
+            } catch (error) {
+                console.error('Failed to fetch Supabase config:', error);
+                // Fall back to using the constants
+                initSupabase();
+            }
+        }
+        
+        let supabaseClient;
+        
+        function initSupabase() {
+            const url = fetchedConfig.url || SUPABASE_URL;
+            const key = fetchedConfig.anonKey || SUPABASE_ANON_KEY;
+            
+            console.log('Initializing Supabase with URL:', url);
+            supabaseClient = supabase.createClient(url, key);
+        }
+        
+        // Start by fetching the config
+        fetchSupabaseConfig();
+        
+        // DOM elements
+        const signupForm = document.getElementById('signupForm');
+        const signupMessage = document.getElementById('signupMessage');
+        const signinForm = document.getElementById('signinForm');
+        const signinMessage = document.getElementById('signinMessage');
+        const userInfo = document.getElementById('userInfo');
+        const getUserButton = document.getElementById('getUserButton');
+        const signOutButton = document.getElementById('signOutButton');
+        const testApiButton = document.getElementById('testApiButton');
+        const apiResponse = document.getElementById('apiResponse');
+
+        // Sign Up
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            
+            try {
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email,
+                    password,
+                });
+                
+                if (error) throw error;
+                
+                signupMessage.textContent = 'Sign up successful! Check your email for confirmation.';
+                signupMessage.className = 'success';
+                signupForm.reset();
+            } catch (error) {
+                signupMessage.textContent = `Error: ${error.message}`;
+                signupMessage.className = 'error';
+            }
+            
+            signupMessage.classList.remove('hidden');
+        });
+
+        // Sign In
+        signinForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('signinEmail').value;
+            const password = document.getElementById('signinPassword').value;
+            
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email,
+                    password,
+                });
+                
+                if (error) throw error;
+                
+                signinMessage.textContent = 'Sign in successful!';
+                signinMessage.className = 'success';
+                signinForm.reset();
+                
+                // Update user info
+                updateUserInfo(data.user);
+            } catch (error) {
+                signinMessage.textContent = `Error: ${error.message}`;
+                signinMessage.className = 'error';
+            }
+            
+            signinMessage.classList.remove('hidden');
+        });
+
+        // Get User
+        getUserButton.addEventListener('click', async () => {
+            try {
+                const { data, error } = await supabaseClient.auth.getUser();
+                
+                if (error) throw error;
+                
+                updateUserInfo(data.user);
+            } catch (error) {
+                userInfo.textContent = `Error: ${error.message}`;
+            }
+        });
+
+        // Sign Out
+        signOutButton.addEventListener('click', async () => {
+            try {
+                const { error } = await supabaseClient.auth.signOut();
+                
+                if (error) throw error;
+                
+                userInfo.textContent = 'User signed out';
+            } catch (error) {
+                userInfo.textContent = `Error: ${error.message}`;
+            }
+        });
+
+        // Test API
+        testApiButton.addEventListener('click', async () => {
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                
+                if (!session) {
+                    apiResponse.textContent = 'No active session. Please sign in first.';
+                    return;
+                }
+                
+                const response = await fetch('/api/user', {
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                apiResponse.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                apiResponse.textContent = `Error: ${error.message}`;
+            }
+        });
+
+        // Helper function to update user info
+        function updateUserInfo(user) {
+            if (user) {
+                userInfo.textContent = JSON.stringify(user, null, 2);
+            } else {
+                userInfo.textContent = 'Not logged in';
+            }
+        }
+
+        // Check for existing session on page load
+        async function checkSession() {
+            if (!supabaseClient) {
+                // If supabaseClient is not initialized yet, retry after a delay
+                setTimeout(checkSession, 200);
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabaseClient.auth.getSession();
+                
+                if (error) {
+                    console.error('Session error:', error);
+                    return;
+                }
+                
+                if (data && data.session) {
+                    updateUserInfo(data.session.user);
+                }
+            } catch (error) {
+                console.error('Failed to check session:', error);
+            }
+        }
+        
+        // Start checking session once the page loads
+        checkSession();
+    </script>
+</body>
+</html>

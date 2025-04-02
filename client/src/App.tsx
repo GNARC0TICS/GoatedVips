@@ -4,7 +4,7 @@ import { Switch, Route, useLocation } from "wouter";
 // Imports for error handling and boundary
 import { ErrorBoundary } from "react-error-boundary";
 // Imports the authentication provider
-import { AuthProvider } from "@/hooks/use-auth";
+import { AuthProvider } from "@/contexts/AuthContext";
 // Imports a custom error fallback component
 import { ErrorFallback } from "@/components/ErrorFallback";
 // Imports the tooltip provider
