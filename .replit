@@ -59,6 +59,15 @@ task = "shell.exec"
 args = "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"
 wait_for_port = 5000
 
+[[workflows.workflow]]
+name = "Restart Application"
+author = 38337569
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"
+
 # Authentication settings
 [auth]
 pageEnabled = false
