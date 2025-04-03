@@ -1,6 +1,5 @@
 {pkgs}: {
   deps = [
-    pkgs.unzipNLS
     pkgs.killall
     pkgs.mailman
     pkgs.jq

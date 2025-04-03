@@ -15,7 +15,7 @@ channel = "stable-24_05"
 [deployment]
 deploymentTarget = "gce"
 build = ["sh", "-c", "npm run build"]
-run = ["sh", "-c", "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"]
+run = ["sh", "-c", "node dist/index.js"]
 ignorePorts = false
 
 [[ports]]
@@ -35,7 +35,7 @@ host = "0.0.0.0"
 port = 5000
 
 [workflows]
-runButton = "Start with Node 20"
+runButton = "Start application"
 
 [[workflows.workflow]]
 name = "Project"
@@ -58,24 +58,6 @@ agentRequireRestartOnSave = false
 task = "shell.exec"
 args = "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"
 wait_for_port = 5000
-
-[[workflows.workflow]]
-name = "Restart Application"
-author = 38337569
-mode = "parallel"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"
-
-[[workflows.workflow]]
-name = "Start with Node 20"
-author = 38337569
-mode = "parallel"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "BOT_PORT=5001 NODE_ENV=development tsx --tsconfig tsconfig.json server/index.ts"
 
 # Authentication settings
 [auth]

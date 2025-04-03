@@ -92,7 +92,7 @@
     "mocha": "^11.1.0",
     "multer": "^1.4.5-lts.1",
     "node-schedule": "^2.1.1",
-    "node-telegram-bot-api": "^0.66.0",
+    "node-telegram-bot-api": "^0.63.0",
     "openai": "^4.83.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
@@ -132,13 +132,13 @@
     "@types/ws": "^8.5.13",
     "@vitejs/plugin-react": "^4.3.2",
     "autoprefixer": "^10.4.20",
-    "drizzle-kit": "^0.27.2",
-    "esbuild": "^0.24.0",
+    "drizzle-kit": "^0.19.1",
+    "esbuild": "^0.25.2",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "tsx": "^4.19.1",
     "typescript": "5.6.3",
-    "vite": "^5.4.9"
+    "vite": "^6.2.4"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
