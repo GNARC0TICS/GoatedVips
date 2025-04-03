@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { X, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,40 +5,42 @@ import { Link } from 'wouter';
 
 export function CryptoSwapTooltip() {
   const [isVisible, setIsVisible] = useState(false);
-  
+
   // Check if we've already shown the tooltip in this session
   useEffect(() => {
     const hasSeenTooltip = sessionStorage.getItem('hasSeenCryptoSwapTooltip');
-    
+
     if (!hasSeenTooltip) {
       // Show tooltip after a short delay
       const timer = setTimeout(() => {
         setIsVisible(true);
       }, 2000);
-      
+
       return () => clearTimeout(timer);
     }
   }, []);
-  
+
   const handleDismiss = () => {
     setIsVisible(false);
     // Remember that user has seen the tooltip
     sessionStorage.setItem('hasSeenCryptoSwapTooltip', 'true');
   };
-  
+
   if (!isVisible) return null;
-  
+
   return (
     <div className="fixed bottom-6 left-6 z-40 max-w-sm">
       <div className="relative bg-[#1A1C23]/60 backdrop-blur-md border border-[#D7FF00]/30 p-4 rounded-xl shadow-lg shadow-[#D7FF00]/10">
-        <button
+        <Button
           onClick={handleDismiss}
-          className="absolute top-2 right-2 text-gray-400 hover:text-white transition-colors"
+          className="absolute top-2 right-2 text-gray-400 hover:text-white transition-colors bg-transparent p-1 h-auto w-auto min-h-0 min-w-0"
+          size="icon"
+          variant="ghost"
           aria-label="Close"
         >
           <X size={18} />
-        </button>
-        
+        </Button>
+
         <div className="mb-3">
           <div className="font-bold text-[#D7FF00] text-lg mb-1 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" className="text-[#D7FF00]">
@@ -51,7 +52,7 @@ export function CryptoSwapTooltip() {
             Try our new crypto swap feature! Easy exchange between your favorite cryptocurrencies.
           </p>
         </div>
-        
+
         <div className="flex space-x-2">
           <Button 
             variant="outline" 
@@ -61,7 +62,7 @@ export function CryptoSwapTooltip() {
           >
             Maybe Later
           </Button>
-          
+
           <Button 
             variant="default" 
             size="sm" 
