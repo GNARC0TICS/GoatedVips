@@ -38,14 +38,8 @@ export async function setupVite(app: Express, server: Server) {
       hmr: { server },
       host: '0.0.0.0',
       cors: true,
-      allowedHosts: [
-        '32227c5c-bbf5-490b-9302-a351e215f0e5-00-bv3r7s9hkx0y.spock.replit.dev',
-        '.replit.dev',
-        '.repl.co',
-        'localhost',
-        '0.0.0.0',
-        'all'
-      ]
+      // Instead of specifying hosts, configure for all hosts
+      origin: 'https://${host}',
     },
     appType: "custom",
   });

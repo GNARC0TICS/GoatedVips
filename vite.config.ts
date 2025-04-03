@@ -33,13 +33,14 @@ export default defineConfig({
     watch: {
       usePolling: true,
     },
-    allowedHosts: [
-      '32227c5c-bbf5-490b-9302-a351e215f0e5-00-bv3r7s9hkx0y.spock.replit.dev',
-      '.replit.dev',
-      '.repl.co',
-      'localhost',
-      '0.0.0.0',
-      'all'
-    ]
+    // This settings allows all hosts
+    origin: 'https://${host}',
+    proxy: {
+      '/.netlify': {
+        target: 'http://localhost:5000/.netlify',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/.netlify/, '')
+      }
+    }
   },
 });
