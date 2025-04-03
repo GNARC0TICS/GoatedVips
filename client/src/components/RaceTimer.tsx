@@ -64,6 +64,7 @@ export function RaceTimer() {
   const [isVisible] = useState(true);
   const [isContentVisible, setIsContentVisible] = useState(false);
   const [isAnimationReady, setIsAnimationReady] = useState(false);
+  const [notificationDismissed, setNotificationDismissed] = useState(false);
   const { toast } = useToast();
 
   const fetchRaceData = async (endpoint: string): Promise<RaceData> => {
@@ -151,16 +152,26 @@ export function RaceTimer() {
             className="flex items-start"
           >
             <button
-              onClick={() => setIsContentVisible(!isContentVisible)}
-              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-3 flex items-center justify-center hover:bg-[#1A1B21] transition-colors group"
+              onClick={() => {
+                setIsContentVisible(!isContentVisible);
+                setNotificationDismissed(true);
+              }}
+              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-3 flex items-center justify-center hover:bg-[#1A1B21] transition-colors group relative"
             >
               {isCurrentLoading ? (
                 <div className="h-7 w-7 animate-pulse bg-[#2A2B31]/50 rounded-full"></div>
               ) : (
-                <SpeedIcon 
-                  className={`h-7 w-7 text-[#D7FF00] group-hover:scale-110 transition-all transform ${isContentVisible ? 'rotate-180' : ''}`} 
-                  isAnimating={isAnimationReady} 
-                />
+                <>
+                  <SpeedIcon 
+                    className={`h-7 w-7 text-[#D7FF00] group-hover:scale-110 transition-all`} 
+                    isAnimating={isAnimationReady} 
+                  />
+                  {isAnimationReady && !isContentVisible && !notificationDismissed && (
+                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-[#D7FF00] rounded-full animate-pulse">
+                      <span className="absolute inset-0 h-full w-full bg-[#D7FF00] rounded-full animate-ping opacity-75"></span>
+                    </span>
+                  )}
+                </>
               )}
             </button>
             <div className="w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden">
