@@ -39,10 +39,30 @@ Table wager_races {
 
 Table users {
   id UUID PRIMARY KEY
+  goated_id VARCHAR UNIQUE
   telegram_id VARCHAR UNIQUE
   username VARCHAR
+  email VARCHAR
+  password_hash VARCHAR
+  total_wagered DECIMAL
+  weekly_wagered DECIMAL
+  monthly_wagered DECIMAL
+  goated_account_linked BOOLEAN
   verification_status VARCHAR
   created_at TIMESTAMP
+}
+
+Table verification_requests {
+  id INTEGER PRIMARY KEY
+  user_id INTEGER REFERENCES users(id)
+  telegram_id VARCHAR NOT NULL
+  telegram_username VARCHAR NOT NULL
+  goated_username VARCHAR NOT NULL
+  status VARCHAR DEFAULT 'pending'
+  verified_by VARCHAR
+  verified_at TIMESTAMP
+  requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  admin_notes TEXT
 }
 
 Table transformation_logs {
@@ -73,6 +93,10 @@ Table transformation_logs {
 - `/api/affiliate/stats` - Performance metrics
 - `/api/admin/analytics` - System analytics
 - `/api/telegram/status` - Bot health check
+- `/api/verification/request` - Submit verification request
+- `/api/verification/status/:goatedId` - Check verification status
+- `/api/verification/admin/requests` - Admin view of verification queue
+- `/api/verification/admin/action/:requestId` - Approve/reject verifications
 
 ## Security Implementation
 1. **Authentication**
@@ -99,7 +123,10 @@ Table transformation_logs {
 2. **User Verification**
    - Instant status updates
    - Admin verification queue
-   - Automated checks
+   - Rate-limited verification requests (5 per hour per IP)
+   - External profile claiming with validation
+   - Goated ID linking and profile verification
+   - Telegram account association
 
 ## Admin Features
 1. **Dashboard Controls**

@@ -10,6 +10,7 @@ import { API_CONFIG } from "./config/api";
 import { RateLimiterMemory, type RateLimiterRes } from 'rate-limiter-flexible';
 import bonusChallengesRouter from "./routes/bonus-challenges";
 import usersRouter from "./routes/users";
+import userStatsRouter from "./routes/user-stats";
 import verificationRouter from "./routes/verification";
 import goombasAdminRouter from "./routes/goombas-admin";
 import { requireAdmin } from "./middleware/admin";
@@ -227,6 +228,7 @@ function setupAPIRoutes(app: Express) {
   app.use("/api/bonus", bonusChallengesRouter);
   app.use("/api/users", usersRouter); // For backward compatibility
   app.use("/users", usersRouter);     // New public profile routes
+  app.use("/api/user", userStatsRouter); // For user stats and detailed profile data
   app.use("/api/verification", verificationRouter); // User verification routes
   app.use("/api", router); //Added this line
   
