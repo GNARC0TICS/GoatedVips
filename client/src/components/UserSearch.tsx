@@ -118,14 +118,14 @@ export function UserSearch() {
   return (
     <div className="w-full relative">
       <div className="relative mb-1">
-        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#D7FF00]" />
+        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#D7FF00]" />
         <Input
           ref={inputRef}
-          placeholder="Users"
+          placeholder="Search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsFocused(true)}
-          className="pl-7 pr-7 bg-[#14151A] border-[#2A2B31] focus:border-[#D7FF00] focus-visible:ring-0 focus-visible:ring-offset-0 text-white placeholder:text-[#D7FF00]/70 shadow-none h-9 rounded-md max-w-[160px]"
+          className="pl-8 pr-7 bg-[#14151A] border-[#2A2B31] focus:border-[#D7FF00] focus-visible:ring-0 focus-visible:ring-offset-0 text-white placeholder:text-white font-medium shadow-none h-9 rounded-md max-w-[160px]"
           style={{ transform: 'translateZ(0)' }} // Prevents layout shifts on mobile
         />
         {query && (
