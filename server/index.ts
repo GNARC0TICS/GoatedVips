@@ -391,8 +391,11 @@ async function syncUserProfiles() {
     }
     
     // Fetch leaderboard data to get all users
+    const url = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`;
+    console.log(`Fetching leaderboard data from: ${url}`);
+    
     const response = await fetch(
-      `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`, 
+      url, 
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -406,7 +409,56 @@ async function syncUserProfiles() {
       return;
     }
     
-    const leaderboardData = await response.json();
+    const rawData = await response.json();
+    console.log("Raw API data structure:", JSON.stringify(rawData).substring(0, 500) + "...");
+    
+    // Handle different response formats
+    let leaderboardData;
+    if (rawData.data && rawData.data.all_time) {
+      // Standard format with nested timeframes
+      leaderboardData = rawData;
+      console.log("Using standard nested format with all_time data");
+    } else if (Array.isArray(rawData)) {
+      // Direct array of users
+      leaderboardData = {
+        data: {
+          all_time: {
+            data: rawData
+          }
+        }
+      };
+      console.log("Using direct array format");
+    } else if (rawData.results && Array.isArray(rawData.results)) {
+      // Results array format
+      leaderboardData = {
+        data: {
+          all_time: {
+            data: rawData.results
+          }
+        }
+      };
+      console.log("Using results array format");
+    } else if (typeof rawData === 'object' && rawData !== null) {
+      // Try to extract any array we can find
+      const possibleArrays = Object.values(rawData).filter(value => Array.isArray(value));
+      if (possibleArrays.length > 0) {
+        const longestArray = possibleArrays.reduce((a, b) => a.length > b.length ? a : b);
+        leaderboardData = {
+          data: {
+            all_time: {
+              data: longestArray
+            }
+          }
+        };
+        console.log(`Found array with ${longestArray.length} items in response`);
+      } else {
+        console.error("No usable arrays found in response:", Object.keys(rawData));
+        return;
+      }
+    } else {
+      console.error("Unknown API response format:", typeof rawData, Object.keys(rawData || {}));
+      return;
+    }
     
     // Process all_time data to get unique users
     const allTimeData = leaderboardData?.data?.all_time?.data || [];
@@ -463,29 +515,64 @@ async function syncUserProfiles() {
         }
         
         // Create a new permanent profile for this Goated user
-        const newUserId = Math.floor(1000 + Math.random() * 9000);
+        // Use the Goated UID to create a deterministic numeric ID
+        // This ensures we always get the same ID for the same user
+        const uidHash = player.uid.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const newUserId = 10000 + (uidHash % 90000); // Ensures ID is in range 10000-99999
         const email = `${player.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
         
-        await db.execute(sql`
-          INSERT INTO users (
-            id, username, email, password, created_at, profile_color, 
-            bio, is_admin, 
-            -- Legacy fields
-            goated_id, goated_username, goated_account_linked,
-            -- New schema fields
-            uid, total_wager, wager_today, wager_week, wager_month, verified
-          ) VALUES (
-            ${newUserId}, ${player.name}, ${email}, '', ${new Date()}, '#D7FF00', 
-            'Official Goated.com player profile', false, 
-            -- Legacy fields values
-            ${player.uid}, ${player.name}, true,
-            -- New schema fields values
-            ${player.uid}, ${totalWager}, ${wagerToday}, ${wagerWeek}, ${wagerMonth}, true
-          )
-        `);
-        
-        console.log(`Created new user profile for ${player.name} (UID: ${player.uid})`);
-        createdCount++;
+        try {
+          await db.execute(sql`
+            INSERT INTO users (
+              id, username, email, password, created_at, profile_color, 
+              bio, is_admin, 
+              -- Legacy fields
+              goated_id, goated_username, goated_account_linked,
+              -- New schema fields
+              uid, total_wager, wager_today, wager_week, wager_month, verified
+            ) VALUES (
+              ${newUserId}, ${player.name}, ${email}, '', ${new Date()}, '#D7FF00', 
+              'Official Goated.com player profile', false, 
+              -- Legacy fields values
+              ${player.uid}, ${player.name}, true,
+              -- New schema fields values
+              ${player.uid}, ${totalWager}, ${wagerToday}, ${wagerWeek}, ${wagerMonth}, true
+            )
+          `);
+          console.log(`Created new user profile for ${player.name} (UID: ${player.uid})`);
+          createdCount++;
+        } catch (error: any) {
+          // If the error is a duplicate ID, try again with a different ID
+          if (error.code === '23505' && error.constraint === 'users_pkey') {
+            // Add some randomness to avoid collisions
+            const altId = 100000 + Math.floor(Math.random() * 900000);
+            try {
+              await db.execute(sql`
+                INSERT INTO users (
+                  id, username, email, password, created_at, profile_color, 
+                  bio, is_admin, 
+                  -- Legacy fields
+                  goated_id, goated_username, goated_account_linked,
+                  -- New schema fields
+                  uid, total_wager, wager_today, wager_week, wager_month, verified
+                ) VALUES (
+                  ${altId}, ${player.name}, ${email}, '', ${new Date()}, '#D7FF00', 
+                  'Official Goated.com player profile', false, 
+                  -- Legacy fields values
+                  ${player.uid}, ${player.name}, true,
+                  -- New schema fields values
+                  ${player.uid}, ${totalWager}, ${wagerToday}, ${wagerWeek}, ${wagerMonth}, true
+                )
+              `);
+              console.log(`Created new user profile with alt ID for ${player.name} (UID: ${player.uid})`);
+              createdCount++;
+            } catch (innerError) {
+              console.error(`Failed to create user with alternative ID for ${player.name}:`, innerError);
+            }
+          } else {
+            throw error;
+          }
+        }
       } catch (error) {
         console.error(`Error creating/updating profile for ${player?.name}:`, error);
       }

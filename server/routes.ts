@@ -10,9 +10,11 @@ import { API_CONFIG } from "./config/api";
 import { RateLimiterMemory, type RateLimiterRes } from 'rate-limiter-flexible';
 import bonusChallengesRouter from "./routes/bonus-challenges";
 import usersRouter from "./routes/users";
+import verificationRouter from "./routes/verification";
 import goombasAdminRouter from "./routes/goombas-admin";
 import { requireAdmin } from "./middleware/admin";
 import { wagerRaces, users, transformationLogs } from "@db/schema";
+import { verificationRequests } from "@db/schema/verification";
 import { ensureUserProfile } from "./index";
 
 type RateLimitTier = 'HIGH' | 'MEDIUM' | 'LOW';
@@ -225,6 +227,7 @@ function setupAPIRoutes(app: Express) {
   app.use("/api/bonus", bonusChallengesRouter);
   app.use("/api/users", usersRouter); // For backward compatibility
   app.use("/users", usersRouter);     // New public profile routes
+  app.use("/api/verification", verificationRouter); // User verification routes
   app.use("/api", router); //Added this line
   
   // Mount our custom admin routes at the non-obvious URL path
