@@ -21,26 +21,41 @@ interface RaceData {
   participants: RaceParticipant[];
 }
 
-const SpeedIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" {...props}>
-    <mask id="lineMdSpeedTwotoneLoop0">
-      <path fill="#fff" fillOpacity="0" stroke="#fff" strokeDasharray="56" strokeDashoffset="56" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 19v0c-0.3 0 -0.59 -0.15 -0.74 -0.41c-0.8 -1.34 -1.26 -2.91 -1.26 -4.59c0 -4.97 4.03 -9 9 -9c4.97 0 9 4.03 9 9c0 1.68 -0.46 3.25 -1.26 4.59c-0.15 0.26 -0.44 0.41 -0.74 0.41Z">
-        <animate fill="freeze" attributeName="fill-opacity" begin="0.3s" dur="0.15s" values="0;0.3"/>
-        <animate fill="freeze" attributeName="stroke-dashoffset" dur="0.6s" values="56;0"/>
-      </path>
-      <g transform="rotate(-100 12 14)">
-        <path d="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z">
-          <animate fill="freeze" attributeName="d" begin="0.4s" dur="0.2s" values="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z;M16 14C16 16.21 14.21 18 12 18C9.79 18 8 16.21 8 14C8 11.79 12 0 12 0C12 0 16 11.79 16 14Z"/>
+const SpeedIcon = (props: React.SVGProps<SVGSVGElement> & { isAnimating?: boolean }) => {
+  const maskId = "lineMdSpeedTwotoneLoop" + Math.random().toString(36).substr(2, 5); // Generate unique ID
+  const { isAnimating = true, ...svgProps } = props;
+  
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" {...svgProps}>
+      <mask id={maskId}>
+        <path fill="#fff" fillOpacity="0" stroke="#fff" strokeDasharray="56" strokeDashoffset="56" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 19v0c-0.3 0 -0.59 -0.15 -0.74 -0.41c-0.8 -1.34 -1.26 -2.91 -1.26 -4.59c0 -4.97 4.03 -9 9 -9c4.97 0 9 4.03 9 9c0 1.68 -0.46 3.25 -1.26 4.59c-0.15 0.26 -0.44 0.41 -0.74 0.41Z">
+          {isAnimating && (
+            <>
+              <animate fill="freeze" attributeName="fill-opacity" begin="0.3s" dur="0.15s" values="0;0.3"/>
+              <animate fill="freeze" attributeName="stroke-dashoffset" dur="0.6s" values="56;0"/>
+            </>
+          )}
         </path>
-        <path fill="#fff" d="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z">
-          <animate fill="freeze" attributeName="d" begin="0.4s" dur="0.2s" values="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z;M14 14C14 15.1 13.1 16 12 16C10.9 16 10 15.1 10 14C10 12.9 12 4 12 4C12 4 14 12.9 14 14Z"/>
-        </path>
-        <animateTransform attributeName="transform" begin="0.4s" dur="6s" repeatCount="indefinite" type="rotate" values="-100 12 14;45 12 14;45 12 14;45 12 14;20 12 14;10 12 14;0 12 14;35 12 14;45 12 14;55 12 14;50 12 14;15 12 14;-20 12 14;-100 12 14"/>
-      </g>
-    </mask>
-    <rect width="24" height="24" fill="currentColor" mask="url(#lineMdSpeedTwotoneLoop0)"/>
-  </svg>
-);
+        <g transform="rotate(-100 12 14)">
+          <path d="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z">
+            {isAnimating && (
+              <animate fill="freeze" attributeName="d" begin="0.4s" dur="0.2s" values="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z;M16 14C16 16.21 14.21 18 12 18C9.79 18 8 16.21 8 14C8 11.79 12 0 12 0C12 0 16 11.79 16 14Z"/>
+            )}
+          </path>
+          <path fill="#fff" d="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z">
+            {isAnimating && (
+              <animate fill="freeze" attributeName="d" begin="0.4s" dur="0.2s" values="M12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14C12 14 12 14 12 14Z;M14 14C14 15.1 13.1 16 12 16C10.9 16 10 15.1 10 14C10 12.9 12 4 12 4C12 4 14 12.9 14 14Z"/>
+            )}
+          </path>
+          {isAnimating && (
+            <animateTransform attributeName="transform" begin="0.4s" dur="6s" repeatCount="indefinite" type="rotate" values="-100 12 14;45 12 14;45 12 14;45 12 14;20 12 14;10 12 14;0 12 14;35 12 14;45 12 14;55 12 14;50 12 14;15 12 14;-20 12 14;-100 12 14"/>
+          )}
+        </g>
+      </mask>
+      <rect width="24" height="24" fill="currentColor" mask={`url(#${maskId})`}/>
+    </svg>
+  );
+};
 
 export function RaceTimer() {
   const [isExpanded] = useState(true);
@@ -48,6 +63,7 @@ export function RaceTimer() {
   const [timeLeft, setTimeLeft] = useState("");
   const [isVisible] = useState(true);
   const [isContentVisible, setIsContentVisible] = useState(false);
+  const [isAnimationReady, setIsAnimationReady] = useState(false);
   const { toast } = useToast();
 
   const fetchRaceData = async (endpoint: string): Promise<RaceData> => {
@@ -114,6 +130,9 @@ export function RaceTimer() {
     };
 
     updateTimer();
+    // Set animation ready state once data is loaded
+    setIsAnimationReady(true);
+    
     const interval = setInterval(updateTimer, 60000);
     return () => clearInterval(interval);
   }, [currentRaceData?.endDate]);
@@ -133,9 +152,16 @@ export function RaceTimer() {
           >
             <button
               onClick={() => setIsContentVisible(!isContentVisible)}
-              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-4 flex items-center hover:bg-[#1A1B21] transition-colors group"
+              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-3 flex items-center justify-center hover:bg-[#1A1B21] transition-colors group"
             >
-              <ChevronRight className={`h-5 w-5 text-[#D7FF00] group-hover:scale-110 transition-all transform ${isContentVisible ? 'rotate-180' : ''}`} />
+              {isCurrentLoading ? (
+                <div className="h-7 w-7 animate-pulse bg-[#2A2B31]/50 rounded-full"></div>
+              ) : (
+                <SpeedIcon 
+                  className={`h-7 w-7 text-[#D7FF00] group-hover:scale-110 transition-all transform ${isContentVisible ? 'rotate-180' : ''}`} 
+                  isAnimating={isAnimationReady} 
+                />
+              )}
             </button>
             <div className="w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden">
               <div className="p-4">
