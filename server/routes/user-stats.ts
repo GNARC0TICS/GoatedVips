@@ -104,11 +104,11 @@ router.get("/stats/:userId", async (req, res) => {
           u.bio,
           u.profile_color AS "profileColor",
           u.created_at AS "createdAt",
-          u.total_wagered AS "totalWagered",
-          u.weekly_wagered AS "weeklyWagered",
-          u.monthly_wagered AS "monthlyWagered",
+          u.total_wager AS "totalWagered",
+          u.wager_week AS "weeklyWagered",
+          u.wager_month AS "monthlyWagered",
           u.goated_account_linked AS "goatedAccountLinked",
-          u.telegram_username AS "telegramUsername"
+          u.uid AS "telegramUsername"
         FROM users u
         WHERE u.id = ${parseInt(userId)}
         LIMIT 1
@@ -124,11 +124,11 @@ router.get("/stats/:userId", async (req, res) => {
           u.bio,
           u.profile_color AS "profileColor",
           u.created_at AS "createdAt",
-          u.total_wagered AS "totalWagered",
-          u.weekly_wagered AS "weeklyWagered",
-          u.monthly_wagered AS "monthlyWagered",
+          u.total_wager AS "totalWagered",
+          u.wager_week AS "weeklyWagered",
+          u.wager_month AS "monthlyWagered",
           u.goated_account_linked AS "goatedAccountLinked",
-          u.telegram_username AS "telegramUsername"
+          u.uid AS "telegramUsername"
         FROM users u
         WHERE u.goated_id = ${userId}
         LIMIT 1
