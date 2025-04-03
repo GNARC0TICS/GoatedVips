@@ -26,6 +26,10 @@ export function formatCurrency(
     maximumFractionDigits = 1;
   }
   
+  // Ensure maximumFractionDigits is within valid range (0-20)
+  maximumFractionDigits = Math.min(Math.max(0, maximumFractionDigits), 20);
+  minimumFractionDigits = Math.min(Math.max(0, minimumFractionDigits), 20);
+  
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -48,7 +52,7 @@ export function formatCompactNumber(value: number): string {
   return new Intl.NumberFormat('en-US', {
     notation: 'compact',
     compactDisplay: 'short',
-    maximumFractionDigits: 1
+    maximumFractionDigits: 1  // This is already within valid range (0-20)
   }).format(value);
 }
 
@@ -109,6 +113,9 @@ export function formatPercentage(value: number, decimals = 1): string {
   if (value === null || value === undefined) {
     return '0%';
   }
+  
+  // Ensure decimals is within valid range (0-20)
+  decimals = Math.min(Math.max(0, decimals), 20);
   
   return new Intl.NumberFormat('en-US', {
     style: 'percent',
