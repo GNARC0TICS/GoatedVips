@@ -636,8 +636,8 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
 
           <div className={headerClasses.userSection}>
-            {/* User search component - Optimized width */}
-            <div className="w-full max-w-[200px] lg:max-w-[240px]">
+            {/* User search component - Compact design */}
+            <div className="w-full max-w-[160px]">
               <UserSearch />
             </div>
 

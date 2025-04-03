@@ -118,14 +118,14 @@ export function UserSearch() {
   return (
     <div className="w-full relative">
       <div className="relative mb-1">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#8A8B91]" />
+        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#D7FF00]" />
         <Input
           ref={inputRef}
-          placeholder="Search players by username..."
+          placeholder="Users"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsFocused(true)}
-          className="pl-9 pr-8 bg-[#14151A] border-[#2A2B31] focus:border-[#D7FF00] focus-visible:ring-0 focus-visible:ring-offset-0 text-white placeholder:text-[#8A8B91]/70 shadow-none h-11"
+          className="pl-7 pr-7 bg-[#14151A] border-[#2A2B31] focus:border-[#D7FF00] focus-visible:ring-0 focus-visible:ring-offset-0 text-white placeholder:text-[#D7FF00]/70 shadow-none h-9 rounded-md max-w-[160px]"
           style={{ transform: 'translateZ(0)' }} // Prevents layout shifts on mobile
         />
         {query && (
@@ -134,9 +134,9 @@ export function UserSearch() {
               setQuery("");
               inputRef.current?.focus();
             }}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#8A8B91] hover:text-white transition-colors"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-[#8A8B91] hover:text-white transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
