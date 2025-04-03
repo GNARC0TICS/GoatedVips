@@ -153,7 +153,7 @@ const NavLink = React.memo(function NavLink({ href, label, tooltip }: NavLinkPro
   );
 });
 
-// --- Main Layout Components ---
+// --- Main Layout Component ---
 export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const footerRef = useRef<HTMLElement>(null);

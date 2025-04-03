@@ -1,4 +1,3 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import themePlugin from "@replit/vite-plugin-shadcn-theme-json";
@@ -20,27 +19,5 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
-  },
-  server: {
-    host: '0.0.0.0',
-    cors: true,
-    strictPort: true,
-    hmr: {
-      host: '0.0.0.0',
-      clientPort: 443,
-      protocol: 'wss'
-    },
-    watch: {
-      usePolling: true,
-    },
-    // This settings allows all hosts
-    origin: 'https://${host}',
-    proxy: {
-      '/.netlify': {
-        target: 'http://localhost:5000/.netlify',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/.netlify/, '')
-      }
-    }
   },
 });

@@ -1,3 +1,4 @@
+
 import { pgTable, text, timestamp, integer, boolean, jsonb } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { relations } from 'drizzle-orm';
@@ -37,7 +38,6 @@ export const users = pgTable('users', {
   lockoutUntil: timestamp('lockout_until'),
   twoFactorEnabled: boolean('two_factor_enabled').default(false),
   emailVerified: boolean('email_verified').default(false),
-  emailVerificationToken: text('email_verification_token'), // Added field for email verification token
   suspiciousActivity: boolean('suspicious_activity').default(false),
   activityLogs: jsonb('activity_logs').default([]).notNull(),
 });

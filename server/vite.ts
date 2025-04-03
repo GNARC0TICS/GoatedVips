@@ -36,10 +36,6 @@ export async function setupVite(app: Express, server: Server) {
     server: {
       middlewareMode: true,
       hmr: { server },
-      host: '0.0.0.0',
-      cors: true,
-      // Instead of specifying hosts, configure for all hosts
-      origin: 'https://${host}',
     },
     appType: "custom",
   });
@@ -56,10 +52,14 @@ export async function setupVite(app: Express, server: Server) {
         "index.html",
       );
       
+      // Transform the source path to properly resolve client files
+      template = template.replace(
+        'src="/src/main.tsx"',
+        'src="/client/src/main.tsx"'
+      );
+
       // always reload the index.html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      
-      // Transform the source path to properly resolve client files with cache-busting
       template = template.replace(
         `src="/src/main.tsx"`,
         `src="/client/src/main.tsx?v=${nanoid()}"`,

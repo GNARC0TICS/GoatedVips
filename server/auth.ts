@@ -6,33 +6,9 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { users, insertUserSchema, type SelectUser } from "@db/schema";
 import { db } from "@db";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import express from 'express';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
-// Import Resend if available, otherwise provide a fallback email service
-import { Resend } from 'resend';
-// Fallback email service for environments without Resend configured
-const sendVerificationEmail = async (to: string, subject: string, html: string) => {
-  try {
-    if (process.env.RESEND_API_KEY) {
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
-        from: 'noreply@goatedvips.gg',
-        to,
-        subject,
-        html
-      });
-    } else {
-      // Log email for development without sending
-      console.log(`[EMAIL FALLBACK] Would send email to ${to}`);
-      console.log(`Subject: ${subject}`);
-      console.log(`Content: ${html}`);
-    }
-  } catch (error) {
-    console.error("Failed to send verification email:", error);
-    // Don't throw - email sending shouldn't block registration
-  }
-};
 
 const scryptAsync = promisify(scrypt);
 
@@ -78,16 +54,12 @@ export function setupAuth(app: Express) {
         // For admin login
         if (username === process.env.ADMIN_USERNAME) {
           if (password === process.env.ADMIN_PASSWORD) {
-            // Use type assertion to satisfy TypeScript
-            const adminUser = {
+            return done(null, {
               id: 1,
-              username: process.env.ADMIN_USERNAME || 'admin',
-              password: 'ADMIN_PASSWORD_HASH', // Placeholder value to satisfy TypeScript; not used for authentication
-              email: `${process.env.ADMIN_USERNAME || 'admin'}@admin.local`,
-              isAdmin: true
-            } as Express.User;
-            
-            return done(null, adminUser);
+              username: process.env.ADMIN_USERNAME,
+              isAdmin: true,
+              email: `${process.env.ADMIN_USERNAME}@admin.local`
+            });
           } else {
             return done(null, false, { message: "Invalid admin password" });
           }
@@ -172,46 +144,32 @@ export function setupAuth(app: Express) {
 
       // Create user with email verification token
       const emailVerificationToken = randomBytes(32).toString('hex');
-      
-      // Use raw SQL to insert the user with all fields to avoid type issues
-      const insertResult = await db.execute(sql`
-        INSERT INTO users (
-          username,
-          password,
-          email,
-          is_admin,
-          email_verification_token,
-          email_verified,
-          created_at,
-          profile_color
-        ) VALUES (
-          ${sanitizedUsername},
-          ${hashedPassword},
-          ${email.toLowerCase()},
-          false,
-          ${emailVerificationToken},
-          false,
-          CURRENT_TIMESTAMP,
-          '#D7FF00'
-        )
-        RETURNING *
-      `);
-      
-      // Get the newly created user from the result
-      const newUser = result.rows[0];
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          username: sanitizedUsername,
+          password: hashedPassword,
+          email: email.toLowerCase(),
+          isAdmin: false,
+          emailVerificationToken,
+          emailVerified: false,
+        })
+        .returning();
 
-      // Send verification email using our utility function
-      await sendVerificationEmail(
-        email.toLowerCase(),
-        'Verify your GoatedVIPs account',
-        `
+      // Send verification email
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      await resend.emails.send({
+        from: 'noreply@goatedvips.gg',
+        to: email.toLowerCase(),
+        subject: 'Verify your GoatedVIPs account',
+        html: `
           <h1>Welcome to GoatedVIPs!</h1>
           <p>Click the link below to verify your email address:</p>
           <a href="${process.env.APP_URL}/verify-email/${emailVerificationToken}">
             Verify Email
           </a>
         `
-      );
+      });
 
       // Log user in after registration
       req.login(newUser, (err) => {

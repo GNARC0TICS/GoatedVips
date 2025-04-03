@@ -1,49 +1,41 @@
+import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 
-/**
- * Schema for JWT payload validation
- * Ensures all JWT tokens contain the required fields
- */
+// Validation schemas
+export const googleTokenSchema = z.object({
+  token: z.string(),
+});
+
 export const jwtPayloadSchema = z.object({
   userId: z.number(),
   email: z.string().email(),
   isAdmin: z.boolean(),
 });
 
-/**
- * JWT configuration
- * Used for token generation and validation
- */
+// JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || "your-jwt-secret";
 const JWT_EXPIRES_IN = "7d";
 
-/**
- * Email configuration for verification emails
- */
+// Email configuration
 export const EMAIL_CONFIG = {
   from: "noreply@goatedvips.com",
   name: "GoatedVIPs Support",
   subject: "Verify Your GoatedVIPs Account"
 };
 
-/**
- * Generates a JWT token with the provided payload
- * 
- * @param {Object} payload - Data to include in the token (must match jwtPayloadSchema)
- * @returns {string} Signed JWT token
- */
+// Google OAuth Configuration
+export const googleClient = new OAuth2Client({
+  clientId: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  redirectUri: `${process.env.APP_URL}/api/auth/google/callback`,
+});
+
+// JWT Utilities
 export const generateToken = (payload: z.infer<typeof jwtPayloadSchema>) => {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 };
 
-/**
- * Verifies and decodes a JWT token
- * 
- * @param {string} token - JWT token to verify
- * @returns {Object} Decoded token payload
- * @throws {Error} If token is invalid or payload doesn't match schema
- */
 export const verifyToken = (token: string) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -54,5 +46,29 @@ export const verifyToken = (token: string) => {
     return result.data;
   } catch (error) {
     throw new Error("Invalid token");
+  }
+};
+
+// Google OAuth Utilities
+export const verifyGoogleToken = async (token: string) => {
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload) {
+      throw new Error("Invalid Google token payload");
+    }
+
+    return {
+      googleId: payload.sub,
+      email: payload.email!,
+      name: payload.name!,
+      picture: payload.picture,
+    };
+  } catch (error) {
+    throw new Error("Failed to verify Google token");
   }
 };
