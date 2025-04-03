@@ -22,8 +22,8 @@ import {
   DialogTrigger, 
   DialogClose 
 } from "@/components/ui/dialog";
-import { getTierFromWager, getTierIcon } from "@/lib/tier-utils";
-import { formatCurrency } from "@/lib/format-utils";
+import { getTierFromWager, getTierIcon } from "../lib/tier-utils";
+import { formatCurrency } from "../lib/format-utils";
 
 interface QuickProfileCardProps {
   userId: string;

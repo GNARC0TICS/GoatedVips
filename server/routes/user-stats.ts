@@ -8,6 +8,55 @@ import { ensureUserProfile } from "../index";
 const router = Router();
 
 /**
+ * User profile API endpoints
+ * 
+ * This file contains endpoints for:
+ * 1. Fetching detailed user statistics by ID
+ * 2. Ensuring user profiles exist (creating them if needed)
+ * 3. Fetching quick profile previews
+ */
+
+/**
+ * Ensure a user profile exists in the database
+ * If the profile doesn't exist, attempt to create it from Goated API data
+ */
+router.post("/ensure-profile-from-id", async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required"
+      });
+    }
+    
+    // Try to ensure the profile exists
+    const userProfile = await ensureUserProfile(userId);
+    
+    if (!userProfile) {
+      return res.status(404).json({
+        success: false,
+        message: "User profile not found and could not be created"
+      });
+    }
+    
+    // Return the user ID for navigation
+    return res.json({
+      success: true,
+      id: userProfile.id,
+      message: "User profile verified"
+    });
+  } catch (error) {
+    console.error("Error ensuring user profile:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to verify user profile"
+    });
+  }
+});
+
+/**
  * Get user stats for a specific user ID
  * 
  * This endpoint provides detailed statistics for a user profile including:
@@ -87,7 +136,7 @@ router.get("/stats/:userId", async (req, res) => {
     }
 
     const result = await db.execute(query);
-    console.log("Query results:", result);
+    console.log("Query results:", JSON.stringify(result, null, 2));
     
     if (!result.rows || result.rows.length === 0) {
       return res.status(404).json({

@@ -12,11 +12,11 @@ interface TierDefinition {
 
 // Define tier thresholds
 const TIERS: TierDefinition[] = [
-  { name: 'bronze', minWager: 0, icon: '/images/tiers/bronze.svg' },
-  { name: 'silver', minWager: 1000, icon: '/images/tiers/silver.svg' },
-  { name: 'gold', minWager: 10000, icon: '/images/tiers/gold.svg' },
-  { name: 'platinum', minWager: 50000, icon: '/images/tiers/platinum.svg' },
-  { name: 'diamond', minWager: 250000, icon: '/images/tiers/diamond.svg' },
+  { name: 'bronze', minWager: 0, icon: '/images/Goated Emblems/bronze.e6ea941b.svg' },
+  { name: 'silver', minWager: 1000, icon: '/images/Goated Emblems/silver.8e3ec67f.svg' },
+  { name: 'gold', minWager: 10000, icon: '/images/Goated Emblems/gold.1c810178.svg' },
+  { name: 'platinum', minWager: 50000, icon: '/images/Goated Emblems/platinum.d258f583.svg' },
+  { name: 'diamond', minWager: 250000, icon: '/images/Goated Emblems/diamond.ddf47a1e.svg' },
 ];
 
 /**
@@ -44,7 +44,7 @@ export function getTierFromWager(wagerAmount: number): TierType {
  */
 export function getTierIcon(tierName: string): string {
   const tier = TIERS.find(t => t.name === tierName.toLowerCase());
-  return tier?.icon || '/images/tiers/bronze.svg';
+  return tier?.icon || '/images/Goated Emblems/bronze.e6ea941b.svg';
 }
 
 /**
