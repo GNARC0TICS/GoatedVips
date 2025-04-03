@@ -313,6 +313,19 @@ export const transformationLogs = pgTable("transformation_logs", {
   error_message: text("error_message"),
 });
 
+export const apiSyncMetadata = pgTable("api_sync_metadata", {
+  id: serial("id").primaryKey(),
+  endpoint: text("endpoint").notNull(),
+  last_sync_time: timestamp("last_sync_time").defaultNow().notNull(),
+  record_count: integer("record_count").default(0).notNull(),
+  etag: text("etag"),
+  last_modified: text("last_modified"),
+  response_hash: text("response_hash"),
+  is_full_sync: boolean("is_full_sync").default(true).notNull(),
+  sync_duration_ms: integer("sync_duration_ms"),
+  metadata: jsonb("metadata").default({}).notNull(),
+});
+
 export const insertNewsletterSubscriptionSchema = createInsertSchema(
   newsletterSubscriptions,
 );
@@ -339,6 +352,10 @@ export type SelectAffiliateStats = typeof affiliateStats.$inferSelect;
 
 export const insertTransformationLogSchema = createInsertSchema(transformationLogs);
 export const selectTransformationLogSchema = createSelectSchema(transformationLogs);
+export const insertApiSyncMetadataSchema = createInsertSchema(apiSyncMetadata);
+export const selectApiSyncMetadataSchema = createSelectSchema(apiSyncMetadata);
 
 export type InsertTransformationLog = typeof transformationLogs.$inferInsert;
 export type SelectTransformationLog = typeof transformationLogs.$inferSelect;
+export type InsertApiSyncMetadata = typeof apiSyncMetadata.$inferInsert;
+export type SelectApiSyncMetadata = typeof apiSyncMetadata.$inferSelect;

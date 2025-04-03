@@ -37,6 +37,7 @@ import UserManagement from "@/pages/admin/UserManagement";
 import NotificationManagement from "@/pages/admin/NotificationManagement";
 import BonusCodeManagement from "@/pages/admin/BonusCodeManagement";
 import SupportManagement from "@/pages/admin/SupportManagement";
+import ApiSyncManagement from "@/pages/admin/ApiSyncManagement";
 import Leaderboard from "@/pages/Leaderboard";
 import Help from "@/pages/Help";
 import UserProfile from "@/pages/UserProfile";
@@ -127,6 +128,7 @@ function MainContent() {
                   <AdminRoute path="/admin/bonus-codes" component={BonusCodeManagement} />
                   <AdminRoute path="/admin/notifications" component={NotificationManagement} />
                   <AdminRoute path="/admin/support" component={SupportManagement} />
+                  <AdminRoute path="/admin/api-sync" component={ApiSyncManagement} />
                   
                   {/* Custom Admin Routes for goombas.net */}
                   <Route path="/goombas.net/login" component={GoombasAdminLogin} />

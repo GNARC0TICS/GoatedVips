@@ -680,6 +680,11 @@ export function Layout({ children }: { children: ReactNode }) {
                       Notifications
                     </DropdownMenuItem>
                   </Link>
+                  <Link href="/admin/api-sync">
+                    <DropdownMenuItem className="cursor-pointer text-white">
+                      API Sync
+                    </DropdownMenuItem>
+                  </Link>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -735,6 +740,11 @@ export function Layout({ children }: { children: ReactNode }) {
                       <Link href="/admin/notifications">
                         <DropdownMenuItem className="cursor-pointer text-white">
                           Notifications
+                        </DropdownMenuItem>
+                      </Link>
+                      <Link href="/admin/api-sync">
+                        <DropdownMenuItem className="cursor-pointer text-white">
+                          API Sync
                         </DropdownMenuItem>
                       </Link>
                     </>

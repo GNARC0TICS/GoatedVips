@@ -378,11 +378,12 @@ export async function ensureUserProfile(userId: string): Promise<any> {
 
 /**
  * Creates user profiles for all external API users
- * Ensures profiles exist for everyone in the leaderboard 
+ * Ensures profiles exist for everyone in the leaderboard
+ * Optimized to avoid unnecessary processing and track API response changes 
  */
 async function syncUserProfiles() {
   try {
-    console.log("Syncing user profiles from leaderboard...");
+    console.log("Starting optimized user profile sync...");
     
     const token = API_TOKEN || API_CONFIG.token;
     if (!token) {
@@ -390,29 +391,105 @@ async function syncUserProfiles() {
       return;
     }
     
-    // Fetch leaderboard data to get all users
-    const url = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`;
+    const startTime = Date.now();
+    const endpointKey = API_CONFIG.endpoints.leaderboard;
+    const url = `${API_CONFIG.baseUrl}${endpointKey}`;
+    
+    // Check if we have previously synced metadata for this endpoint
+    const syncMetadata = await db.execute(sql`
+      SELECT * FROM api_sync_metadata 
+      WHERE endpoint = ${endpointKey} 
+      ORDER BY last_sync_time DESC 
+      LIMIT 1
+    `);
+    
+    const lastSync = syncMetadata.rows && syncMetadata.rows.length > 0 
+      ? syncMetadata.rows[0] 
+      : null;
+    
+    // Make initial request with HEAD to check ETag and Last-Modified
+    let headers: Record<string, string> = {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+    
+    // Add conditional headers if we have previous metadata
+    if (lastSync) {
+      if (lastSync.etag) {
+        headers["If-None-Match"] = lastSync.etag;
+      }
+      if (lastSync.last_modified) {
+        headers["If-Modified-Since"] = lastSync.last_modified;
+      }
+    }
+    
     console.log(`Fetching leaderboard data from: ${url}`);
     
-    const response = await fetch(
-      url, 
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    // Make the actual API request
+    const response = await fetch(url, { headers });
+    
+    // Handle 304 Not Modified case
+    if (response.status === 304) {
+      console.log("API data unchanged since last sync (304 Not Modified)");
+      
+      // Update the sync time but keep other metadata the same
+      await db.execute(sql`
+        INSERT INTO api_sync_metadata (
+          endpoint, last_sync_time, record_count, etag, last_modified,
+          response_hash, is_full_sync, sync_duration_ms, metadata
+        ) VALUES (
+          ${endpointKey}, ${new Date()}, ${lastSync.record_count}, 
+          ${lastSync.etag}, ${lastSync.last_modified}, ${lastSync.response_hash},
+          false, ${Date.now() - startTime}, ${{
+            skippedReason: "304 Not Modified",
+            usersInLastSync: lastSync.record_count
+          }}
+        )
+      `);
+      
+      console.log(`Quick sync completed. No changes detected from last sync (${lastSync.record_count} users).`);
+      return;
+    }
     
     if (!response.ok) {
       console.error(`Failed to fetch leaderboard data: ${response.status}`);
       return;
     }
     
-    const rawData = await response.json();
-    console.log("Raw API data structure:", JSON.stringify(rawData).substring(0, 500) + "...");
+    // Store response headers for future conditional requests
+    const responseEtag = response.headers.get("etag");
+    const responseLastModified = response.headers.get("last-modified");
     
-    // Handle different response formats
+    const rawData = await response.json();
+    
+    // Generate a simple hash of the response data for comparison
+    const responseJSON = JSON.stringify(rawData);
+    const responseHash = await generateSimpleHash(responseJSON);
+    
+    // If we have a previous sync and the hash matches, skip full processing
+    if (lastSync && lastSync.response_hash === responseHash) {
+      console.log("API data unchanged since last sync (hash match)");
+      
+      // Update the sync time but keep other metadata the same
+      await db.execute(sql`
+        INSERT INTO api_sync_metadata (
+          endpoint, last_sync_time, record_count, etag, last_modified,
+          response_hash, is_full_sync, sync_duration_ms, metadata
+        ) VALUES (
+          ${endpointKey}, ${new Date()}, ${lastSync.record_count}, 
+          ${responseEtag || lastSync.etag}, ${responseLastModified || lastSync.last_modified}, 
+          ${responseHash}, false, ${Date.now() - startTime}, ${{
+            skippedReason: "Hash match",
+            usersInLastSync: lastSync.record_count
+          }}
+        )
+      `);
+      
+      console.log(`Quick sync completed. No changes detected from content hash (${lastSync.record_count} users).`);
+      return;
+    }
+    
+    // Handle different response formats to normalize the data structure
     let leaderboardData;
     if (rawData.data && rawData.data.all_time) {
       // Standard format with nested timeframes
@@ -442,7 +519,7 @@ async function syncUserProfiles() {
       // Try to extract any array we can find
       const possibleArrays = Object.values(rawData).filter(value => Array.isArray(value));
       if (possibleArrays.length > 0) {
-        const longestArray = possibleArrays.reduce((a, b) => a.length > b.length ? a : b);
+        const longestArray = possibleArrays.reduce((a: any, b: any) => a.length > b.length ? a : b);
         leaderboardData = {
           data: {
             all_time: {
@@ -466,7 +543,89 @@ async function syncUserProfiles() {
     let existingCount = 0;
     let updatedCount = 0;
     
-    console.log(`Processing ${allTimeData.length} users from leaderboard`);
+    // Count users in the current database for comparison
+    const userCountResult = await db.execute(sql`SELECT COUNT(*) FROM users WHERE goated_id IS NOT NULL`);
+    const currentUserCount = parseInt(userCountResult.rows[0].count, 10) || 0;
+    
+    console.log(`Current user count in database: ${currentUserCount}`);
+    console.log(`Users in API response: ${allTimeData.length}`);
+    
+    // Optimization: Skip full processing if user count hasn't changed significantly
+    // and we've done a full sync before
+    if (lastSync && lastSync.is_full_sync && 
+        Math.abs(currentUserCount - allTimeData.length) < 10 && 
+        allTimeData.length > 0) {
+      
+      // Just update a small sample of users to keep data fresh
+      // Get random users (10% or at least 10, but not more than 50)
+      const sampleSize = Math.min(50, Math.max(10, Math.floor(allTimeData.length * 0.1)));
+      const sampleUsers = allTimeData
+        .sort(() => 0.5 - Math.random())  // Shuffle array
+        .slice(0, sampleSize);  // Take a sample
+      
+      console.log(`Performing partial sync with ${sampleUsers.length} sample users`);
+      
+      for (const player of sampleUsers) {
+        try {
+          // Skip entries without uid or name
+          if (!player.uid || !player.name) continue;
+          
+          // Extract wager data from the player object
+          const totalWager = player.wagered?.all_time || 0;
+          const wagerToday = player.wagered?.today || 0;
+          const wagerWeek = player.wagered?.this_week || 0;
+          const wagerMonth = player.wagered?.this_month || 0;
+          
+          // Check if user exists and update
+          const existingUser = await db.select().from(users)
+            .where(sql`goated_id = ${player.uid}`)
+            .limit(1);
+          
+          if (existingUser && existingUser.length > 0) {
+            // Update existing user with latest wager data
+            await db.execute(sql`
+              UPDATE users 
+              SET 
+                goated_username = ${player.name},
+                total_wager = ${totalWager},
+                wager_today = ${wagerToday},
+                wager_week = ${wagerWeek},
+                wager_month = ${wagerMonth}
+              WHERE goated_id = ${player.uid}
+            `);
+            updatedCount++;
+          }
+        } catch (error) {
+          console.error(`Error updating sample user ${player?.name}:`, error);
+        }
+      }
+      
+      // Record this partial sync
+      await db.execute(sql`
+        INSERT INTO api_sync_metadata (
+          endpoint, last_sync_time, record_count, etag, last_modified,
+          response_hash, is_full_sync, sync_duration_ms, metadata
+        ) VALUES (
+          ${endpointKey}, ${new Date()}, ${allTimeData.length}, 
+          ${responseEtag}, ${responseLastModified}, ${responseHash},
+          false, ${Date.now() - startTime}, ${{
+            partialSync: true,
+            sampleSize,
+            updatedCount,
+            userCountDifference: allTimeData.length - currentUserCount
+          }}
+        )
+      `);
+      
+      console.log(`Partial sync completed. ${updatedCount} profiles updated of ${sampleSize} sampled.`);
+      return;
+    }
+    
+    // Perform full sync when:
+    // 1. We've never synced before
+    // 2. Number of users has changed significantly 
+    // 3. Response content has changed based on hash
+    console.log(`Performing full sync with ${allTimeData.length} users from leaderboard`);
     
     // Process each user from the leaderboard
     for (const player of allTimeData) {
@@ -479,14 +638,6 @@ async function syncUserProfiles() {
         const wagerToday = player.wagered?.today || 0;
         const wagerWeek = player.wagered?.this_week || 0;
         const wagerMonth = player.wagered?.this_month || 0;
-        
-        // Log the wager data for debugging
-        console.log(`Processing player ${player.name} (UID: ${player.uid}) with wagers:`, {
-          total: totalWager,
-          today: wagerToday,
-          week: wagerWeek,
-          month: wagerMonth
-        });
         
         // Check if user already exists by uid or goatedId (for backward compatibility)
         const existingUser = await db.select().from(users)
@@ -517,7 +668,7 @@ async function syncUserProfiles() {
         // Create a new permanent profile for this Goated user
         // Use the Goated UID to create a deterministic numeric ID
         // This ensures we always get the same ID for the same user
-        const uidHash = player.uid.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const uidHash = player.uid.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
         const newUserId = 10000 + (uidHash % 90000); // Ensures ID is in range 10000-99999
         const email = `${player.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
         
@@ -578,10 +729,50 @@ async function syncUserProfiles() {
       }
     }
     
-    console.log(`Profile sync completed. Created ${createdCount} new profiles, updated ${updatedCount}, ${existingCount} already existed.`);
+    // Record this full sync
+    const syncDuration = Date.now() - startTime;
+    await db.execute(sql`
+      INSERT INTO api_sync_metadata (
+        endpoint, last_sync_time, record_count, etag, last_modified,
+        response_hash, is_full_sync, sync_duration_ms, metadata
+      ) VALUES (
+        ${endpointKey}, ${new Date()}, ${allTimeData.length}, 
+        ${responseEtag}, ${responseLastModified}, ${responseHash},
+        true, ${syncDuration}, ${{
+          fullSync: true,
+          created: createdCount,
+          updated: updatedCount,
+          existing: existingCount,
+          durationMs: syncDuration
+        }}
+      )
+    `);
+    
+    console.log(`Full profile sync completed in ${syncDuration}ms. Created ${createdCount} new profiles, updated ${updatedCount}, ${existingCount} already existed.`);
   } catch (error) {
     console.error("Error syncing profiles from leaderboard:", error);
   }
+}
+
+/**
+ * Generate a simple hash for a string
+ * Used to quickly compare API responses without storing the full content
+ */
+async function generateSimpleHash(str: string): Promise<string> {
+  // Use a simpler approach for browsers that might not support crypto
+  if (str.length === 0) return "empty";
+  
+  // Take the first 100 chars, middle 100 chars, and last a 100 chars for a rough comparison
+  // plus the length which is a good indicator of changes
+  const len = str.length;
+  const start = str.substring(0, Math.min(100, len));
+  const middle = len > 200 ? 
+    str.substring(Math.floor(len/2) - 50, Math.floor(len/2) + 50) : 
+    "";
+  const end = len > 100 ? str.substring(len - 100) : "";
+  
+  // Combine parts with length for a simple fingerprint
+  return `len:${len}|start:${start}|mid:${middle}|end:${end}`;
 }
 
 /**

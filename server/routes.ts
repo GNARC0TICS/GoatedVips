@@ -13,6 +13,7 @@ import usersRouter from "./routes/users";
 import userStatsRouter from "./routes/user-stats";
 import verificationRouter from "./routes/verification";
 import goombasAdminRouter from "./routes/goombas-admin";
+import apiSyncRouter from "./routes/api-sync";
 import { requireAdmin } from "./middleware/admin";
 import { wagerRaces, users, transformationLogs } from "@db/schema";
 import { verificationRequests } from "@db/schema/verification";
@@ -230,6 +231,7 @@ function setupAPIRoutes(app: Express) {
   app.use("/users", usersRouter);     // New public profile routes
   app.use("/api/user", userStatsRouter); // For user stats and detailed profile data
   app.use("/api/verification", verificationRouter); // User verification routes
+  app.use("/api/sync", apiSyncRouter); // API sync monitoring routes
   app.use("/api", router); //Added this line
   
   // Mount our custom admin routes at the non-obvious URL path
