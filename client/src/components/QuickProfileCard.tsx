@@ -84,13 +84,12 @@ export function QuickProfileCard({ userId, username, children }: QuickProfileCar
 
   return (
     <>
-      <DialogTrigger asChild onClick={() => setOpen(true)}>
-        <div style={{ cursor: "pointer" }}>
-          {children}
-        </div>
-      </DialogTrigger>
-      
       <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild onClick={() => setOpen(true)}>
+          <div style={{ cursor: "pointer" }}>
+            {children}
+          </div>
+        </DialogTrigger>
         <DialogContent className="sm:max-w-md bg-[#1A1B23] border-[#2A2B31] text-white">
           {isLoading ? (
             <div className="py-8 flex flex-col items-center justify-center">
