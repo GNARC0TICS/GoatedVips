@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label";
 interface UserStats {
   id: string; // Added ID for API calls
   username: string;
-  totalWagered: number;
+  totalWagered: string | number;
   currentRank: number;
   bestRank: number;
   races: {
@@ -68,11 +68,15 @@ const PROFILE_COLORS = {
   diamond: '#60A5FA'
 };
 
-const getTierFromWager = (wager: number): string => {
-  if (wager >= 1000000) return 'diamond';
-  if (wager >= 500000) return 'platinum';
-  if (wager >= 100000) return 'gold';
-  if (wager >= 50000) return 'silver';
+const getTierFromWager = (wager: number | string): string => {
+  const numericWager = typeof wager === 'string' ? parseFloat(wager) : wager;
+  
+  if (isNaN(numericWager)) return 'bronze';
+  
+  if (numericWager >= 1000000) return 'diamond';
+  if (numericWager >= 500000) return 'platinum';
+  if (numericWager >= 100000) return 'gold';
+  if (numericWager >= 50000) return 'silver';
   return 'bronze';
 };
 

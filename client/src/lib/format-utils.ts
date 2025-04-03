@@ -5,13 +5,13 @@
 /**
  * Format a number as currency (USD)
  * 
- * @param value - The numeric value to format
+ * @param value - The numeric value to format (can be number or string)
  * @param minimumFractionDigits - Minimum number of decimal places (default: 2)
  * @param maximumFractionDigits - Maximum number of decimal places (default: 2)
  * @returns Formatted currency string
  */
 export function formatCurrency(
-  value: number, 
+  value: number | string, 
   minimumFractionDigits = 2,
   maximumFractionDigits = 2
 ): string {
@@ -19,23 +19,42 @@ export function formatCurrency(
     return '$0.00';
   }
   
-  // For very large numbers, limit decimals further
-  if (value >= 10000) {
-    maximumFractionDigits = 0;
-  } else if (value >= 1000) {
-    maximumFractionDigits = 1;
+  // Handle string values with proper error checking
+  let numericValue: number;
+  try {
+    numericValue = typeof value === 'string' ? parseFloat(value) : value;
+    
+    // Handle NaN values gracefully
+    if (isNaN(numericValue)) {
+      return '$0.00';
+    }
+  } catch (error) {
+    console.error("Error converting value to number:", error);
+    return '$0.00';
   }
   
-  // Ensure maximumFractionDigits is within valid range (0-20)
-  maximumFractionDigits = Math.min(Math.max(0, maximumFractionDigits), 20);
-  minimumFractionDigits = Math.min(Math.max(0, minimumFractionDigits), 20);
-  
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits,
-    maximumFractionDigits
-  }).format(value);
+  try {
+    // For very large numbers, limit decimals further
+    const adjustedMaxFractionDigits = (() => {
+      if (numericValue >= 10000) return 0;
+      if (numericValue >= 1000) return 1;
+      return maximumFractionDigits;
+    })();
+    
+    // Clamp to safe values for Intl.NumberFormat (0-20)
+    const safeMinFractionDigits = Math.min(Math.max(0, minimumFractionDigits), 20);
+    const safeMaxFractionDigits = Math.min(Math.max(0, adjustedMaxFractionDigits), 20);
+    
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: safeMinFractionDigits,
+      maximumFractionDigits: safeMaxFractionDigits
+    }).format(numericValue);
+  } catch (error) {
+    console.error("Error formatting currency:", error, "Value:", value);
+    return '$' + numericValue.toFixed(2);
+  }
 }
 
 /**

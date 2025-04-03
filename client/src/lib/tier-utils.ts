@@ -22,15 +22,23 @@ const TIERS: TierDefinition[] = [
 /**
  * Determine user tier based on total wager amount
  * 
- * @param wagerAmount - Total wager amount in USD
+ * @param wagerAmount - Total wager amount in USD (can be number or string)
  * @returns Tier name as string
  */
-export function getTierFromWager(wagerAmount: number): TierType {
+export function getTierFromWager(wagerAmount: number | string): TierType {
+  // Convert string to number if necessary
+  const numericAmount = typeof wagerAmount === 'string' ? parseFloat(wagerAmount) : wagerAmount;
+  
+  // Handle NaN or invalid values
+  if (isNaN(numericAmount)) {
+    return 'bronze';
+  }
+  
   // Sort tiers in descending order by minWager
   const sortedTiers = [...TIERS].sort((a, b) => b.minWager - a.minWager);
   
   // Find the highest tier the user qualifies for
-  const tier = sortedTiers.find(tier => wagerAmount >= tier.minWager);
+  const tier = sortedTiers.find(tier => numericAmount >= tier.minWager);
   
   // Default to bronze if no matching tier (shouldn't happen due to bronze being 0)
   return tier?.name || 'bronze';
@@ -77,15 +85,28 @@ export function getNextTier(currentTier: string): TierDefinition | null {
 /**
  * Calculate progress to next tier
  * 
- * @param wagerAmount - Current total wager amount
+ * @param wagerAmount - Current total wager amount (can be number or string)
  * @returns Object with progress percentage and next tier information
  */
-export function getTierProgress(wagerAmount: number): {
+export function getTierProgress(wagerAmount: number | string): {
   percentage: number;
   currentTier: TierDefinition;
   nextTier: TierDefinition | null;
 } {
-  const currentTierName = getTierFromWager(wagerAmount);
+  // Convert string to number if necessary
+  const numericAmount = typeof wagerAmount === 'string' ? parseFloat(wagerAmount) : wagerAmount;
+  
+  // Handle NaN or invalid values
+  if (isNaN(numericAmount)) {
+    const bronzeTier = TIERS.find(t => t.name === 'bronze') as TierDefinition;
+    return {
+      percentage: 0,
+      currentTier: bronzeTier,
+      nextTier: TIERS[1] // Silver tier
+    };
+  }
+  
+  const currentTierName = getTierFromWager(numericAmount);
   const currentTier = TIERS.find(t => t.name === currentTierName) as TierDefinition;
   const nextTier = getNextTier(currentTierName);
   
@@ -100,7 +121,7 @@ export function getTierProgress(wagerAmount: number): {
   
   // Calculate progress percentage
   const tierRange = nextTier.minWager - currentTier.minWager;
-  const userProgress = wagerAmount - currentTier.minWager;
+  const userProgress = numericAmount - currentTier.minWager;
   let percentage = (userProgress / tierRange) * 100;
   
   // Ensure percentage is between 0 and 100

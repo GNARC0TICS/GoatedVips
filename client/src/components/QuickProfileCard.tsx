@@ -37,9 +37,9 @@ interface UserStatsResponse {
   goatedId?: string;
   bio?: string;
   profileColor?: string;
-  totalWagered: number;
-  weeklyWagered: number;
-  monthlyWagered: number;
+  totalWagered: string | number;
+  weeklyWagered: string | number;
+  monthlyWagered: string | number;
   tier?: string;
   createdAt: string;
   // Verification fields
@@ -170,7 +170,7 @@ export function QuickProfileCard({ userId, username, children }: QuickProfileCar
                       <CreditCard className="w-5 h-5 mr-3 text-[#D7FF00]" />
                       <span>Monthly Wagered</span>
                     </div>
-                    <span className="font-bold">{formatCurrency(user.monthlyWagered || 0)}</span>
+                    <span className="font-bold">{formatCurrency(user.monthlyWagered || '0')}</span>
                   </div>
                   
                   {/* Weekly wagers */}
@@ -179,7 +179,7 @@ export function QuickProfileCard({ userId, username, children }: QuickProfileCar
                       <TrendingUp className="w-5 h-5 mr-3 text-[#D7FF00]" />
                       <span>Weekly Wagered</span>
                     </div>
-                    <span className="font-bold">{formatCurrency(user.weeklyWagered || 0)}</span>
+                    <span className="font-bold">{formatCurrency(user.weeklyWagered || '0')}</span>
                   </div>
                   
                   {/* Total wagers */}
@@ -188,7 +188,7 @@ export function QuickProfileCard({ userId, username, children }: QuickProfileCar
                       <Award className="w-5 h-5 mr-3 text-[#D7FF00]" />
                       <span>Total Wagered</span>
                     </div>
-                    <span className="font-bold">{formatCurrency(user.totalWagered || 0)}</span>
+                    <span className="font-bold">{formatCurrency(user.totalWagered || '0')}</span>
                   </div>
                 </div>
               </CardContent>
