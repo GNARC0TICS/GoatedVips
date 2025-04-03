@@ -238,15 +238,39 @@ export async function ensureUserProfile(userId: string): Promise<any> {
           const newUserId = Math.floor(1000 + Math.random() * 9000);
           const email = `${username.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
           
-          // Create a more complete profile with the real data from Goated
+          // Extract wager data from the user data
+          const totalWager = userData.wagered?.all_time || 0;
+          const wagerToday = userData.wagered?.today || 0;
+          const wagerWeek = userData.wagered?.this_week || 0;
+          const wagerMonth = userData.wagered?.this_month || 0;
+          
+          // Log the data for debugging
+          console.log(`Creating profile with wager data:`, {
+            total: totalWager,
+            today: wagerToday,
+            week: wagerWeek,
+            month: wagerMonth
+          });
+          
+          // Create a complete profile with both new schema fields and legacy fields
           const result = await db.execute(sql`
             INSERT INTO users (
               id, username, email, password, created_at, profile_color, 
-              bio, is_admin, goated_id, goated_username, goated_account_linked
+              bio, is_admin, 
+              -- New schema fields
+              uid, total_wager, wager_today, wager_week, wager_month, verified,
+              -- Legacy fields for backward compatibility
+              goated_id, goated_username, goated_account_linked
             ) VALUES (
               ${newUserId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', 
-              'Official Goated.com player profile', false, ${userId}, ${username}, true
-            ) RETURNING id, username, goated_id as "goatedId", goated_username as "goatedUsername"
+              'Official Goated.com player profile', false, 
+              -- New schema field values
+              ${userId}, ${totalWager}, ${wagerToday}, ${wagerWeek}, ${wagerMonth}, true,
+              -- Legacy field values
+              ${userId}, ${username}, true
+            ) RETURNING id, username, uid, goated_id as "goatedId", goated_username as "goatedUsername", 
+              total_wager as "totalWager", wager_today as "wagerToday", 
+              wager_week as "wagerWeek", wager_month as "wagerMonth"
           `);
           
           if (result && result.rows && result.rows.length > 0) {
@@ -269,14 +293,25 @@ export async function ensureUserProfile(userId: string): Promise<any> {
           const email = `user_${userId}@goated.placeholder.com`;
           
           // Create a placeholder profile with clear indication this is temporary
+          // Include both new schema fields and legacy fields
           const result = await db.execute(sql`
             INSERT INTO users (
               id, username, email, password, created_at, profile_color, 
-              bio, is_admin, goated_id, goated_account_linked
+              bio, is_admin, 
+              -- New schema fields
+              uid, total_wager, wager_today, wager_week, wager_month, verified,
+              -- Legacy fields
+              goated_id, goated_account_linked
             ) VALUES (
               ${newUserId}, ${tempUsername}, ${email}, '', ${new Date()}, '#D7FF00', 
-              'Temporary profile - this player has not been verified with Goated.com yet', false, ${userId}, false
-            ) RETURNING id, username, goated_id as "goatedId", goated_username as "goatedUsername"
+              'Temporary profile - this player has not been verified with Goated.com yet', false,
+              -- New schema field values (initialize with zeros for wager fields)
+              ${userId}, 0, 0, 0, 0, false,
+              -- Legacy field values
+              ${userId}, false
+            ) RETURNING id, username, uid, goated_id as "goatedId", goated_username as "goatedUsername",
+              total_wager as "totalWager", wager_today as "wagerToday", 
+              wager_week as "wagerWeek", wager_month as "wagerMonth"
           `);
           
           if (result && result.rows && result.rows.length > 0) {
@@ -300,14 +335,25 @@ export async function ensureUserProfile(userId: string): Promise<any> {
         const email = `custom_${shortId}@goated.placeholder.com`;
         
         // Clear indication this is a non-Goated profile
+        // Include both new schema and legacy fields
         const result = await db.execute(sql`
           INSERT INTO users (
             id, username, email, password, created_at, profile_color, 
-            bio, is_admin, goated_id, goated_account_linked
+            bio, is_admin, 
+            -- New schema fields
+            uid, total_wager, wager_today, wager_week, wager_month, verified,
+            -- Legacy fields
+            goated_id, goated_account_linked
           ) VALUES (
             ${newUserId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', 
-            'Custom profile - not linked to Goated.com', false, ${userId}, false
-          ) RETURNING id, username, goated_id as "goatedId", goated_username as "goatedUsername"
+            'Custom profile - not linked to Goated.com', false,
+            -- New schema field values
+            ${userId}, 0, 0, 0, 0, false,
+            -- Legacy field values
+            ${userId}, false
+          ) RETURNING id, username, uid, goated_id as "goatedId", goated_username as "goatedUsername",
+            total_wager as "totalWager", wager_today as "wagerToday", 
+            wager_week as "wagerWeek", wager_month as "wagerMonth"
         `);
         
         if (result && result.rows && result.rows.length > 0) {
@@ -376,22 +422,42 @@ async function syncUserProfiles() {
         // Skip entries without uid or name
         if (!player.uid || !player.name) continue;
         
-        // Check if user already exists by goatedId
+        // Extract wager data from the player object
+        const totalWager = player.wagered?.all_time || 0;
+        const wagerToday = player.wagered?.today || 0;
+        const wagerWeek = player.wagered?.this_week || 0;
+        const wagerMonth = player.wagered?.this_month || 0;
+        
+        // Log the wager data for debugging
+        console.log(`Processing player ${player.name} (UID: ${player.uid}) with wagers:`, {
+          total: totalWager,
+          today: wagerToday,
+          week: wagerWeek,
+          month: wagerMonth
+        });
+        
+        // Check if user already exists by uid or goatedId (for backward compatibility)
         const existingUser = await db.select().from(users)
           .where(sql`goated_id = ${player.uid}`)
           .limit(1);
         
         if (existingUser && existingUser.length > 0) {
-          // If user exists but doesn't have the goated username set, update it
-          if (!existingUser[0].goatedUsername) {
-            await db.execute(sql`
-              UPDATE users 
-              SET goated_username = ${player.name}, 
-                  goated_account_linked = true
-              WHERE goated_id = ${player.uid}
-            `);
-            updatedCount++;
-          }
+          // Update existing user with latest wager data and set new schema fields
+          await db.execute(sql`
+            UPDATE users 
+            SET 
+              goated_username = ${player.name},
+              goated_account_linked = true,
+              -- New schema fields
+              uid = ${player.uid},
+              total_wager = ${totalWager},
+              wager_today = ${wagerToday},
+              wager_week = ${wagerWeek},
+              wager_month = ${wagerMonth},
+              verified = true
+            WHERE goated_id = ${player.uid}
+          `);
+          updatedCount++;
           existingCount++;
           continue; // Skip to the next user
         }
@@ -403,13 +469,22 @@ async function syncUserProfiles() {
         await db.execute(sql`
           INSERT INTO users (
             id, username, email, password, created_at, profile_color, 
-            bio, is_admin, goated_id, goated_username, goated_account_linked
+            bio, is_admin, 
+            -- Legacy fields
+            goated_id, goated_username, goated_account_linked,
+            -- New schema fields
+            uid, total_wager, wager_today, wager_week, wager_month, verified
           ) VALUES (
             ${newUserId}, ${player.name}, ${email}, '', ${new Date()}, '#D7FF00', 
-            'Official Goated.com player profile', false, ${player.uid}, ${player.name}, true
+            'Official Goated.com player profile', false, 
+            -- Legacy fields values
+            ${player.uid}, ${player.name}, true,
+            -- New schema fields values
+            ${player.uid}, ${totalWager}, ${wagerToday}, ${wagerWeek}, ${wagerMonth}, true
           )
         `);
         
+        console.log(`Created new user profile for ${player.name} (UID: ${player.uid})`);
         createdCount++;
       } catch (error) {
         console.error(`Error creating/updating profile for ${player?.name}:`, error);

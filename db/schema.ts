@@ -11,22 +11,46 @@ import {
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations, sql } from "drizzle-orm";
 
-// Users table - using basic schema that still maintains essential fields
+/**
+ * Users table - Enhanced schema with improved structure for both local and Goated.com users
+ * 
+ * This schema supports:
+ * 1. Users created from the Goated.com API with wager statistics
+ * 2. Locally registered users with authentication
+ * 3. Account linking between local accounts and Goated profiles
+ */
 export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  email: text("email").notNull().unique(),
-  isAdmin: boolean("is_admin").default(false).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  emailVerified: boolean("email_verified").default(false),
-  // Profile fields
-  bio: text("bio"),
-  profileColor: text("profile_color").default('#D7FF00'),
-  goatedId: text("goated_id").unique(),
-  goatedUsername: text("goated_username"),
-  goatedAccountLinked: boolean("goated_account_linked").default(false),
-  lastActive: timestamp("last_active"),
+  // Primary identification
+  id: serial("id").primaryKey(),                                // Internal user ID
+  username: text("username").notNull().unique(),                // Display name (from Goated or local registration)
+  
+  // Goated.com Integration Fields
+  uid: text("uid").unique(),                                    // Goated.com UID
+  // Wager statistics from Goated.com API
+  total_wager: decimal("total_wager", { precision: 18, scale: 8 }).default('0').notNull(),  // All-time wagered amount
+  wager_today: decimal("wager_today", { precision: 18, scale: 8 }).default('0').notNull(),  // Today's wagered amount
+  wager_week: decimal("wager_week", { precision: 18, scale: 8 }).default('0').notNull(),    // This week's wagered amount
+  wager_month: decimal("wager_month", { precision: 18, scale: 8 }).default('0').notNull(),  // Monthly wagered amount
+  verified: boolean("verified").default(false).notNull(),       // If Goated.com identity is verified
+  
+  // Authentication and account fields
+  password: text("password").notNull(),                         // Password (may be empty for API-created accounts)
+  email: text("email").notNull().unique(),                      // Email address
+  isAdmin: boolean("is_admin").default(false).notNull(),        // Admin privileges
+  emailVerified: boolean("email_verified").default(false),      // Email verification status
+  
+  // Profile and customization
+  bio: text("bio"),                                             // User biography
+  profileColor: text("profile_color").default('#D7FF00'),       // Profile color preference
+  
+  // Legacy fields - maintained for backward compatibility
+  goatedId: text("goated_id").unique(),                         // Legacy - Same as uid for Goated users
+  goatedUsername: text("goated_username"),                      // Legacy - Same as username for Goated users
+  goatedAccountLinked: boolean("goated_account_linked").default(false),  // Legacy - Same as verified
+  
+  // Timestamps and activity tracking
+  createdAt: timestamp("created_at").defaultNow().notNull(),    // Account creation time
+  lastActive: timestamp("last_active"),                         // Last activity timestamp
 });
 
 // Simplify relations to avoid module import issues
