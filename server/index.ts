@@ -17,7 +17,8 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import { createServer } from "http";
-import { WebSocket, WebSocketServer } from "ws";
+import { WebSocket } from "ws";
+import { createWebSocketServer, closeAllWebSocketServers } from "./config/websocket";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -25,30 +26,39 @@ import { createServer as createViteServer, createLogger } from "vite";
 import { promisify } from "util";
 import { exec } from "child_process";
 import { sql } from "drizzle-orm";
+import compression from "compression";
+
+// Application modules
 import { log } from "./utils/logger";
 import { registerRoutes } from "./routes";
 import { domainRedirectMiddleware } from "./middleware/domain-handler";
 import { db } from "../db";
 import { setupAuth } from "./auth";
+import { API_CONFIG } from "./config/api";
+import { users } from "../db/schema";
+
+// Configuration modules
+import { PATHS } from "./config/paths";
+import { ENV } from "./config/environment";
+
+// Middleware
 import cors from "cors";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
-import { API_CONFIG } from "./config/api";
-import { users } from "../db/schema";
 
 // Convert callback-based exec to Promise-based for cleaner async/await usage
 const execAsync = promisify(exec);
 
-// Server configuration constants
-const PORT = parseInt(process.env.PORT || '5000', 10);
-const HOST = '0.0.0.0';
+// ES Modules compatible dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Use environment configuration instead of hard-coded values
+const { PORT, HOST, IS_DEVELOPMENT, IS_PRODUCTION, CORS_ORIGINS, SESSION_SECRET, COOKIE_SECURE, COOKIE_MAX_AGE, API_TOKEN, DATABASE_URL } = ENV;
 
 // Global server state management
 let templateCache: string | null = null;  // Caches HTML template for better performance
 let server: any = null;                   // HTTP server instance
-let wss: WebSocketServer | null = null;   // WebSocket server instance
 
 /**
  * Checks if a specified port is available for use
@@ -170,7 +180,7 @@ export async function ensureUserProfile(userId: string): Promise<any> {
     
     // No existing user, try to fetch user data from the leaderboard API if it's numeric (potential Goated ID)
     if (isNumericId) {
-      const token = process.env.API_TOKEN || API_CONFIG.token;
+      const token = API_TOKEN || API_CONFIG.token;
       
       // Try to fetch user data from the leaderboard API
       let userData = null;
@@ -327,7 +337,6 @@ export async function ensureUserProfile(userId: string): Promise<any> {
 async function syncUserProfiles() {
   try {
     console.log("Syncing user profiles from leaderboard...");
-    const API_TOKEN = process.env.API_TOKEN;
     
     const token = API_TOKEN || API_CONFIG.token;
     if (!token) {
@@ -451,7 +460,7 @@ async function initializeServer() {
 
 
     // Setup development or production server based on environment
-    if (app.get("env") === "development") {
+    if (IS_DEVELOPMENT) {
       await setupVite(app, server);
     } else {
       serveStatic(app);
@@ -461,7 +470,7 @@ async function initializeServer() {
     app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
       console.error("Server error:", err);
       res.status(500).json({
-        error: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message
+        error: IS_PRODUCTION ? 'Internal Server Error' : err.message
       });
     });
 
@@ -480,11 +489,12 @@ async function initializeServer() {
       // Graceful shutdown handler
       const shutdown = async () => {
         log("info", "Shutting down gracefully...");
-        if (wss) {
-          wss.close(() => {
-            log("info", "WebSocket server closed");
-          });
-        }
+        
+        // Close all WebSocket servers
+        closeAllWebSocketServers();
+        log("info", "All WebSocket servers closed");
+        
+        // Close HTTP server
         server.close(() => {
           log("info", "HTTP server closed");
           process.exit(0);
@@ -509,27 +519,19 @@ async function initializeServer() {
 
 /**
  * Sets up WebSocket server for real-time communication
- * Handles client connections and message routing
+ * Uses the centralized WebSocket configuration module
  * 
  * @param server - HTTP server instance to attach WebSocket server to
  */
 function setupWebSocket(server: any) {
-  wss = new WebSocketServer({ server, path: '/ws' });
-
-  wss.on('connection', (ws: WebSocket, req: any) => {
-    // Skip Vite HMR connections to avoid interference
-    if (req.headers['sec-websocket-protocol']?.includes('vite-hmr')) {
-      return;
-    }
-
+  // Create a general purpose WebSocket server
+  createWebSocketServer(server, '/ws', (ws, _req) => {
     log("info", "New WebSocket connection established");
 
     ws.on('error', (error) => {
       log("error", `WebSocket error: ${error.message}`);
     });
   });
-
-  return wss;
 }
 
 /**
@@ -546,9 +548,7 @@ function setupMiddleware(app: express.Application) {
 
   // CORS configuration for API routes
   app.use('/api', cors({
-    origin: process.env.NODE_ENV === 'development'
-      ? ['http://localhost:5000', 'http://0.0.0.0:5000']
-      : process.env.ALLOWED_ORIGINS?.split(',') || [],
+    origin: CORS_ORIGINS,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
@@ -559,17 +559,17 @@ function setupMiddleware(app: express.Application) {
   app.use(session({
     store: new PostgresSessionStore({
       conObject: {
-        connectionString: process.env.DATABASE_URL,
+        connectionString: DATABASE_URL,
       },
       createTableIfMissing: true,
     }),
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === 'production',
+      secure: COOKIE_SECURE,
       httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: COOKIE_MAX_AGE,
     },
   }));
 
@@ -633,14 +633,32 @@ const requestLogger = (() => {
  * @param app - Express application instance
  */
 function serveStatic(app: express.Application) {
-  const distPath = path.resolve(__dirname, "public");
+  const distPath = PATHS.clientBuild;
+  
   if (!fs.existsSync(distPath)) {
     throw new Error(`Could not find the build directory: ${distPath}. Please build the client first.`);
   }
 
-  // Static file serving with caching
+  // Static file serving with improved caching strategy
   app.use(express.static(distPath, {
-    maxAge: '1d',
+    setHeaders: (res, filePath) => {
+      // Apply appropriate cache headers based on file type
+      if (filePath.match(/\.(?:js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/)) {
+        // Asset files can be cached longer
+        if (filePath.match(/\.[a-f0-9]{8}\.(?:js|css)$/)) {
+          // Hashed assets can be cached for longer (1 year)
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else {
+          // Regular assets get a day of caching
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+        }
+      } else {
+        // HTML and other files should not be cached
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+      // Add security headers
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+    },
     etag: true,
     lastModified: true
   }));
@@ -652,7 +670,9 @@ function serveStatic(app: express.Application) {
     }
     res.sendFile(path.resolve(distPath, "index.html"), {
       headers: {
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
         'X-Content-Type-Options': 'nosniff'
       }
     });

@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 import { createServer, type Server } from "http";
 import { WebSocket, WebSocketServer } from "ws";
 import { log } from "./vite";
+import { createWebSocketServer, broadcast, closeAllWebSocketServers } from "./config/websocket";
 import { API_CONFIG } from "./config/api";
 import { RateLimiterMemory, type RateLimiterRes } from 'rate-limiter-flexible';
 import bonusChallengesRouter from "./routes/bonus-challenges";
@@ -688,26 +689,14 @@ export function registerRoutes(app: Express): Server {
 }
 
 function setupWebSocket(httpServer: Server) {
-  wss = new WebSocketServer({ noServer: true });
-
-  httpServer.on("upgrade", (request, socket, head) => {
-    if (request.headers["sec-websocket-protocol"] === "vite-hmr") {
-      return;
-    }
-
-    if (request.url === "/ws/leaderboard") {
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit("connection", ws, request);
-        handleLeaderboardConnection(ws);
-      });
-    }
-
-    if (request.url === "/ws/transformation-logs") {
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit("connection", ws, request);
-        handleTransformationLogsConnection(ws);
-      });
-    }
+  // Create WebSocket server for leaderboard updates
+  createWebSocketServer(httpServer, '/ws/leaderboard', (ws, _req) => {
+    handleLeaderboardConnection(ws);
+  });
+  
+  // Create WebSocket server for transformation logs
+  createWebSocketServer(httpServer, '/ws/transformation-logs', (ws, _req) => {
+    handleTransformationLogsConnection(ws);
   });
 }
 
@@ -804,13 +793,9 @@ function handleTransformationLogsConnection(ws: WebSocket) {
 }
 
 export function broadcastLeaderboardUpdate(data: any) {
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({
-        type: "LEADERBOARD_UPDATE",
-        data
-      }));
-    }
+  broadcast('/ws/leaderboard', {
+    type: "LEADERBOARD_UPDATE",
+    data
   });
 }
 
@@ -819,15 +804,11 @@ export function broadcastTransformationLog(log: {
   message: string;
   data?: any;
 }) {
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({
-        type: "TRANSFORMATION_LOG",
-        log: {
-          ...log,
-          timestamp: new Date().toISOString()
-        }
-      }));
+  broadcast('/ws/transformation-logs', {
+    type: "TRANSFORMATION_LOG",
+    log: {
+      ...log,
+      timestamp: new Date().toISOString()
     }
   });
 }
