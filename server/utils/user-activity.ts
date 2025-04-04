@@ -11,22 +11,45 @@ import { eq, gt } from "drizzle-orm";
  */
 export async function updateUserActivityStatus(): Promise<{ updated: number }> {
   try {
-    // Mark users as active if they have wager data
-    const activeUsers = await db
-      .update(users)
-      .set({ isActive: true })
-      .where(gt(users.total_wager, 0))
-      .returning({ id: users.id });
+    // Find users whose activity status needs to be updated
+    // This avoids updating users whose status is already correct
+    const needsActiveStatus = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        sql`${users.total_wager} > 0 AND ${users.isActive} = false`
+      );
     
-    // Mark users as inactive if they have no wager data
-    const inactiveUsers = await db
-      .update(users)
-      .set({ isActive: false })
-      .where(eq(users.total_wager, 0))
-      .returning({ id: users.id });
+    const needsInactiveStatus = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        sql`${users.total_wager} = 0 AND ${users.isActive} = true`
+      );
+    
+    // Only update users that need their status changed
+    const [activeUpdates, inactiveUpdates] = await Promise.all([
+      needsActiveStatus.length > 0 ? 
+        db.update(users)
+          .set({ isActive: true })
+          .where(
+            sql`id IN (${needsActiveStatus.map(u => u.id).join(',')})`
+          )
+          .returning({ id: users.id }) : 
+        Promise.resolve([]),
+        
+      needsInactiveStatus.length > 0 ?
+        db.update(users)
+          .set({ isActive: false })
+          .where(
+            sql`id IN (${needsInactiveStatus.map(u => u.id).join(',')})`
+          )
+          .returning({ id: users.id }) :
+        Promise.resolve([])
+    ]);
     
     return { 
-      updated: activeUsers.length + inactiveUsers.length 
+      updated: activeUpdates.length + inactiveUpdates.length 
     };
   } catch (error) {
     console.error("Error updating user activity status:", error);

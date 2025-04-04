@@ -55,17 +55,45 @@ async function syncUserProfiles() {
     }
   }
 
-  // Update a random selection of users (at most 50)
-  const sampleSize = Math.min(50, allTimeData.length);
-  const sampleUsers = allTimeData
-    .sort(() => 0.5 - Math.random())  // Shuffle array
-    .slice(0, sampleSize);  // Take a sample
+  // Prioritize users that need updating rather than random selection
+  const lastSyncTime = new Date();
+  lastSyncTime.setHours(lastSyncTime.getHours() - 6); // Users not updated in last 6 hours
+  
+  // Find users who haven't been updated recently or have zero wagers (needing initial data)
+  const needsUpdateUsers = await db
+    .select({ goatedId: users.goatedId })
+    .from(users)
+    .where(
+      sql`${users.lastActive} < ${lastSyncTime} OR ${users.total_wager} = 0`
+    )
+    .limit(50);
+  
+  // Map Goated IDs to find matching users from API data
+  const goatedIdsToUpdate = new Set(needsUpdateUsers.map(u => u.goatedId));
+  
+  // Filter API data for users that need updates + add some random users if needed
+  let usersToUpdate = allTimeData.filter(player => 
+    player.uid && goatedIdsToUpdate.has(player.uid)
+  );
+  
+  // If we have fewer than 50 users that match our criteria, add some random ones
+  if (usersToUpdate.length < 50) {
+    const remainingCount = 50 - usersToUpdate.length;
+    const existingIds = new Set(usersToUpdate.map(u => u.uid));
+    
+    const randomUsers = allTimeData
+      .filter(player => player.uid && !existingIds.has(player.uid))
+      .sort(() => 0.5 - Math.random())
+      .slice(0, remainingCount);
+    
+    usersToUpdate = [...usersToUpdate, ...randomUsers];
+  }
 
-  console.log(`Manual sync is updating ${sampleUsers.length} sample users`);
+  console.log(`Manual sync is updating ${usersToUpdate.length} users (${goatedIdsToUpdate.size} prioritized)`);
 
   let updatedCount = 0;
 
-  for (const player of sampleUsers) {
+  for (const player of usersToUpdate) {
     try {
       // Skip entries without uid or name
       if (!player.uid || !player.name) continue;
@@ -90,13 +118,15 @@ async function syncUserProfiles() {
             total_wager = ${totalWager},
             wager_today = ${wagerToday},
             wager_week = ${wagerWeek},
-            wager_month = ${wagerMonth}
+            wager_month = ${wagerMonth},
+            lastActive = NOW(),
+            isActive = ${totalWager > 0}
           WHERE goated_id = ${player.uid}
         `);
         updatedCount++;
       }
     } catch (error) {
-      console.error(`Error updating sample user ${player?.name}:`, error);
+      console.error(`Error updating user ${player?.name}:`, error);
     }
   }
 
