@@ -46,7 +46,8 @@ export function ParticleBackground() {
           speedX: (Math.random() - 0.5) * 0.3,
           speedY: (Math.random() - 0.5) * 0.3,
           opacity: Math.random() * 0.5 + 0.1,
-          color: Math.random() > 0.8 ? '#D7FF00' : '#ffffff',
+          // Increase yellow particles ratio from 20% to 40%
+          color: Math.random() > 0.6 ? '#D7FF00' : '#ffffff',
         });
       }
     }
@@ -55,7 +56,8 @@ export function ParticleBackground() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       particles.current.forEach((particle) => {
-        ctx.globalAlpha = particle.opacity;
+        // Increase base opacity to make particles brighter
+        ctx.globalAlpha = particle.opacity * 1.5;
         ctx.fillStyle = particle.color;
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
@@ -69,9 +71,11 @@ export function ParticleBackground() {
 
           if (distance < 100) {
             ctx.beginPath();
-            ctx.strokeStyle = particle.color === '#D7FF00' ? '#D7FF00' : '#ffffff';
-            ctx.globalAlpha = (100 - distance) / 1000 * particle.opacity;
-            ctx.lineWidth = 0.2;
+            // Use yellow for more connections
+            ctx.strokeStyle = particle.color === '#D7FF00' || otherParticle.color === '#D7FF00' ? '#D7FF00' : '#ffffff';
+            // Increase connection opacity
+            ctx.globalAlpha = (100 - distance) / 800 * particle.opacity;
+            ctx.lineWidth = 0.3; // Slightly thicker lines
             ctx.moveTo(particle.x, particle.y);
             ctx.lineTo(otherParticle.x, otherParticle.y);
             ctx.stroke();
@@ -113,7 +117,7 @@ export function ParticleBackground() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 w-full h-full pointer-events-none z-0 opacity-10"
+      className="fixed inset-0 w-full h-full pointer-events-none z-0 opacity-25"
       aria-hidden="true"
     />
   );
