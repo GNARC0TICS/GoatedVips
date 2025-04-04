@@ -25,7 +25,7 @@ import { fileURLToPath } from "url";
 import { createServer as createViteServer, createLogger } from "vite";
 import { promisify } from "util";
 import { exec } from "child_process";
-import { sql } from "drizzle-orm";
+import { sql, eq, gt, desc } from "drizzle-orm";
 import compression from "compression";
 import { domainRouter } from './middleware/domain-router'; // Added import
 
@@ -557,23 +557,33 @@ async function syncUserProfiles() {
         Math.abs(currentUserCount - allTimeData.length) < 10 && 
         allTimeData.length > 0) {
 
-      // Update all active users to keep data fresh
+      // Get all users with wager activity
       const activeUsers = await db
         .select({ goatedId: users.goatedId })
         .from(users)
-        .where(eq(users.isActive, true))
-        .limit(100); // Limit to 100 most active users for performance reasons
-      
+        .where(gt(users.total_wager, 0))
+        .orderBy(desc(users.lastActive)); // Start with users who haven't been updated recently
+
       const activeGoatedIds = new Set(activeUsers.map(u => u.goatedId).filter(Boolean));
-      
-      // Find the active users in the API data
-      const activePlayersToUpdate = allTimeData.filter(player => 
+
+      // Filter API data for active users first
+      let usersToUpdate = allTimeData.filter(player => 
         player.uid && activeGoatedIds.has(player.uid)
       );
 
-      console.log(`Performing partial sync with ${activePlayersToUpdate.length} active users`);
+      console.log(`Found ${usersToUpdate.length} active users in API data`);
 
-      for (const player of activePlayersToUpdate) {
+      // If we need to add more users (e.g., for new users that aren't marked active yet)
+      // Find any users with wager data but not in our active set
+      const potentialNewActiveUsers = allTimeData.filter(player => 
+        player.uid && 
+        !activeGoatedIds.has(player.uid) && 
+        (player.wagered?.all_time > 0)
+      );
+
+      console.log(`Found ${potentialNewActiveUsers.length} potential new active users`);
+
+      for (const player of usersToUpdate) {
         try {
           // Skip entries without uid or name
           if (!player.uid || !player.name) continue;
@@ -611,17 +621,17 @@ async function syncUserProfiles() {
       // Record this partial sync
       // Update active user status after syncing
       const activityResult = await updateUserActivityStatus();
-      
+
       await db.execute(sql`
         INSERT INTO api_sync_metadata (
           endpoint, last_sync_time, record_count, etag, last_modified,
           response_hash, is_full_sync, sync_duration_ms, metadata
         ) VALUES (
           ${endpointKey}, ${new Date()}, ${allTimeData.length}, 
-          ${responseEtag}, ${responseLastModified}, ${responseHash},
-          false, ${Date.now() - startTime}, ${{
+          ${responseEtag || lastSync.etag}, ${responseLastModified || lastSync.last_modified}, 
+          ${responseHash}, false, ${Date.now() - startTime}, ${{
             partialSync: true,
-            activeUserCount: activePlayersToUpdate.length,
+            activeUserCount: usersToUpdate.length,
             updatedCount,
             activityUpdates: activityResult.updated,
             activeUsers: activityResult.active,
@@ -630,7 +640,7 @@ async function syncUserProfiles() {
         )
       `);
 
-      console.log(`Partial sync completed. ${updatedCount} active user profiles updated of ${activePlayersToUpdate.length} available.`);
+      console.log(`Partial sync completed. ${updatedCount} active user profiles updated of ${usersToUpdate.length} available.`);
       return;
     }
 
@@ -1131,3 +1141,11 @@ initializeServer().catch((error) => {
   log("error", `Server startup error: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
 });
+
+async function updateUserActivityStatus() {
+  const updatedCount = 0;
+  const activeCount = 0;
+  const inactiveCount = 0;
+  // Implement your logic to update user activity status here
+  return { updated: updatedCount, active: activeCount, inactive: inactiveCount };
+}

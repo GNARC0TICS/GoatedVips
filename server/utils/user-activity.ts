@@ -15,29 +15,14 @@ export async function updateUserActivityStatus(): Promise<{
   inactive: number 
 }> {
   try {
-    // Use a single transaction for both operations to ensure consistency
-    const result = await db.transaction(async (tx) => {
-      // Update users with wager data to active status
-      const activeResult = await tx.execute(
-        sql`UPDATE users SET "isActive" = true WHERE total_wager > 0 AND "isActive" = false`
-      );
-      
-      // Update users without wager data to inactive status
-      const inactiveResult = await tx.execute(
-        sql`UPDATE users SET "isActive" = false WHERE total_wager = 0 AND "isActive" = true`
-      );
-      
-      return {
-        activeUpdated: activeResult.rowCount || 0,
-        inactiveUpdated: inactiveResult.rowCount || 0
-      };
-    });
+    // Instead of updating an isActive column, we'll just count the active users
+    // based on their total_wager value
     
-    // Get the current counts after updates
+    // Get the counts of active and inactive users
     const { active, inactive } = await getUserActivityStats();
     
     return { 
-      updated: (result.activeUpdated + result.inactiveUpdated),
+      updated: 0, // No updates performed as we're just using the total_wager directly
       active,
       inactive
     };
@@ -58,11 +43,11 @@ export async function getUserActivityStats(): Promise<{
   total: number;
 }> {
   try {
-    // Use a single query to get both counts for efficiency
+    // Use total_wager to determine activity status
     const result = await db.execute(
       sql`SELECT 
-        SUM(CASE WHEN "isActive" = true THEN 1 ELSE 0 END) as active_count,
-        SUM(CASE WHEN "isActive" = false THEN 1 ELSE 0 END) as inactive_count,
+        SUM(CASE WHEN total_wager > 0 THEN 1 ELSE 0 END) as active_count,
+        SUM(CASE WHEN total_wager = 0 THEN 1 ELSE 0 END) as inactive_count,
         COUNT(*) as total_count
       FROM users`
     );
@@ -101,7 +86,7 @@ export async function getMostActiveUsers(limit: number = 100): Promise<Array<{
         total_wager: users.total_wager
       })
       .from(users)
-      .where(eq(users.isActive, true))
+      .where(gt(users.total_wager, 0))  // Active users have total_wager > 0
       .orderBy(sql`users.total_wager DESC`)
       .limit(limit);
   } catch (error) {
