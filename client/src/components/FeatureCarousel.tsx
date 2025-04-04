@@ -176,7 +176,7 @@ export const FeatureCarousel = () => {
   };
 
   return (
-    <div className="relative h-24 overflow-hidden mb-8 select-none" style={{ perspective: "1000px" }}>
+    <div className="feature-carousel relative h-24 overflow-hidden mb-8 select-none" style={{ perspective: "1000px" }}>
       <div 
         className="flex justify-center items-center h-full relative"
         onTouchStart={handleDragStart}
