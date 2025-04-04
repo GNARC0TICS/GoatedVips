@@ -1,9 +1,9 @@
 
 import { type Request, type Response, type NextFunction } from "express";
-import { verifyToken } from "../config/auth";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { users } from "@db/schema";
+import { verifyToken, getUserById, AUTH_ERRORS } from "../services/authService";
 
 // Type definitions
 declare global {
@@ -14,16 +14,19 @@ declare global {
   }
 }
 
-// Constants
-const ERROR_MESSAGES = {
-  AUTH_REQUIRED: "Authentication required",
-  INVALID_TOKEN: "Invalid authentication token",
-  USER_NOT_FOUND: "User not found"
-} as const;
-
 /**
- * Authentication middleware
- * Verifies user token and attaches user to request
+ * Authentication Middleware
+ * 
+ * Verifies the JWT token from either:
+ * 1. Cookie: 'token' cookie for browser clients
+ * 2. Authorization header: 'Bearer {token}' for API clients
+ * 
+ * If valid, attaches user to the request object.
+ * If invalid, returns 401 Unauthorized.
+ * 
+ * @param req Express request object
+ * @param res Express response object
+ * @param next Express next middleware function
  */
 export const requireAuth = async (
   req: Request,
@@ -34,42 +37,41 @@ export const requireAuth = async (
     const token = extractToken(req);
     
     if (!token) {
-      return res.status(401).json({ message: ERROR_MESSAGES.AUTH_REQUIRED });
+      return res.status(AUTH_ERRORS.UNAUTHORIZED.status)
+        .json({ message: AUTH_ERRORS.UNAUTHORIZED.message });
     }
 
-    const user = await validateAndGetUser(token);
+    // Verify the token and get the user ID
+    const decoded = verifyToken(token);
+    
+    // Get the user from the database
+    const user = await getUserById(decoded.userId);
     
     if (!user) {
-      return res.status(401).json({ message: ERROR_MESSAGES.USER_NOT_FOUND });
+      return res.status(AUTH_ERRORS.USER_NOT_FOUND.status)
+        .json({ message: AUTH_ERRORS.USER_NOT_FOUND.message });
     }
 
+    // Attach the user to the request
     req.user = user;
     next();
   } catch (error) {
-    return res.status(401).json({ message: ERROR_MESSAGES.INVALID_TOKEN });
+    return res.status(AUTH_ERRORS.INVALID_TOKEN.status)
+      .json({ message: AUTH_ERRORS.INVALID_TOKEN.message });
   }
 };
 
 /**
- * Extract token from request
- * Checks both cookie and Authorization header
+ * Extract JWT token from request
+ * 
+ * Checks both cookie and Authorization header for token
+ * Cookie takes precedence over Authorization header
+ * 
+ * @param req Express request object
+ * @returns The token string or null if not found
  */
 function extractToken(req: Request): string | null {
   const sessionToken = req.cookies?.token;
   const authHeader = req.headers.authorization;
   return sessionToken || (authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null);
-}
-
-/**
- * Validate token and fetch associated user
- */
-async function validateAndGetUser(token: string) {
-  const decoded = verifyToken(token);
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, decoded.userId))
-    .limit(1);
-  
-  return user;
 }

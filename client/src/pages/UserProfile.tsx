@@ -2,6 +2,8 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { isProfileOwner } from "@/services/profileService";
 import {
   Trophy,
   User,
@@ -68,6 +70,10 @@ const PROFILE_COLORS = {
 export default function UserProfile({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
   const userId = params.id;
+  const { user: currentUser } = useAuth();
+  
+  // Determine if the current user is the profile owner
+  const isOwner = isProfileOwner(currentUser?.id, userId);
 
   // Fetch basic user data from our API
   const { data: userData, isLoading: isUserLoading } = useQuery({
@@ -363,10 +369,12 @@ export default function UserProfile({ params }: { params: { id: string } }) {
                       </div>
                     )}
                     
-                    {/* Edit profile button */}
-                    <div className="mt-4">
-                      <EditProfileDialog user={user} onUpdate={refetch} />
-                    </div>
+                    {/* Edit profile button - only shown to profile owner */}
+                    {isOwner && (
+                      <div className="mt-4">
+                        <EditProfileDialog user={user} onUpdate={refetch} />
+                      </div>
+                    )}
                   </div>
                 </div>
                 
