@@ -2,8 +2,6 @@ import React, { useState } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
-import { isProfileOwner } from "@/services/profileService";
 import { 
   Card, 
   CardContent, 
@@ -57,10 +55,6 @@ export function QuickProfileCard({ userId, username, children }: QuickProfileCar
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const { user: currentUser } = useAuth();
-  
-  // Determine if the current user is the profile owner
-  const isOwner = isProfileOwner(currentUser?.id, userId);
 
   // Fetch user data and stats when the dialog is opened
   const { data: user, isLoading, error } = useQuery<UserStatsResponse>({
@@ -264,29 +258,14 @@ export function QuickProfileCard({ userId, username, children }: QuickProfileCar
                     Close
                   </Button>
                 </DialogClose>
-                <div className="flex gap-2">
-                  {isOwner && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        setOpen(false);
-                        setLocation(`/profile/edit`);
-                      }}
-                      className="bg-[#242530] text-white hover:bg-[#2A2B36] rounded-full"
-                    >
-                      Edit
-                    </Button>
-                  )}
-                  <Button 
-                    onClick={handleViewFullProfile}
-                    size="sm"
-                    className="bg-[#D7FF00] text-black hover:bg-[#D7FF00]/80 flex items-center rounded-full"
-                  >
-                    View Full Profile
-                    <ExternalLink className="h-3.5 w-3.5 ml-1" />
-                  </Button>
-                </div>
+                <Button 
+                  onClick={handleViewFullProfile}
+                  size="sm"
+                  className="bg-[#D7FF00] text-black hover:bg-[#D7FF00]/80 flex items-center rounded-full"
+                >
+                  View Full Profile
+                  <ExternalLink className="h-3.5 w-3.5 ml-1" />
+                </Button>
               </CardFooter>
             </>
           ) : (

@@ -12,16 +12,12 @@ import bonusChallengesRouter from "./routes/bonus-challenges";
 import usersRouter from "./routes/users";
 import userStatsRouter from "./routes/user-stats";
 import verificationRouter from "./routes/verification";
-import emailVerificationRouter from "./routes/email-verification";
 import goombasAdminRouter from "./routes/goombas-admin";
 import apiSyncRouter from "./routes/api-sync";
 import { requireAdmin } from "./middleware/admin";
-import { requireJwtAuth } from "./middleware/auth";
 import { wagerRaces, users, transformationLogs } from "@db/schema";
 import { verificationRequests } from "@db/schema/verification";
 import { ensureUserProfile } from "./index";
-import { verifyJwtToken } from "./auth";
-import cookieParser from "cookie-parser";
 
 type RateLimitTier = 'HIGH' | 'MEDIUM' | 'LOW';
 const rateLimits: Record<RateLimitTier, { points: number; duration: number }> = {
@@ -221,9 +217,6 @@ export { router };
 
 // API Routes configuration
 function setupAPIRoutes(app: Express) {
-  // Enable cookie parsing middleware for JWT token cookies
-  app.use(cookieParser());
-
   // API middleware - ensure these run before any API route
   app.use('/api', (req, res, next) => {
     // Set common API headers
@@ -231,10 +224,6 @@ function setupAPIRoutes(app: Express) {
     res.setHeader('Cache-Control', 'no-store');
     next();
   });
-  
-  // Apply JWT authentication middleware to all API routes
-  // This adds security via JWT tokens while maintaining session compatibility
-  app.use('/api', verifyJwtToken);
 
   // Mount all API routes under /api prefix
   app.use("/api/bonus", bonusChallengesRouter);
@@ -242,7 +231,6 @@ function setupAPIRoutes(app: Express) {
   app.use("/users", usersRouter);     // New public profile routes
   app.use("/api/user", userStatsRouter); // For user stats and detailed profile data
   app.use("/api/verification", verificationRouter); // User verification routes
-  app.use("/api/email-verification", emailVerificationRouter); // Email verification routes
   app.use("/api/sync", apiSyncRouter); // API sync monitoring routes
   app.use("/api", router); //Added this line
   
