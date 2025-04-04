@@ -1,0 +1,51 @@
+To ensure the admin access page is set up properly after linking your custom domain to Replit via the deployment tab, follow these steps:
+
+Update Domain-Specific Routing: Make sure your domain routing middleware correctly distinguishes between admin and public domains. The middleware already checks the domain, but verify that it properly routes requests based on isAdminDomain.
+
+Secure Admin Route: Ensure that your admin routes are protected by the adminDomainOnly middleware. This will restrict access to only requests coming from the admin domain (goombas.net).
+
+Routing Logic in server/routes/goombas-admin.ts: Confirm that the admin routes are properly defined in your router. Ensure the routes handle login, logout, and any other functionality as intended.
+
+Here are examples to check and ensure the setup:
+
+Update the Middleware in server/middleware/domain-router.ts
+Make sure to include checks for admin domain:
+
+import { Request, Response, NextFunction } from 'express';
+import { log } from '../utils/logger';
+export const domainRouter = (req: Request, res: Response, next: NextFunction) => {
+  const hostname = req.hostname;
+  
+  req.isAdminDomain = hostname === 'goombas.net' || hostname.includes('goombas.net');
+  
+  if (req.isAdminDomain) {
+    log(`Admin domain access: ${hostname}`);
+  }
+  next();
+};
+Protect Admin Routes in server/routes/goombas-admin.ts
+Ensure your routes are using the adminDomainOnly middleware:
+
+import { Router } from 'express';
+import { adminDomainOnly } from '../middleware/domain-router';
+const router = Router();
+// Secure admin login endpoint
+router.post('/login', adminDomainOnly, async (req, res) => {
+  // Authentication logic here...
+});
+// Additional admin routes can follow, ensuring all use the middleware
+Verify Client-Side Logic in client/src/lib/domain-utils.ts
+Ensure your client checks for the admin domain when trying to access admin features:
+
+export const isAdminDomain = (): boolean => {
+  return window.location.hostname === 'goombas.net' || 
+         window.location.hostname.includes('goombas.net');
+};
+export const getApiBaseUrl = (): string => {
+  if (isAdminDomain()) {
+    return '/api/admin';
+  }
+  return '/api';
+};
+Test Your Setup
+After making these changes, test logging into your admin page using your custom domain. Ensure that all admin-specific routes are accessible only on goombas.net, and any unauthorized access attempts are correctly redirected to a forbidden or unauthorized page.
