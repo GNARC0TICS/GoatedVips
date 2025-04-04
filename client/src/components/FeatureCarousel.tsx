@@ -95,15 +95,27 @@ export const FeatureCarousel = () => {
     [items.length]
   );
 
+  // Helper function to dispatch custom event for carousel changes
+  const notifyCarouselChange = useCallback((dir: "next" | "prev") => {
+    // Create and dispatch a custom event that ParticleBackground will listen for
+    const event = new CustomEvent('carouselChange', { 
+      detail: { direction: dir }
+    });
+    window.dispatchEvent(event);
+  }, []);
+
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isDragging) {
         setDirection("next");
-        setCurrentIndex((prev) => wrap(prev + 1));
+        setCurrentIndex((prev) => {
+          notifyCarouselChange("next");
+          return wrap(prev + 1);
+        });
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [isDragging, wrap]);
+  }, [isDragging, wrap, notifyCarouselChange]);
 
   const handleDragStart = useCallback((event: React.TouchEvent | React.MouseEvent) => {
     setIsDragging(true);
@@ -119,9 +131,11 @@ export const FeatureCarousel = () => {
     if (Math.abs(diff) > threshold) {
       if (diff > 0) {
         setDirection("prev");
+        notifyCarouselChange("prev");
         setCurrentIndex((prev) => wrap(prev - 1));
       } else {
         setDirection("next");
+        notifyCarouselChange("next");
         setCurrentIndex((prev) => wrap(prev + 1));
       }
     }

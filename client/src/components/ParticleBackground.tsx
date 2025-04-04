@@ -23,13 +23,31 @@ export function ParticleBackground() {
   const mousePosition = useRef<{ x: number; y: number } | null>(null);
   const [carouselEffect, setCarouselEffect] = useState<{ direction: 'left' | 'right', strength: number, x: number } | null>(null);
   
-  // Observe carousel transitions
+  // Observe carousel transitions with improved detection
   useEffect(() => {
-    // Find the carousel element - targeting the feature carousel specifically
-    const observeCarousel = () => {
-      const carouselItems = document.querySelectorAll('.feature-carousel .absolute');
+    // Create a custom event for carousel changes that FeatureCarousel will dispatch
+    window.addEventListener('carouselChange', ((e: CustomEvent) => {
+      const { direction } = e.detail;
+      const centerX = window.innerWidth / 2;
       
-      if (carouselItems.length === 0) {
+      // Apply wind effect based on direction
+      setCarouselEffect({
+        direction: direction === 'next' ? 'left' : 'right',
+        strength: 1.5, // Increased strength for visibility
+        x: centerX
+      });
+      
+      // Reset the effect after animation completes
+      setTimeout(() => {
+        setCarouselEffect(null);
+      }, 1000);
+    }) as EventListener);
+    
+    // Fallback to DOM observation method
+    const observeCarousel = () => {
+      const carouselElement = document.querySelector('.feature-carousel');
+      
+      if (!carouselElement) {
         // If not found yet, try again after a short delay
         setTimeout(observeCarousel, 500);
         return;
@@ -37,41 +55,51 @@ export function ParticleBackground() {
       
       // Create a MutationObserver to watch for changes in the carousel
       const observer = new MutationObserver((mutations) => {
-        mutations.forEach(mutation => {
-          if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-            // When animation happens, determine the direction based on the DOM structure
-            const target = mutation.target as HTMLElement;
-            const rect = target.getBoundingClientRect();
-            const isEntering = target.style.opacity !== '0';
+        for (const mutation of mutations) {
+          if (mutation.type === 'childList' || 
+             (mutation.type === 'attributes' && mutation.attributeName === 'style')) {
             
-            if (isEntering) {
-              // When a new slide enters, create a wind effect
-              const direction = target.style.transform?.includes('translateX(-') ? 'left' : 'right';
-              const centerX = window.innerWidth / 2;
-              setCarouselEffect({
-                direction,
-                strength: 1.0, // Full strength
-                x: centerX
-              });
-              
-              // Reset the effect after the animation completes
-              setTimeout(() => {
-                setCarouselEffect(null);
-              }, 1000);
-            }
+            // Detect direction based on DOM changes
+            const target = mutation.target as HTMLElement;
+            const isNext = target.classList.contains('next') || 
+                         target.getAttribute('data-direction') === 'next';
+            
+            const direction = isNext ? 'left' : 'right';
+            const centerX = window.innerWidth / 2;
+            
+            setCarouselEffect({
+              direction,
+              strength: 1.5, // Increased strength for visibility
+              x: centerX
+            });
+            
+            // Reset the effect after animation completes
+            setTimeout(() => {
+              setCarouselEffect(null);
+            }, 1000);
+            
+            // Only trigger once per mutation batch
+            break;
           }
-        });
+        }
       });
       
-      // Start observing all carousel items
-      carouselItems.forEach(item => {
-        observer.observe(item, { attributes: true, attributeFilter: ['style'] });
+      // Observe the entire carousel for any changes
+      observer.observe(carouselElement, { 
+        childList: true, 
+        attributes: true, 
+        attributeFilter: ['style', 'class'],
+        subtree: true 
       });
       
       return () => observer.disconnect();
     };
     
     observeCarousel();
+    
+    return () => {
+      window.removeEventListener('carouselChange', ((e: CustomEvent) => {}) as EventListener);
+    };
   }, []);
 
   useEffect(() => {
@@ -110,8 +138,8 @@ export function ParticleBackground() {
     handleResize();
 
     function initParticles() {
-      // Create more particles for a denser effect
-      const particleCount = Math.min(Math.max(Math.floor(window.innerWidth / 10), 60), 150);
+      // Reduce particle count for a cleaner effect
+      const particleCount = Math.min(Math.max(Math.floor(window.innerWidth / 20), 40), 100);
       particles.current = [];
 
       for (let i = 0; i < particleCount; i++) {
@@ -135,7 +163,7 @@ export function ParticleBackground() {
           size,
           speedX,
           speedY,
-          opacity: Math.random() * 0.5 + 0.2, // Slightly brighter
+          opacity: Math.random() * 0.3 + 0.1, // More transparent
           angle,
           velocity,
           wobble,
@@ -148,23 +176,24 @@ export function ParticleBackground() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       particles.current.forEach((particle, i) => {
-        // Create a glow effect for particles
+        // Create a softer glow effect for particles
         const glow = ctx.createRadialGradient(
           particle.x, particle.y, 0,
-          particle.x, particle.y, particle.size * 3
+          particle.x, particle.y, particle.size * 4 // Larger blur radius
         );
-        glow.addColorStop(0, '#D7FF00');
+        glow.addColorStop(0, 'rgba(215, 255, 0, 0.4)');
+        glow.addColorStop(0.5, 'rgba(215, 255, 0, 0.1)');
         glow.addColorStop(1, 'rgba(215, 255, 0, 0)');
         
-        // Draw the glow
-        ctx.globalAlpha = particle.opacity * 0.3;
+        // Draw the glow with reduced opacity
+        ctx.globalAlpha = particle.opacity * 0.2;
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size * 3, 0, Math.PI * 2);
+        ctx.arc(particle.x, particle.y, particle.size * 4, 0, Math.PI * 2);
         ctx.fill();
         
-        // Draw the particle core
-        ctx.globalAlpha = particle.opacity * 1.5;
+        // Draw the particle core with reduced opacity
+        ctx.globalAlpha = particle.opacity * 1.0; // Less bright
         ctx.fillStyle = '#D7FF00';
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
@@ -231,22 +260,25 @@ export function ParticleBackground() {
           }
         }
         
-        // Carousel wind effect
+        // Enhanced carousel wind effect
         if (carouselEffect) {
           const dx = particle.x - carouselEffect.x;
           const dy = particle.y - window.innerHeight / 2;
           const distance = Math.sqrt(dx * dx + dy * dy);
-          const maxDistance = 400; // Wind effect range
+          const maxDistance = 600; // Increased wind effect range
           
           if (distance < maxDistance) {
             const force = (maxDistance - distance) / maxDistance * carouselEffect.strength;
             const windDirectionX = carouselEffect.direction === 'left' ? -1 : 1;
             
-            // Apply wind force based on direction and distance
-            particle.x += windDirectionX * force * 2;
+            // Apply stronger wind force based on direction and distance
+            particle.x += windDirectionX * force * 5; // Increased force for visibility
             
-            // Add slight vertical spread for natural wind look
-            particle.y += (Math.random() - 0.5) * force * 0.5;
+            // Add more vertical spread for dramatic wind effect
+            particle.y += (Math.random() - 0.5) * force * 1.5;
+            
+            // Temporarily increase particle opacity for visual emphasis
+            particle.opacity = Math.min(particle.opacity * 1.5, 0.6);
           }
         }
 
@@ -280,7 +312,7 @@ export function ParticleBackground() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 w-full h-full pointer-events-none z-0 opacity-25"
+      className="fixed inset-0 w-full h-full pointer-events-none z-0 opacity-20"
       aria-hidden="true"
     />
   );
