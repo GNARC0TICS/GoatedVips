@@ -8,15 +8,16 @@ interface TierDefinition {
   name: TierType;
   minWager: number;
   icon: string;
+  color: string;
 }
 
-// Define tier thresholds
+// Define tier thresholds with colors
 const TIERS: TierDefinition[] = [
-  { name: 'bronze', minWager: 0, icon: '/images/Goated Emblems/bronze.e6ea941b.svg' },
-  { name: 'silver', minWager: 1000, icon: '/images/Goated Emblems/silver.8e3ec67f.svg' },
-  { name: 'gold', minWager: 10000, icon: '/images/Goated Emblems/gold.1c810178.svg' },
-  { name: 'platinum', minWager: 50000, icon: '/images/Goated Emblems/platinum.d258f583.svg' },
-  { name: 'diamond', minWager: 250000, icon: '/images/Goated Emblems/diamond.ddf47a1e.svg' },
+  { name: 'bronze', minWager: 0, icon: '/images/Goated Emblems/bronze.e6ea941b.svg', color: '#CD7F32' },
+  { name: 'silver', minWager: 1000, icon: '/images/Goated Emblems/silver.8e3ec67f.svg', color: '#C0C0C0' },
+  { name: 'gold', minWager: 10000, icon: '/images/Goated Emblems/gold.1c810178.svg', color: '#FFD700' },
+  { name: 'platinum', minWager: 50000, icon: '/images/Goated Emblems/platinum.d258f583.svg', color: '#E5E4E2' },
+  { name: 'diamond', minWager: 250000, icon: '/images/Goated Emblems/diamond.ddf47a1e.svg', color: '#B9F2FF' },
 ];
 
 /**
@@ -64,6 +65,17 @@ export function getTierIcon(tierName: string): string {
 export function getTierMinimumWager(tierName: string): number {
   const tier = TIERS.find(t => t.name === tierName.toLowerCase());
   return tier?.minWager || 0;
+}
+
+/**
+ * Get the color associated with a tier
+ * 
+ * @param tierName - Tier name
+ * @returns Color hex value
+ */
+export function getTierColor(tierName: string): string {
+  const tier = TIERS.find(t => t.name === tierName.toLowerCase());
+  return tier?.color || '#CD7F32'; // Default to bronze color
 }
 
 /**

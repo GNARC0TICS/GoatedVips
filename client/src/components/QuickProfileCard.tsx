@@ -14,7 +14,11 @@ import {
   TrendingUp, 
   Calendar, 
   CreditCard, 
-  Award 
+  Award,
+  BadgeCheck,
+  Link as LinkIcon,
+  ExternalLink,
+  User as UserIcon
 } from "lucide-react";
 import { 
   Dialog, 
@@ -22,7 +26,7 @@ import {
   DialogTrigger, 
   DialogClose 
 } from "@/components/ui/dialog";
-import { getTierFromWager, getTierIcon } from "../lib/tier-utils";
+import { getTierFromWager, getTierIcon, getTierColor } from "../lib/tier-utils";
 import { formatCurrency } from "../lib/format-utils";
 
 interface QuickProfileCardProps {
@@ -74,12 +78,19 @@ export function QuickProfileCard({ userId, username, children }: QuickProfileCar
 
   // Calculate tier from wager data
   const tier = user?.tier || (user?.totalWagered ? getTierFromWager(user.totalWagered) : 'bronze');
+  const tierColor = getTierColor(tier);
   
   // Format join date
   const formatJoinDate = (dateString?: string) => {
     if (!dateString) return 'Unknown';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
+  const truncateGoatedId = (id?: string) => {
+    if (!id) return '';
+    if (id.length <= 8) return id;
+    return `${id.substring(0, 4)}...${id.substring(id.length - 4)}`;
   };
 
   return (
@@ -90,7 +101,7 @@ export function QuickProfileCard({ userId, username, children }: QuickProfileCar
             {children}
           </div>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md bg-[#1A1B23] border-[#2A2B31] text-white">
+        <DialogContent className="sm:max-w-md bg-[#1A1B23] border-[#2A2B31] text-white overflow-hidden">
           {isLoading ? (
             <div className="py-8 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 text-[#D7FF00] animate-spin mb-2" />
@@ -109,102 +120,151 @@ export function QuickProfileCard({ userId, username, children }: QuickProfileCar
             </div>
           ) : user ? (
             <>
-              {/* Header with user info */}
-              <div className="border-b border-[#2A2B31] pb-4">
-                <div className="flex items-center">
-                  <div 
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mr-3"
-                    style={{ backgroundColor: user.profileColor || '#D7FF00', color: '#1A1B23' }}
-                  >
-                    {username.charAt(0).toUpperCase()}
+              {/* Gradient Background Header */}
+              <div 
+                className="relative -mt-6 -mx-6 h-24 mb-2 overflow-hidden" 
+                style={{ 
+                  background: `linear-gradient(to right, ${user.profileColor || '#D7FF00'}, ${tierColor})`,
+                  opacity: 0.8
+                }}
+              >
+                <div className="absolute inset-0 bg-[#1A1B23] opacity-75 bg-opacity-80"></div>
+              </div>
+                
+              {/* User Avatar and Info - Overlapping the gradient */}
+              <div className="relative -mt-12 px-4 flex items-start mb-6">
+                <div 
+                  className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold border-4 border-[#1A1B23] shadow-lg"
+                  style={{ backgroundColor: user.profileColor || '#D7FF00', color: '#1A1B23' }}
+                >
+                  {username.charAt(0).toUpperCase()}
+                </div>
+                <div className="ml-3 pt-4">
+                  <div className="flex items-center">
+                    <h3 className="text-xl font-bold text-white">{username}</h3>
+                    {user.goatedAccountLinked && (
+                      <BadgeCheck className="ml-1 h-5 w-5 text-[#D7FF00]" />
+                    )}
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold flex items-center">
-                      {username}
-                      {user.goatedAccountLinked && (
-                        <span className="ml-2 px-1.5 py-0.5 text-xs bg-[#D7FF00] text-black rounded-sm">
-                          Verified
-                        </span>
-                      )}
-                    </h3>
-                    <p className="text-sm text-[#8A8B91]">
-                      {user.telegramUsername ? `@${user.telegramUsername}` : 'No Telegram linked'}
-                    </p>
+                  <div className="flex items-center text-sm text-[#8A8B91] mt-1">
+                    <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                    <span>Joined {formatJoinDate(user.createdAt)}</span>
                   </div>
+                  {user.goatedId && (
+                    <div className="flex items-center text-sm text-[#8A8B91] mt-1">
+                      <LinkIcon className="h-3.5 w-3.5 mr-1.5" />
+                      <span>Goated ID: {truncateGoatedId(user.goatedId)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               
-              {/* Stats cards */}
-              <CardContent className="p-4 grid gap-4">
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Tier card */}
-                  <div className="flex items-center bg-[#242530] rounded-lg p-3">
-                    <div className="mr-3">
-                      <img 
-                        src={getTierIcon(tier)} 
-                        alt={`${tier} tier`}
-                        className="w-10 h-10" 
-                      />
-                    </div>
-                    <div>
-                      <p className="text-xs text-[#8A8B91]">Tier</p>
-                      <p className="font-bold capitalize">{tier}</p>
-                    </div>
+              {/* User Bio - if available */}
+              {user.bio && (
+                <div className="px-4 mb-4">
+                  <p className="text-sm text-[#D0D1D6]">{user.bio}</p>
+                </div>
+              )}
+              
+              {/* Tier Badge - Centered */}
+              <div className="flex justify-center mb-6">
+                <div className="flex items-center px-4 py-2 bg-[#242530] rounded-full">
+                  <img 
+                    src={getTierIcon(tier)} 
+                    alt={`${tier} tier`}
+                    className="w-6 h-6 mr-2" 
+                  />
+                  <span className="capitalize font-semibold" style={{ color: tierColor }}>
+                    {tier} Tier
+                  </span>
+                </div>
+              </div>
+              
+              {/* Stats cards - Compact and Elegant */}
+              <CardContent className="p-4 grid gap-3">
+                {/* Wager stats with modern gradient cards */}
+                <div className="grid grid-cols-3 gap-3">
+                  {/* Total wagers */}
+                  <div className="flex flex-col items-center justify-center py-3 px-2 rounded-lg bg-gradient-to-br from-[#242530] to-[#1E1F28]">
+                    <p className="text-xs text-[#8A8B91] mb-1">Total</p>
+                    <p className="font-bold text-sm">{formatCurrency(user.totalWagered || '0', 0)}</p>
                   </div>
                   
-                  {/* Join date card */}
-                  <div className="flex items-center bg-[#242530] rounded-lg p-3">
-                    <Calendar className="w-8 h-8 mr-3 text-[#D7FF00]" />
-                    <div>
-                      <p className="text-xs text-[#8A8B91]">Joined</p>
-                      <p className="font-bold">{formatJoinDate(user.createdAt)}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Wager stats */}
-                <div className="space-y-3">
                   {/* Monthly wagers */}
-                  <div className="flex items-center justify-between bg-[#242530] rounded-lg p-3">
-                    <div className="flex items-center">
-                      <CreditCard className="w-5 h-5 mr-3 text-[#D7FF00]" />
-                      <span>Monthly Wagered</span>
-                    </div>
-                    <span className="font-bold">{formatCurrency(user.monthlyWagered || '0')}</span>
+                  <div className="flex flex-col items-center justify-center py-3 px-2 rounded-lg bg-gradient-to-br from-[#242530] to-[#1E1F28]">
+                    <p className="text-xs text-[#8A8B91] mb-1">Monthly</p>
+                    <p className="font-bold text-sm">{formatCurrency(user.monthlyWagered || '0', 0)}</p>
                   </div>
                   
                   {/* Weekly wagers */}
-                  <div className="flex items-center justify-between bg-[#242530] rounded-lg p-3">
-                    <div className="flex items-center">
-                      <TrendingUp className="w-5 h-5 mr-3 text-[#D7FF00]" />
-                      <span>Weekly Wagered</span>
-                    </div>
-                    <span className="font-bold">{formatCurrency(user.weeklyWagered || '0')}</span>
+                  <div className="flex flex-col items-center justify-center py-3 px-2 rounded-lg bg-gradient-to-br from-[#242530] to-[#1E1F28]">
+                    <p className="text-xs text-[#8A8B91] mb-1">Weekly</p>
+                    <p className="font-bold text-sm">{formatCurrency(user.weeklyWagered || '0', 0)}</p>
+                  </div>
+                </div>
+                
+                {/* Detailed Stats */}
+                <div className="mt-2 bg-gradient-to-br from-[#242530] to-[#1E1F28] rounded-lg p-4">
+                  <div className="flex items-center mb-3">
+                    <TrendingUp className="w-4 h-4 text-[#D7FF00] mr-2" />
+                    <h4 className="text-sm font-medium">Wager Stats</h4>
                   </div>
                   
-                  {/* Total wagers */}
-                  <div className="flex items-center justify-between bg-[#242530] rounded-lg p-3">
-                    <div className="flex items-center">
-                      <Award className="w-5 h-5 mr-3 text-[#D7FF00]" />
-                      <span>Total Wagered</span>
+                  <div className="space-y-3">
+                    {/* Total wagers with bar indicator */}
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-[#8A8B91]">Total Wagered</span>
+                        <span className="font-medium">{formatCurrency(user.totalWagered || '0')}</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-[#2A2B31] rounded-full overflow-hidden">
+                        <div 
+                          className="h-full rounded-full" 
+                          style={{ 
+                            backgroundColor: tierColor,
+                            width: `${Math.min(100, (parseFloat(user.totalWagered?.toString() || '0') / 1000000) * 100)}%` 
+                          }}
+                        ></div>
+                      </div>
                     </div>
-                    <span className="font-bold">{formatCurrency(user.totalWagered || '0')}</span>
+                    
+                    {/* Monthly wagers with bar indicator */}
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-[#8A8B91]">Monthly Wagered</span>
+                        <span className="font-medium">{formatCurrency(user.monthlyWagered || '0')}</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-[#2A2B31] rounded-full overflow-hidden">
+                        <div 
+                          className="h-full rounded-full bg-[#D7FF00]" 
+                          style={{ 
+                            width: `${Math.min(100, (parseFloat(user.monthlyWagered?.toString() || '0') / 100000) * 100)}%` 
+                          }}
+                        ></div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>
               
-              <CardFooter className="flex justify-between pt-2 pb-4 px-4">
+              {/* Footer with actions */}
+              <CardFooter className="flex justify-between pt-0 pb-3 px-4">
                 <DialogClose asChild>
-                  <Button variant="outline" className="border-[#3A3B41] hover:bg-[#2A2B31]">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="border-[#3A3B41] hover:bg-[#2A2B31] rounded-full"
+                  >
                     Close
                   </Button>
                 </DialogClose>
                 <Button 
                   onClick={handleViewFullProfile}
-                  className="bg-[#D7FF00] text-black hover:bg-[#D7FF00]/80 flex items-center"
+                  size="sm"
+                  className="bg-[#D7FF00] text-black hover:bg-[#D7FF00]/80 flex items-center rounded-full"
                 >
                   View Full Profile
-                  <ChevronRight className="h-4 w-4 ml-1" />
+                  <ExternalLink className="h-3.5 w-3.5 ml-1" />
                 </Button>
               </CardFooter>
             </>

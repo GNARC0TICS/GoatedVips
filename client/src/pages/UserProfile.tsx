@@ -12,9 +12,16 @@ import {
   TrendingUp,
   Medal,
   Star,
+  Calendar,
+  Shield,
+  MessageCircle,
+  ExternalLink,
+  BadgeCheck,
+  AlertCircle
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { getTierFromWager, getTierProgress, getTierIcon, getTierColor } from "../lib/tier-utils";
 import {
   Table,
   TableBody,
@@ -33,27 +40,15 @@ interface UserStats {
   id: string; // Added ID for API calls
   username: string;
   totalWagered: string | number;
-  currentRank: number;
-  bestRank: number;
-  races: {
-    participated: number;
-    won: number;
-    totalPrizes: number;
-  };
-  achievements: Array<{
-    name: string;
-    description: string;
-    earned: string;
-  }>;
-  history: Array<{
-    period: string;
-    wagered: number;
-    rank: number;
-    prize: number;
-  }>;
-  bio?: string; // Added bio field
-  profileColor?: string; // Added profile color field
-  goatedId?: string; // External Goated platform ID
+  weeklyWagered: string | number;
+  monthlyWagered: string | number;
+  bio?: string;
+  profileColor?: string;
+  goatedId?: string; // External Goated ID
+  telegramUsername?: string;
+  createdAt: string;
+  goatedAccountLinked?: boolean;
+  tier?: string;
 }
 
 const PROFILE_COLORS = {
@@ -68,21 +63,7 @@ const PROFILE_COLORS = {
   diamond: '#60A5FA'
 };
 
-const getTierFromWager = (wager: number | string): string => {
-  const numericWager = typeof wager === 'string' ? parseFloat(wager) : wager;
-  
-  if (isNaN(numericWager)) return 'bronze';
-  
-  if (numericWager >= 1000000) return 'diamond';
-  if (numericWager >= 500000) return 'platinum';
-  if (numericWager >= 100000) return 'gold';
-  if (numericWager >= 50000) return 'silver';
-  return 'bronze';
-};
-
-const getTierIcon = (tier: string): string => {
-  return `/images/tiers/${tier}.svg`;
-};
+// Using imported tier utility functions
 
 export default function UserProfile({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
@@ -152,51 +133,12 @@ export default function UserProfile({ params }: { params: { id: string } }) {
       
       // Fallback data structure if API fails or is not implemented yet
       return {
-        totalWagered: 250000,
-        currentRank: 5,
-        bestRank: 3,
-        races: {
-          participated: 12,
-          won: 3,
-          totalPrizes: 5600,
-        },
-        achievements: [
-          {
-            name: 'First Victory',
-            description: 'Won your first wager race',
-            earned: '2 months ago',
-          },
-          {
-            name: 'High Roller',
-            description: 'Placed in top 10 for monthly wager volume',
-            earned: '1 month ago',
-          },
-          {
-            name: 'Consistent Player',
-            description: 'Participated in 10+ races',
-            earned: '2 weeks ago',
-          },
-        ],
-        history: [
-          {
-            period: 'March 2025',
-            wagered: 80000,
-            rank: 5,
-            prize: 1500,
-          },
-          {
-            period: 'February 2025',
-            wagered: 120000,
-            rank: 3,
-            prize: 2800,
-          },
-          {
-            period: 'January 2025',
-            wagered: 50000,
-            rank: 8,
-            prize: 1300,
-          },
-        ],
+        totalWagered: "0.00000000",
+        weeklyWagered: "0.00000000",
+        monthlyWagered: "0.00000000",
+        tier: "bronze",
+        createdAt: new Date().toISOString(),
+        goatedAccountLinked: false
       };
     },
     enabled: !!userData, // Only fetch stats once we have the user data
@@ -298,210 +240,380 @@ export default function UserProfile({ params }: { params: { id: string } }) {
     backgroundColor: user.profileColor || PROFILE_COLORS.yellow,
   };
 
+  // Get tier information
+  const tier = user?.tier || getTierFromWager(user.totalWagered);
+  const tierColor = getTierColor(tier);
+  
+  // Format join date
+  const formatJoinDate = (dateString?: string) => {
+    if (!dateString) return 'Unknown';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+  
+  // Format values using formatCurrency
+  const formatValue = (value: string | number) => {
+    return typeof value === 'string' ? 
+      parseFloat(value).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) :
+      value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  };
+  
   return (
-    <div className="min-h-screen bg-[#14151A] text-white relative" style={{ overflow: 'hidden' }}>
-      {/* Colored background gradient */}
+    <div className="min-h-screen bg-[#14151A] text-white">
+      {/* Hero section with gradient background */}
       <div 
-        className="absolute inset-0 opacity-10 z-0" 
-        style={profileBgStyle}
-      />
+        className="h-64 relative overflow-hidden"
+        style={{ 
+          background: `linear-gradient(to right, ${user.profileColor || '#D7FF00'}33, ${tierColor}33)`,
+          borderBottom: `1px solid ${user.profileColor || '#D7FF00'}33`
+        }}
+      >
+        <div className="absolute inset-0 bg-[#14151A] opacity-80"></div>
+        <div className="container mx-auto px-4 h-full relative z-10 flex flex-col justify-end pb-16">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute top-8 left-4 bg-[#1A1B21]/40 hover:bg-[#1A1B21]/70 gap-2"
+            onClick={() => setLocation("/")}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Home
+          </Button>
+        </div>
+      </div>
       
-      {/* Content with subtle gradient background */}
-      <div className="container relative z-10 mx-auto px-4 py-8 md:py-16">
+      {/* Main content */}
+      <div className="container mx-auto px-4 -mt-24 relative z-20">
         <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="space-y-8"
+          className="space-y-8 pb-16"
         >
-          {/* Header */}
-          <motion.div
-            variants={itemVariants}
-            className="flex items-center justify-between"
-          >
-            <Button
-              variant="ghost"
-              className="gap-2"
-              onClick={() => setLocation("/")}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Home
-            </Button>
-            <EditProfileDialog user={user} onUpdate={refetch} /> {/* Add Edit Profile Dialog */}
-          </motion.div>
-
-          {/* User Info */}
+          {/* User card */}
           <motion.div variants={itemVariants}>
-            <Card className="bg-[#1A1B21]/50 backdrop-blur-sm border-[#2A2B31]">
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center gap-6">
-                  <div className="relative">
-                    <div className="w-24 h-24 rounded-full bg-[#2A2B31] flex items-center justify-center">
-                      <img
-                        src={getTierIcon(getTierFromWager(user.totalWagered))}
-                        alt="Tier"
-                        className="w-16 h-16"
+            <Card className="bg-[#1A1B21] border-[#2A2B31] overflow-hidden shadow-xl">
+              <CardContent className="p-0">
+                {/* User profile header */}
+                <div className="p-6 flex flex-col md:flex-row md:items-center gap-6">
+                  <div className="flex-shrink-0 flex flex-col items-center">
+                    {/* User avatar */}
+                    <div 
+                      className="w-28 h-28 rounded-full flex items-center justify-center text-3xl font-bold mb-3 border-4"
+                      style={{ 
+                        backgroundColor: user.profileColor || '#D7FF00', 
+                        color: '#1A1B21',
+                        borderColor: tierColor
+                      }}
+                    >
+                      {user.username.charAt(0).toUpperCase()}
+                    </div>
+                    
+                    {/* Tier badge */}
+                    <div className="flex items-center px-3 py-1 bg-[#242530] rounded-full">
+                      <img 
+                        src={getTierIcon(tier)} 
+                        alt={`${tier} tier`}
+                        className="w-5 h-5 mr-2" 
                       />
-                    </div>
-                    <div className="absolute -bottom-2 -right-2 bg-[#D7FF00] text-black font-bold px-2 py-1 rounded-full text-sm">
-                      #{user.currentRank}
+                      <span className="capitalize font-medium text-sm" style={{ color: tierColor }}>
+                        {tier} Tier
+                      </span>
                     </div>
                   </div>
+                  
                   <div className="flex-1">
-                    <h1 className="text-2xl md:text-3xl font-heading font-bold text-[#D7FF00] mb-2">
-                      {user.username}
-                    </h1>
-                    <p className="text-sm text-[#8A8B91] mb-2">{user.bio || "No bio provided"}</p> {/* Display bio */}
-                    <div className="flex flex-wrap gap-4 text-sm text-[#8A8B91]">
-                      <div className="flex items-center gap-2">
-                        <LineChart className="h-4 w-4 text-[#D7FF00]" />
-                        Total Wagered: ${user.totalWagered.toLocaleString()}
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <h1 className="text-2xl md:text-3xl font-bold text-white">
+                        {user.username}
+                      </h1>
+                      {user.goatedAccountLinked && (
+                        <span className="bg-[#D7FF00] text-black text-xs font-medium px-2 py-0.5 rounded">
+                          Verified
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* User metadata */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 mt-4">
+                      {user.goatedId && (
+                        <div className="flex items-center text-sm text-[#8A8B91]">
+                          <User className="h-4 w-4 mr-2 text-[#D7FF00]" />
+                          <span>Goated ID: {user.goatedId}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center text-sm text-[#8A8B91]">
+                        <Calendar className="h-4 w-4 mr-2 text-[#D7FF00]" />
+                        <span>Joined {formatJoinDate(user.createdAt)}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Trophy className="h-4 w-4 text-[#D7FF00]" />
-                        Best Rank: #{user.bestRank}
+                      
+                      {user.telegramUsername && (
+                        <div className="flex items-center text-sm text-[#8A8B91]">
+                          <MessageCircle className="h-4 w-4 mr-2 text-[#D7FF00]" />
+                          <span>Telegram: @{user.telegramUsername}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* User bio */}
+                    {user.bio && (
+                      <div className="mt-4 p-3 bg-[#242530] rounded-lg">
+                        <p className="text-sm text-[#D0D1D6]">{user.bio}</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Medal className="h-4 w-4 text-[#D7FF00]" />
-                        Races Won: {user.races.won}
-                      </div>
+                    )}
+                    
+                    {/* Edit profile button */}
+                    <div className="mt-4">
+                      <EditProfileDialog user={user} onUpdate={refetch} />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Wager stats grid */}
+                <div className="border-t border-[#2A2B31] bg-[#191A22]">
+                  <div className="grid grid-cols-3 divide-x divide-[#2A2B31]">
+                    {/* Total wagered */}
+                    <div className="p-6 text-center">
+                      <p className="text-sm text-[#8A8B91] mb-1">Total Wagered</p>
+                      <p className="text-2xl font-bold text-white">
+                        ${formatValue(user.totalWagered)}
+                      </p>
+                    </div>
+                    
+                    {/* Monthly wagered */}
+                    <div className="p-6 text-center">
+                      <p className="text-sm text-[#8A8B91] mb-1">Monthly Wagered</p>
+                      <p className="text-2xl font-bold text-white">
+                        ${formatValue(user.monthlyWagered)}
+                      </p>
+                    </div>
+                    
+                    {/* Weekly wagered */}
+                    <div className="p-6 text-center">
+                      <p className="text-sm text-[#8A8B91] mb-1">Weekly Wagered</p>
+                      <p className="text-2xl font-bold text-white">
+                        ${formatValue(user.weeklyWagered)}
+                      </p>
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
-
-          {/* Stats Grid */}
-          <motion.div
-            variants={itemVariants}
-            className="grid grid-cols-1 md:grid-cols-3 gap-4"
-          >
-            <Card className="bg-[#1A1B21]/50 backdrop-blur-sm border-[#2A2B31]">
+          
+          {/* Tier progress */}
+          <motion.div variants={itemVariants}>
+            <Card className="bg-[#1A1B21] border-[#2A2B31]">
               <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Trophy className="h-5 w-5 text-[#D7FF00]" />
-                  <span className="text-sm text-[#8A8B91]">Total Prizes</span>
+                <h2 className="text-xl font-bold mb-4 flex items-center">
+                  <Award className="mr-2 h-5 w-5 text-[#D7FF00]" />
+                  Tier Progress
+                </h2>
+                
+                <div className="space-y-6">
+                  {/* Current tier info */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <img 
+                        src={getTierIcon(tier)} 
+                        alt={`${tier} tier`}
+                        className="w-10 h-10 mr-3" 
+                      />
+                      <div>
+                        <p className="font-medium capitalize">{tier} Tier</p>
+                        <p className="text-sm text-[#8A8B91]">Current Level</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">${formatValue(user.totalWagered)}</p>
+                      <p className="text-sm text-[#8A8B91]">Total Wagered</p>
+                    </div>
+                  </div>
+                  
+                  {/* Progress bar */}
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-[#8A8B91]">Tier Progress</span>
+                      <span className="text-[#D7FF00]">
+                        {(() => {
+                          const numericWager = typeof user.totalWagered === 'string' ? 
+                            parseFloat(user.totalWagered) : user.totalWagered;
+                          const progress = getTierProgress(numericWager);
+                          return `${Math.round(progress.percentage)}%`;
+                        })()}
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-[#242530] rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full"
+                        style={{ 
+                          width: (() => {
+                            const numericWager = typeof user.totalWagered === 'string' ? 
+                              parseFloat(user.totalWagered) : user.totalWagered;
+                            const progress = getTierProgress(numericWager);
+                            return `${progress.percentage}%`;
+                          })(),
+                          backgroundColor: tierColor
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  {/* Next tier info */}
+                  {(() => {
+                    const numericWager = typeof user.totalWagered === 'string' ? 
+                      parseFloat(user.totalWagered) : user.totalWagered;
+                    const progress = getTierProgress(numericWager);
+                    
+                    if (progress.nextTier) {
+                      return (
+                        <div className="flex items-center justify-between bg-[#242530] p-4 rounded-lg">
+                          <div className="flex items-center">
+                            <img 
+                              src={getTierIcon(progress.nextTier.name)} 
+                              alt={`${progress.nextTier.name} tier`}
+                              className="w-8 h-8 mr-3 opacity-70" 
+                            />
+                            <div>
+                              <p className="font-medium capitalize">{progress.nextTier.name} Tier</p>
+                              <p className="text-sm text-[#8A8B91]">Next Level</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium">${progress.nextTier.minWager.toLocaleString()}</p>
+                            <p className="text-sm text-[#8A8B91]">Required Wager</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="bg-[#242530] p-4 rounded-lg text-center">
+                        <p className="font-medium text-[#D7FF00]">Maximum Tier Achieved!</p>
+                        <p className="text-sm text-[#8A8B91] mt-1">You've reached the highest tier level</p>
+                      </div>
+                    );
+                  })()}
                 </div>
-                <p className="text-2xl font-bold">
-                  ${user.races.totalPrizes.toLocaleString()}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-[#1A1B21]/50 backdrop-blur-sm border-[#2A2B31]">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Award className="h-5 w-5 text-[#D7FF00]" />
-                  <span className="text-sm text-[#8A8B91]">
-                    Races Participated
-                  </span>
-                </div>
-                <p className="text-2xl font-bold">{user.races.participated}</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-[#1A1B21]/50 backdrop-blur-sm border-[#2A2B31]">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Star className="h-5 w-5 text-[#D7FF00]" />
-                  <span className="text-sm text-[#8A8B91]">Win Rate</span>
-                </div>
-                <p className="text-2xl font-bold">
-                  {((user.races.won / user.races.participated) * 100).toFixed(
-                    1,
-                  )}
-                  %
-                </p>
               </CardContent>
             </Card>
           </motion.div>
-
-          {/* Achievements */}
+          
+          {/* Wager statistics */}
           <motion.div variants={itemVariants}>
-            <h2 className="text-xl font-heading font-bold text-white mb-4">
-              Achievements
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {user.achievements.map((achievement) => (
-                <Card
-                  key={achievement.name}
-                  className="bg-[#1A1B21]/50 backdrop-blur-sm border-[#2A2B31]"
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-4">
-                      <div className="mt-1">
-                        <Award className="h-6 w-6 text-[#D7FF00]" />
+            <Card className="bg-[#1A1B21] border-[#2A2B31]">
+              <CardContent className="p-6">
+                <h2 className="text-xl font-bold mb-4 flex items-center">
+                  <LineChart className="mr-2 h-5 w-5 text-[#D7FF00]" />
+                  Wager Statistics
+                </h2>
+                
+                <div className="space-y-5">
+                  {/* Total wagered stats with visualization */}
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-[#8A8B91]">Total Wagered</span>
+                      <span className="font-medium">${formatValue(user.totalWagered)}</span>
+                    </div>
+                    <div className="w-full h-2.5 bg-[#242530] rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full" 
+                        style={{ 
+                          backgroundColor: tierColor,
+                          width: `${Math.min(100, (parseFloat(user.totalWagered?.toString() || '0') / 1000000) * 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  {/* Monthly wagered */}
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-[#8A8B91]">Monthly Wagered</span>
+                      <span className="font-medium">${formatValue(user.monthlyWagered)}</span>
+                    </div>
+                    <div className="w-full h-2.5 bg-[#242530] rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-[#D7FF00]" 
+                        style={{ 
+                          width: `${Math.min(100, (parseFloat(user.monthlyWagered?.toString() || '0') / 100000) * 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  {/* Weekly wagered */}
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-[#8A8B91]">Weekly Wagered</span>
+                      <span className="font-medium">${formatValue(user.weeklyWagered)}</span>
+                    </div>
+                    <div className="w-full h-2.5 bg-[#242530] rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-emerald-500" 
+                        style={{ 
+                          width: `${Math.min(100, (parseFloat(user.weeklyWagered?.toString() || '0') / 20000) * 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+          
+          {/* Verification status */}
+          <motion.div variants={itemVariants}>
+            <Card className="bg-[#1A1B21] border-[#2A2B31]">
+              <CardContent className="p-6">
+                <h2 className="text-xl font-bold mb-4 flex items-center">
+                  <Shield className="mr-2 h-5 w-5 text-[#D7FF00]" />
+                  Account Verification
+                </h2>
+                
+                {user.goatedAccountLinked ? (
+                  <div className="flex flex-col md:flex-row items-center justify-between bg-[#242530] p-4 rounded-lg">
+                    <div className="flex items-center mb-3 md:mb-0">
+                      <div className="w-10 h-10 rounded-full bg-[#D7FF00]/20 flex items-center justify-center mr-3">
+                        <BadgeCheck className="h-5 w-5 text-[#D7FF00]" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-white mb-1">
-                          {achievement.name}
-                        </h3>
-                        <p className="text-sm text-[#8A8B91] mb-2">
-                          {achievement.description}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-[#8A8B91]">
-                          <Clock className="h-3 w-3" />
-                          Earned: {achievement.earned}
-                        </div>
+                        <p className="font-medium">Verified Account</p>
+                        <p className="text-sm text-[#8A8B91]">Your account is linked to Goated.com</p>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* History Table */}
-          <motion.div variants={itemVariants}>
-            <h2 className="text-xl font-heading font-bold text-white mb-4">
-              Race History
-            </h2>
-            <div className="bg-[#1A1B21]/50 backdrop-blur-sm rounded-xl border border-[#2A2B31] overflow-hidden">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="font-heading text-[#D7FF00]">
-                        PERIOD
-                      </TableHead>
-                      <TableHead className="text-right font-heading text-[#D7FF00]">
-                        WAGERED
-                      </TableHead>
-                      <TableHead className="text-right font-heading text-[#D7FF00]">
-                        RANK
-                      </TableHead>
-                      <TableHead className="text-right font-heading text-[#D7FF00]">
-                        PRIZE
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {user.history.map((record) => (
-                      <TableRow key={record.period}>
-                        <TableCell className="font-medium">
-                          {record.period}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            ${record.wagered.toLocaleString()}
-                            {record.wagered > 0 && (
-                              <TrendingUp className="h-4 w-4 text-green-400" />
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          #{record.rank}
-                        </TableCell>
-                        <TableCell className="text-right text-[#D7FF00]">
-                          ${record.prize.toLocaleString()}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-[#3A3B41] hover:bg-[#2A2B31]"
+                      onClick={() => window.open('https://goated.com', '_blank')}
+                    >
+                      Visit Goated.com
+                      <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col md:flex-row items-center justify-between bg-[#242530] p-4 rounded-lg">
+                    <div className="flex items-center mb-3 md:mb-0">
+                      <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center mr-3">
+                        <AlertCircle className="h-5 w-5 text-amber-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium">Unverified Account</p>
+                        <p className="text-sm text-[#8A8B91]">Link your account to Goated.com for full access</p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="bg-[#D7FF00] text-black hover:bg-[#D7FF00]/80"
+                      onClick={() => setLocation('/verification')}
+                    >
+                      Verify Account
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </motion.div>
         </motion.div>
       </div>
