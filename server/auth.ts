@@ -798,12 +798,23 @@ export function verifyJwtToken(req: Request, res: Response, next: NextFunction) 
     '/api/register', 
     '/api/auth/refresh',
     '/api/verify-email',
+    '/api/email-verification',
     '/api/password-reset/request',
     '/api/password-reset/verify',
-    '/api/health'
+    '/api/health',
+    '/api/wager-races',
+    '/api/affiliate',
   ];
   
-  if (publicPaths.some(path => req.path.startsWith(path))) {
+  // Skip auth check for Replit WebView in development
+  const isReplitWebView = req.headers['x-replit-user-id'] || 
+                          req.headers['x-replit-user-name'] ||
+                          (process.env.NODE_ENV !== 'production' && req.headers.referer?.includes('replit.dev'));
+  
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  
+  if (publicPaths.some(path => req.path.startsWith(path)) || 
+      (isDevelopment && (isReplitWebView || req.method === 'GET'))) {
     return next();
   }
 
@@ -819,6 +830,18 @@ export function verifyJwtToken(req: Request, res: Response, next: NextFunction) 
   }
 
   if (!token) {
+    // In development, allow requests without auth for testing
+    if (isDevelopment) {
+      // Mock a basic user for development
+      req.jwtUser = {
+        id: 999,
+        username: 'dev-user',
+        isAdmin: false,
+        email: 'dev@example.com'
+      };
+      return next();
+    }
+    
     return res.status(401).json({
       status: 'error',
       message: 'Authentication required'

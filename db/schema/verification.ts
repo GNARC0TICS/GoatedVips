@@ -55,8 +55,8 @@ export const emailVerificationFields = {
   emailVerificationToken: text("email_verification_token"),
   // When the verification token expires
   emailVerificationExpires: timestamp("email_verification_expires", { mode: "date" }),
-  // If the email has been verified
-  verified: boolean("verified").default(false),
+  // If the email has been verified (using the same field name as in users schema)
+  emailVerified: boolean("email_verified").default(false),
   // Password reset token
   passwordResetToken: text("password_reset_token"),
   // When the password reset token expires
@@ -77,7 +77,7 @@ export function createVerificationFieldsSQL(tableName: string): string {
     ALTER TABLE ${tableName} 
     ADD COLUMN IF NOT EXISTS email_verification_token TEXT,
     ADD COLUMN IF NOT EXISTS email_verification_expires TIMESTAMP,
-    ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS password_reset_token TEXT,
     ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP,
     ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0
