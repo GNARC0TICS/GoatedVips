@@ -557,16 +557,23 @@ async function syncUserProfiles() {
         Math.abs(currentUserCount - allTimeData.length) < 10 && 
         allTimeData.length > 0) {
 
-      // Just update a small sample of users to keep data fresh
-      // Get random users (10% or at least 10, but not more than 50)
-      const sampleSize = Math.min(50, Math.max(10, Math.floor(allTimeData.length * 0.1)));
-      const sampleUsers = allTimeData
-        .sort(() => 0.5 - Math.random())  // Shuffle array
-        .slice(0, sampleSize);  // Take a sample
+      // Update all active users to keep data fresh
+      const activeUsers = await db
+        .select({ goatedId: users.goatedId })
+        .from(users)
+        .where(eq(users.isActive, true))
+        .limit(100); // Limit to 100 most active users for performance reasons
+      
+      const activeGoatedIds = new Set(activeUsers.map(u => u.goatedId).filter(Boolean));
+      
+      // Find the active users in the API data
+      const activePlayersToUpdate = allTimeData.filter(player => 
+        player.uid && activeGoatedIds.has(player.uid)
+      );
 
-      console.log(`Performing partial sync with ${sampleUsers.length} sample users`);
+      console.log(`Performing partial sync with ${activePlayersToUpdate.length} active users`);
 
-      for (const player of sampleUsers) {
+      for (const player of activePlayersToUpdate) {
         try {
           // Skip entries without uid or name
           if (!player.uid || !player.name) continue;
@@ -602,6 +609,9 @@ async function syncUserProfiles() {
       }
 
       // Record this partial sync
+      // Update active user status after syncing
+      const activityResult = await updateUserActivityStatus();
+      
       await db.execute(sql`
         INSERT INTO api_sync_metadata (
           endpoint, last_sync_time, record_count, etag, last_modified,
@@ -611,14 +621,16 @@ async function syncUserProfiles() {
           ${responseEtag}, ${responseLastModified}, ${responseHash},
           false, ${Date.now() - startTime}, ${{
             partialSync: true,
-            sampleSize,
+            activeUserCount: activePlayersToUpdate.length,
             updatedCount,
-            userCountDifference: allTimeData.length - currentUserCount
+            activityUpdates: activityResult.updated,
+            activeUsers: activityResult.active,
+            inactiveUsers: activityResult.inactive
           }}
         )
       `);
 
-      console.log(`Partial sync completed. ${updatedCount} profiles updated of ${sampleSize} sampled.`);
+      console.log(`Partial sync completed. ${updatedCount} active user profiles updated of ${activePlayersToUpdate.length} available.`);
       return;
     }
 

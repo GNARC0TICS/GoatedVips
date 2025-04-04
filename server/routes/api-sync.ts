@@ -55,41 +55,40 @@ async function syncUserProfiles() {
     }
   }
 
-  // Prioritize users that need updating rather than random selection
-  const lastSyncTime = new Date();
-  lastSyncTime.setHours(lastSyncTime.getHours() - 6); // Users not updated in last 6 hours
-  
-  // Find users who haven't been updated recently or have zero wagers (needing initial data)
-  const needsUpdateUsers = await db
+  // Get all active users first
+  const activeUsers = await db
     .select({ goatedId: users.goatedId })
     .from(users)
-    .where(
-      sql`${users.lastActive} < ${lastSyncTime} OR ${users.total_wager} = 0`
-    )
-    .limit(50);
+    .where(eq(users.isActive, true))
+    .orderBy(desc(users.lastActive)); // Start with users who haven't been updated recently
   
-  // Map Goated IDs to find matching users from API data
-  const goatedIdsToUpdate = new Set(needsUpdateUsers.map(u => u.goatedId));
+  console.log(`Found ${activeUsers.length} active users to prioritize for updates`);
   
-  // Filter API data for users that need updates + add some random users if needed
+  // Map Goated IDs of active users
+  const activeGoatedIds = new Set(activeUsers.map(u => u.goatedId).filter(Boolean));
+  
+  // Filter API data for active users first
   let usersToUpdate = allTimeData.filter(player => 
-    player.uid && goatedIdsToUpdate.has(player.uid)
+    player.uid && activeGoatedIds.has(player.uid)
   );
   
-  // If we have fewer than 50 users that match our criteria, add some random ones
-  if (usersToUpdate.length < 50) {
-    const remainingCount = 50 - usersToUpdate.length;
-    const existingIds = new Set(usersToUpdate.map(u => u.uid));
-    
-    const randomUsers = allTimeData
-      .filter(player => player.uid && !existingIds.has(player.uid))
-      .sort(() => 0.5 - Math.random())
-      .slice(0, remainingCount);
-    
-    usersToUpdate = [...usersToUpdate, ...randomUsers];
+  console.log(`Found ${usersToUpdate.length} active users in API data`);
+  
+  // If we need to add more users (e.g., for new users that aren't marked active yet)
+  // Find any users with wager data but not in our active set
+  const potentialNewActiveUsers = allTimeData.filter(player => 
+    player.uid && 
+    !activeGoatedIds.has(player.uid) && 
+    (player.wagered?.all_time > 0)
+  );
+  
+  // Add them to our update list
+  if (potentialNewActiveUsers.length > 0) {
+    console.log(`Found ${potentialNewActiveUsers.length} potential new active users`);
+    usersToUpdate = [...usersToUpdate, ...potentialNewActiveUsers];
   }
 
-  console.log(`Manual sync is updating ${usersToUpdate.length} users (${goatedIdsToUpdate.size} prioritized)`);
+  console.log(`Manual sync is updating ${usersToUpdate.length} users (${activeGoatedIds.size} active users)`);
 
   let updatedCount = 0;
 

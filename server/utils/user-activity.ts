@@ -1,55 +1,45 @@
 
 import { db } from "@db";
 import { users } from "@db/schema";
-import { eq, gt } from "drizzle-orm";
+import { eq, gt, sql } from "drizzle-orm";
 
 /**
  * Updates the isActive status for users based on wager data
  * A user is considered active if they have any wager activity (total_wager > 0)
  * 
- * @returns {Promise<{ updated: number }>} Number of user records updated
+ * @returns {Promise<{ updated: number, active: number, inactive: number }>} Number of user records updated and activity counts
  */
-export async function updateUserActivityStatus(): Promise<{ updated: number }> {
+export async function updateUserActivityStatus(): Promise<{ 
+  updated: number, 
+  active: number, 
+  inactive: number 
+}> {
   try {
-    // Find users whose activity status needs to be updated
-    // This avoids updating users whose status is already correct
-    const needsActiveStatus = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(
-        sql`${users.total_wager} > 0 AND ${users.isActive} = false`
+    // Use a single transaction for both operations to ensure consistency
+    const result = await db.transaction(async (tx) => {
+      // Update users with wager data to active status
+      const activeResult = await tx.execute(
+        sql`UPDATE users SET "isActive" = true WHERE total_wager > 0 AND "isActive" = false`
       );
-    
-    const needsInactiveStatus = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(
-        sql`${users.total_wager} = 0 AND ${users.isActive} = true`
+      
+      // Update users without wager data to inactive status
+      const inactiveResult = await tx.execute(
+        sql`UPDATE users SET "isActive" = false WHERE total_wager = 0 AND "isActive" = true`
       );
+      
+      return {
+        activeUpdated: activeResult.rowCount || 0,
+        inactiveUpdated: inactiveResult.rowCount || 0
+      };
+    });
     
-    // Only update users that need their status changed
-    const [activeUpdates, inactiveUpdates] = await Promise.all([
-      needsActiveStatus.length > 0 ? 
-        db.update(users)
-          .set({ isActive: true })
-          .where(
-            sql`id IN (${needsActiveStatus.map(u => u.id).join(',')})`
-          )
-          .returning({ id: users.id }) : 
-        Promise.resolve([]),
-        
-      needsInactiveStatus.length > 0 ?
-        db.update(users)
-          .set({ isActive: false })
-          .where(
-            sql`id IN (${needsInactiveStatus.map(u => u.id).join(',')})`
-          )
-          .returning({ id: users.id }) :
-        Promise.resolve([])
-    ]);
+    // Get the current counts after updates
+    const { active, inactive } = await getUserActivityStats();
     
     return { 
-      updated: activeUpdates.length + inactiveUpdates.length 
+      updated: (result.activeUpdated + result.inactiveUpdated),
+      active,
+      inactive
     };
   } catch (error) {
     console.error("Error updating user activity status:", error);
@@ -68,21 +58,54 @@ export async function getUserActivityStats(): Promise<{
   total: number;
 }> {
   try {
-    const [activeCount, inactiveCount] = await Promise.all([
-      db.select({ count: db.fn.count() }).from(users).where(eq(users.isActive, true)),
-      db.select({ count: db.fn.count() }).from(users).where(eq(users.isActive, false))
-    ]);
+    // Use a single query to get both counts for efficiency
+    const result = await db.execute(
+      sql`SELECT 
+        SUM(CASE WHEN "isActive" = true THEN 1 ELSE 0 END) as active_count,
+        SUM(CASE WHEN "isActive" = false THEN 1 ELSE 0 END) as inactive_count,
+        COUNT(*) as total_count
+      FROM users`
+    );
     
-    const active = Number(activeCount[0]?.count || 0);
-    const inactive = Number(inactiveCount[0]?.count || 0);
+    const row = result.rows[0];
     
     return {
-      active,
-      inactive,
-      total: active + inactive
+      active: Number(row.active_count || 0),
+      inactive: Number(row.inactive_count || 0),
+      total: Number(row.total_count || 0)
     };
   } catch (error) {
     console.error("Error fetching user activity stats:", error);
+    throw error;
+  }
+}
+
+/**
+ * Gets a list of most active users based on recent wager activity
+ * 
+ * @param {number} limit - Maximum number of users to return
+ * @returns {Promise<Array<{id: number, username: string, goatedId: string, total_wager: number}>>} List of active users
+ */
+export async function getMostActiveUsers(limit: number = 100): Promise<Array<{
+  id: number;
+  username: string;
+  goatedId: string;
+  total_wager: number;
+}>> {
+  try {
+    return await db
+      .select({
+        id: users.id,
+        username: users.username,
+        goatedId: users.goatedId,
+        total_wager: users.total_wager
+      })
+      .from(users)
+      .where(eq(users.isActive, true))
+      .orderBy(sql`users.total_wager DESC`)
+      .limit(limit);
+  } catch (error) {
+    console.error("Error fetching most active users:", error);
     throw error;
   }
 }
