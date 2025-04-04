@@ -110,6 +110,26 @@ export function RaceTimer() {
   const error = showPrevious ? previousError : currentError;
   const isLoading = showPrevious ? isPreviousLoading : isCurrentLoading;
 
+  // Handle mobile display
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 640 && isContentVisible) {
+        // Ensure proper positioning on mobile
+        document.body.style.overflow = isContentVisible ? 'hidden' : 'auto';
+      } else {
+        document.body.style.overflow = 'auto';
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      document.body.style.overflow = 'auto';
+    };
+  }, [isContentVisible]);
+
   useEffect(() => {
     if (!currentRaceData?.endDate) return;
 
@@ -150,31 +170,42 @@ export function RaceTimer() {
             exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="flex items-start"
+            style={{
+              position: 'fixed',
+              right: 0,
+              top: '50%',
+              transform: 'translateY(-50%)'
+            }}
           >
             <button
               onClick={() => {
                 setIsContentVisible(!isContentVisible);
                 setNotificationDismissed(true);
               }}
-              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-3 flex items-center justify-center hover:bg-[#1A1B21] transition-colors group relative"
+              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-3 flex items-center justify-center hover:bg-[#1A1B21] transition-colors group relative z-50"
+              style={{
+                position: 'relative',
+                minHeight: '48px',
+                minWidth: '48px'
+              }}
             >
               {isCurrentLoading ? (
                 <div className="h-7 w-7 animate-pulse bg-[#2A2B31]/50 rounded-full"></div>
               ) : (
                 <>
+                  {isAnimationReady && !isContentVisible && !notificationDismissed && (
+                    <span className="absolute -top-1 -left-1 h-3 w-3 bg-red-500 rounded-full animate-pulse">
+                      <span className="absolute inset-0 h-full w-full bg-red-500 rounded-full animate-ping opacity-75"></span>
+                    </span>
+                  )}
                   <SpeedIcon 
                     className={`h-7 w-7 text-[#D7FF00] group-hover:scale-110 transition-all`} 
                     isAnimating={isAnimationReady} 
                   />
-                  {isAnimationReady && !isContentVisible && !notificationDismissed && (
-                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-[#D7FF00] rounded-full animate-pulse">
-                      <span className="absolute inset-0 h-full w-full bg-[#D7FF00] rounded-full animate-ping opacity-75"></span>
-                    </span>
-                  )}
                 </>
               )}
             </button>
-            <div className="w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden">
+            <div className="w-[85vw] sm:w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden max-w-[320px]">
               <div className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
