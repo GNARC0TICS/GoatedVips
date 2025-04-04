@@ -1,56 +1,85 @@
 
-# GoatedVIPs Platform Technical Overview
-
-## Platform Context
-GoatedVIPs is developed by an independent Goated.com affiliate partner who manages an active VIP community. This platform serves as a complementary service for players using the GoatedVips affiliate code, providing enhanced tracking and community features. While integrated with Goated.com's affiliate system, this is an independent initiative and not officially associated with or endorsed by Goated.com.
-
-The platform's purpose is to enhance the gaming experience for players who join through the GoatedVips affiliate code, offering additional community benefits, exclusive challenges, and detailed performance tracking.
+# GoatedVIPs Platform Codebase Overview
 
 ## Core Architecture
 
-### Database Schema
-```sql
-Table wager_races {
-  id UUID PRIMARY KEY
-  status VARCHAR
-  start_date TIMESTAMP
-  end_date TIMESTAMP
-  prize_pool DECIMAL
-}
+The GoatedVIPs platform is built on a modern, scalable architecture:
 
-Table users {
-  id UUID PRIMARY KEY
-  telegram_id VARCHAR UNIQUE
-  username VARCHAR
-  verification_status VARCHAR
-  created_at TIMESTAMP
-}
+- **Frontend**: React with TypeScript, TailwindCSS
+- **Backend**: Node.js with Express
+- **Database**: PostgreSQL with Drizzle ORM
+- **Real-time**: WebSocket for live updates
+- **Authentication**: JWT + Session-based authentication
+- **Deployment**: Replit hosting
 
-Table transformation_logs {
-  id UUID PRIMARY KEY
-  type VARCHAR
-  message TEXT
-  duration_ms INTEGER
-  created_at TIMESTAMP
+### Domain Architecture
+
+The platform now operates on two distinct domains:
+- **goatedvips.gg**: Public-facing application
+- **goombas.net**: Secure admin interface
+
+This separation provides enhanced security and a dedicated administrative experience.
+
+## Key Components
+
+### 1. Domain Routing System
+
+#### Current Implementation
+- Domain detection middleware (`domain-handler.ts`)
+- Domain-specific routing middleware (`domain-router.ts`)
+- Client-side domain utilities (`domain-utils.ts`)
+
+#### Code Examples
+```typescript
+// Server-side domain detection
+app.use(domainRedirectMiddleware);
+
+// Domain-specific middleware
+adminDomainOnly - Restricts routes to Goombas.net
+publicDomainOnly - Restricts routes to GoatedVIPs.gg
+
+// Client-side domain detection
+export const isAdminDomain = (): boolean => {
+  return window.location.hostname === 'goombas.net' || 
+         window.location.hostname.includes('goombas.net');
+};
+```
+
+### 2. Admin Interface
+
+#### Current Implementation
+- Dedicated entry point (`client/src/admin.tsx`)
+- Admin-specific authentication
+- Protected admin routes
+- Enhanced security measures
+- Domain-specific API endpoints
+
+#### Code Examples
+```typescript
+// Admin login endpoint
+router.post('/goombas.net/login', async (req, res) => {
+  // Authenticate admin credentials
+});
+
+// Admin dashboard
+export default function GoombasAdminDashboard() {
+  // Admin dashboard implementation
 }
 ```
 
-## System Components & Dependencies
+### 3. API Synchronization System
 
-### 1. Server Architecture (Priority: High)
-- **Main Server (Port 5000)**
-  - Express.js REST API
-  - WebSocket server for real-time updates
-  - Rate limiting middleware
-  - PostgreSQL with Drizzle ORM
-  
-- **Telegram Bot (Port 5001)**
-  - Webhook handling
-  - User verification
-  - Admin commands
-  - Real-time notifications
+#### Current State
+- Optimized API synchronization logic
+- Metadata tracking for sync operations
+- Partial and full sync capabilities
+- Performance optimizations
 
-### 2. Real-time Systems
+#### Required Improvements
+1. Enhance error handling in sync process
+2. Improve logging of sync operations
+3. Add retry mechanisms for failed syncs
+4. Develop admin interface for sync monitoring
 
 #### WebSocket Implementation
 - **Current State**: Partially implemented
@@ -76,12 +105,13 @@ wss.on('connection', (ws) => {
 });
 ```
 
-### 3. Authentication Flow
+### 4. Authentication Flow
 
 #### Current Implementation
 - JWT-based authentication
 - Telegram verification
 - Session management
+- Domain-specific authentication
 
 #### Known Issues
 1. Token refresh mechanism incomplete
@@ -93,7 +123,7 @@ wss.on('connection', (ws) => {
 2. Add password reset flow with email verification
 3. Set up session cleanup cron job
 
-### 4. Data Transformation Pipeline
+### 5. Data Transformation Pipeline
 
 #### Current State
 - Basic transformation implemented
@@ -106,12 +136,13 @@ wss.on('connection', (ws) => {
 3. Add detailed error logging
 4. Optimize transformation algorithms
 
-### 5. Admin Dashboard
+### 6. Admin Dashboard
 
 #### Current Features
 - User management
 - Race configuration
 - System analytics
+- API sync monitoring
 
 #### Missing Features
 1. Bulk operations for user management
@@ -119,66 +150,36 @@ wss.on('connection', (ws) => {
 3. Audit logging system
 4. Performance monitoring tools
 
-## Performance Considerations
+## Code Organization
 
-### Current Bottlenecks
-1. **Database Queries**
-   - Missing indexes on frequently accessed columns
-   - N+1 query issues in leaderboard
-   - Inefficient JOIN operations
-
-2. **API Response Times**
-   - Large payload sizes
-   - Missing response compression
-   - Inefficient data transformation
-
-### Required Optimizations
-1. **Database**
-```sql
--- Add missing indexes
-CREATE INDEX idx_users_telegram_id ON users(telegram_id);
-CREATE INDEX idx_wager_races_status ON wager_races(status);
-CREATE INDEX idx_transformation_logs_type ON transformation_logs(type);
+### Frontend Structure
+```
+client/
+  ├── src/
+  │   ├── components/      # Reusable UI components
+  │   ├── hooks/           # Custom React hooks
+  │   ├── lib/             # Utility functions
+  │   ├── pages/           # Page components
+  │   │   ├── admin/       # Admin pages
+  │   ├── styles/          # CSS and styling
+  │   ├── App.tsx          # Main application
+  │   └── admin.tsx        # Admin application
 ```
 
-2. **API Layer**
-- Implement response compression
-- Add API response caching
-- Optimize payload sizes
-
-## Security Implementation
-
-### Current Security Measures
-1. Rate limiting
-2. JWT validation
-3. Input sanitization
-
-### Required Security Enhancements
-1. Implement IP-based rate limiting
-2. Add request signing for sensitive operations
-3. Enhance input validation
-4. Implement audit logging
-
-## Deployment Considerations
-
-### Current Setup
-- Single instance deployment
-- Basic error handling
-- Limited monitoring
-
-### Required Improvements
-1. Implement health checks
-2. Add comprehensive logging
-3. Set up monitoring alerts
-4. Implement backup strategy
-
-## Best Practices & Guidelines
-
-### Code Structure
-1. Follow consistent file naming
-2. Use TypeScript strict mode
-3. Implement proper error boundaries
-4. Add comprehensive documentation
+### Backend Structure
+```
+server/
+  ├── config/              # Configuration files
+  ├── middleware/          # Express middleware
+  │   ├── domain-handler.ts # Domain detection
+  │   ├── domain-router.ts  # Domain routing
+  ├── routes/              # API endpoints
+  │   ├── goombas-admin.ts  # Admin-specific routes
+  ├── tests/               # Test files
+  ├── types/               # TypeScript type definitions
+  ├── utils/               # Utility functions
+  └── index.ts             # Server entry point
+```
 
 ### Testing Requirements
 1. Unit tests for core functionality
@@ -193,12 +194,14 @@ CREATE INDEX idx_transformation_logs_type ON transformation_logs(type);
 2. Implement token refresh mechanism
 3. Add missing database indexes
 4. Enhance error handling
+5. Improve domain routing security
 
 ### Medium Priority
 1. Implement caching layer
 2. Add audit logging
 3. Enhance admin dashboard
 4. Improve monitoring
+5. Optimize API sync process
 
 ### Low Priority
 1. Implement advanced analytics
