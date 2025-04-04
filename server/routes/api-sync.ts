@@ -16,14 +16,14 @@ import { API_CONFIG } from "../config/api";
 // Simplified sync function that just triggers API requests
 async function syncUserProfiles() {
   console.log("Fetching leaderboard data for manual sync...");
-  
+
   const token = process.env.API_TOKEN || API_CONFIG.token;
   if (!token) {
     throw new Error("API token not configured");
   }
-  
+
   const url = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`;
-  
+
   // Make API request
   const response = await fetch(url, {
     headers: {
@@ -31,13 +31,13 @@ async function syncUserProfiles() {
       "Content-Type": "application/json",
     },
   });
-  
+
   if (!response.ok) {
     throw new Error(`Failed to fetch leaderboard data: ${response.status}`);
   }
-  
+
   const rawData = await response.json();
-  
+
   // Basic data normalization
   let allTimeData = [];
   if (Array.isArray(rawData)) {
@@ -54,33 +54,33 @@ async function syncUserProfiles() {
       allTimeData = possibleArrays.reduce((a: any, b: any) => a.length > b.length ? a : b);
     }
   }
-  
+
   // Update a random selection of users (at most 50)
   const sampleSize = Math.min(50, allTimeData.length);
   const sampleUsers = allTimeData
     .sort(() => 0.5 - Math.random())  // Shuffle array
     .slice(0, sampleSize);  // Take a sample
-  
+
   console.log(`Manual sync is updating ${sampleUsers.length} sample users`);
-  
+
   let updatedCount = 0;
-  
+
   for (const player of sampleUsers) {
     try {
       // Skip entries without uid or name
       if (!player.uid || !player.name) continue;
-      
+
       // Extract wager data from the player object
       const totalWager = player.wagered?.all_time || 0;
       const wagerToday = player.wagered?.today || 0;
       const wagerWeek = player.wagered?.this_week || 0;
       const wagerMonth = player.wagered?.this_month || 0;
-      
+
       // Check if user exists and update
       const existingUser = await db.select().from(users)
         .where(sql`goated_id = ${player.uid}`)
         .limit(1);
-      
+
       if (existingUser && existingUser.length > 0) {
         // Update existing user with latest wager data
         await db.execute(sql`
@@ -99,7 +99,7 @@ async function syncUserProfiles() {
       console.error(`Error updating sample user ${player?.name}:`, error);
     }
   }
-  
+
   console.log(`Manual sync completed. ${updatedCount} profiles updated.`);
   return { updated: updatedCount, total: allTimeData.length };
 }
@@ -148,7 +148,7 @@ router.get("/status", async (_req, res) => {
     const timeSinceSync = lastSync 
       ? Date.now() - lastSync.last_sync_time.getTime()
       : null;
-    
+
     const timeSinceSyncMinutes = timeSinceSync 
       ? Math.floor(timeSinceSync / (1000 * 60))
       : null;
@@ -182,12 +182,12 @@ router.get("/user-stats", async (_req, res) => {
     const [userCount] = await db
       .select({ count: sql`count(*)` })
       .from(users);
-    
+
     const [userWithGoatedIds] = await db
       .select({ count: sql`count(*)` })
       .from(users)
       .where(sql`goated_id IS NOT NULL`);
-    
+
     const [usersWithWagerData] = await db
       .select({ count: sql`count(*)` })
       .from(users)
@@ -223,10 +223,10 @@ router.get("/user-stats", async (_req, res) => {
 router.post("/trigger", async (_req, res) => {
   try {
     log("Manual sync triggered via API");
-    
+
     // Start the sync process (non-blocking)
     const syncPromise = syncUserProfiles();
-    
+
     // Don't wait for it to complete, just acknowledge the request
     res.json({
       status: "success",
@@ -242,7 +242,7 @@ router.post("/trigger", async (_req, res) => {
       .catch((error) => {
         log(`Manual sync failed: ${error.message}`);
       });
-      
+
   } catch (error) {
     console.error("Error triggering sync:", error);
     res.status(500).json({

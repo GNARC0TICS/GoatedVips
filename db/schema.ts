@@ -51,6 +51,7 @@ export const users = pgTable("users", {
   // Timestamps and activity tracking
   createdAt: timestamp("created_at").defaultNow().notNull(),    // Account creation time
   lastActive: timestamp("last_active"),                         // Last activity timestamp
+  isActive: boolean("is_active").default(false).notNull(),      // Determined by wager activity (total_wager > 0)
 });
 
 // Simplify relations to avoid module import issues

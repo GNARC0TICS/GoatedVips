@@ -2,6 +2,9 @@
         <Card>
           <CardHeader>
             <CardTitle>Total Users</CardTitle>
+            <CardDescription>
+              Active: {stats?.userActivity?.active || 0} | Inactive: {stats?.userActivity?.inactive || 0}
+            </CardDescription>
           </CardHeader>
           <CardContent className="text-2xl font-bold">
             {stats?.totalUsers || 0}

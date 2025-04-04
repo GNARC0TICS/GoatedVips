@@ -424,10 +424,15 @@ function setupAPIRoutes(app: Express) {
           db.select({ count: sql`count(*)` }).from(wagerRaces).where(eq(wagerRaces.status, 'live')),
         ]);
 
+        // Get user activity stats
+        const { getUserActivityStats } = await import('./utils/user-activity');
+        const userActivity = await getUserActivityStats();
+
         const stats = {
           totalRaces: raceCount[0].count,
           activeRaces: activeRaceCount[0].count,
-          wagerTotals: totals
+          wagerTotals: totals,
+          userActivity
         };
 
         res.json(stats);
