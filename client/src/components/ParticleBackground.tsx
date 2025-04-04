@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from 'react';
 
 interface Particle {
@@ -7,13 +8,15 @@ interface Particle {
   speedX: number;
   speedY: number;
   opacity: number;
-  color: string;
+  baseX: number; // Store original position for mouse interaction
+  baseY: number;
 }
 
 export function ParticleBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particles = useRef<Particle[]>([]);
   const animationFrameId = useRef<number | null>(null);
+  const mousePosition = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -31,7 +34,23 @@ export function ParticleBackground() {
       initParticles();
     };
 
+    // Mouse move handler
+    const handleMouseMove = (e: MouseEvent) => {
+      mousePosition.current = {
+        x: e.clientX,
+        y: e.clientY
+      };
+    };
+
+    // Mouse leave handler
+    const handleMouseLeave = () => {
+      mousePosition.current = null;
+    };
+
     window.addEventListener('resize', handleResize);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseleave', handleMouseLeave);
+    
     handleResize();
 
     function initParticles() {
@@ -39,15 +58,17 @@ export function ParticleBackground() {
       particles.current = [];
 
       for (let i = 0; i < particleCount; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
         particles.current.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
+          x: x,
+          y: y,
+          baseX: x, // Store original position
+          baseY: y,
           size: Math.random() * 2 + 0.5,
           speedX: (Math.random() - 0.5) * 0.3,
           speedY: (Math.random() - 0.5) * 0.3,
           opacity: Math.random() * 0.5 + 0.1,
-          // Increase yellow particles ratio from 20% to 40%
-          color: Math.random() > 0.6 ? '#D7FF00' : '#ffffff',
         });
       }
     }
@@ -58,7 +79,7 @@ export function ParticleBackground() {
       particles.current.forEach((particle) => {
         // Increase base opacity to make particles brighter
         ctx.globalAlpha = particle.opacity * 1.5;
-        ctx.fillStyle = particle.color;
+        ctx.fillStyle = '#D7FF00'; // All particles use the neon yellow color
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
         ctx.fill();
@@ -71,8 +92,7 @@ export function ParticleBackground() {
 
           if (distance < 100) {
             ctx.beginPath();
-            // Use yellow for more connections
-            ctx.strokeStyle = particle.color === '#D7FF00' || otherParticle.color === '#D7FF00' ? '#D7FF00' : '#ffffff';
+            ctx.strokeStyle = '#D7FF00'; // All connections are yellow
             // Increase connection opacity
             ctx.globalAlpha = (100 - distance) / 800 * particle.opacity;
             ctx.lineWidth = 0.3; // Slightly thicker lines
@@ -86,8 +106,32 @@ export function ParticleBackground() {
 
     function updateParticles() {
       particles.current.forEach((particle) => {
+        // Regular movement
         particle.x += particle.speedX;
         particle.y += particle.speedY;
+
+        // Mouse interaction - particles move away from cursor
+        if (mousePosition.current) {
+          const dx = mousePosition.current.x - particle.x;
+          const dy = mousePosition.current.y - particle.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const maxDistance = 120; // The distance at which mouse influence starts
+          
+          if (distance < maxDistance) {
+            const force = (maxDistance - distance) / maxDistance;
+            // Push particles slightly away from mouse
+            particle.x -= dx * force * 0.03;
+            particle.y -= dy * force * 0.03;
+          } else {
+            // Gradually return to base position when not influenced by mouse
+            particle.x += (particle.baseX - particle.x) * 0.01;
+            particle.y += (particle.baseY - particle.y) * 0.01;
+          }
+        } else {
+          // Return to base position when mouse isn't over canvas
+          particle.x += (particle.baseX - particle.x) * 0.01;
+          particle.y += (particle.baseY - particle.y) * 0.01;
+        }
 
         // Wrap particles around screen edges
         if (particle.x < 0) particle.x = canvas.width;
@@ -111,6 +155,8 @@ export function ParticleBackground() {
         cancelAnimationFrame(animationFrameId.current);
       }
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, []);
 
