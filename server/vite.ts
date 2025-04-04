@@ -42,33 +42,31 @@ export async function setupVite(app: Express, server: Server) {
 
   app.use(vite.middlewares);
   app.use("*", async (req, res, next) => {
-    const url = req.originalUrl;
+    // Skip API and WebSocket routes
+    if (req.originalUrl.startsWith('/api') || 
+        req.originalUrl.startsWith('/ws') || 
+        req.originalUrl.includes('.')) {
+      return next();
+    }
 
     try {
-      const clientTemplate = path.resolve(
-        __dirname,
-        "..",
-        "client",
-        "index.html",
-      );
-      
-      // Transform the source path to properly resolve client files
-      template = template.replace(
-        'src="/src/main.tsx"',
-        'src="/client/src/main.tsx"'
-      );
+      // Determine which HTML file to serve based on domain (This assumes req.isAdminDomain is defined elsewhere)
+      const isAdmin = req.isAdminDomain;
+      const htmlPath = isAdmin ? PATHS.ADMIN_HTML : PATHS.INDEX_HTML; // Assumes PATHS.ADMIN_HTML and PATHS.INDEX_HTML are defined elsewhere
 
-      // always reload the index.html file from disk incase it changes
-      let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/client/src/main.tsx?v=${nanoid()}"`,
-      );
-      const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      // Serve the appropriate HTML with Vite transformations
+      let html = await fs.promises.readFile(htmlPath, 'utf-8');
+
+
+      if (vite) {
+        html = await vite.transformIndexHtml(req.originalUrl, html);
+      }
+
+      res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
     } catch (e) {
-      vite.ssrFixStacktrace(e as Error);
-      next(e);
+      const error = e as Error;
+      vite?.ssrFixStacktrace(error);
+      next(error);
     }
   });
 }
@@ -88,4 +86,16 @@ export function serveStatic(app: Express) {
   app.use("*", (_req, res) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });
+}
+
+// Placeholder for PATHS and req.isAdminDomain -  These need to be defined and implemented elsewhere in the application.
+const PATHS = {
+  INDEX_HTML: path.resolve(__dirname, "..", "client", "index.html"),
+  ADMIN_HTML: path.resolve(__dirname, "..", "admin", "index.html"), //Example path, adjust as needed.
+};
+
+declare module 'express' {
+    interface Request {
+      isAdminDomain: boolean;
+    }
 }

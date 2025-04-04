@@ -128,14 +128,14 @@ async function testDbConnection() {
  */
 export async function ensureUserProfile(userId: string): Promise<any> {
   if (!userId) return null;
-  
+
   console.log(`Ensuring profile exists for ID: ${userId}`);
-  
+
   try {
     // First check if this is a numeric ID in our database
     const isNumericId = /^\d+$/.test(userId);
     let existingUser = null;
-    
+
     // First check if user already exists in our database
     try {
       // Try to find by direct ID match first
@@ -143,9 +143,9 @@ export async function ensureUserProfile(userId: string): Promise<any> {
         SELECT id, username, goated_id as "goatedId", goated_username as "goatedUsername"
         FROM users WHERE id::text = ${userId} LIMIT 1
       `);
-      
+
       existingUser = results.rows && results.rows.length > 0 ? results.rows[0] : null;
-      
+
       if (existingUser) {
         // Add a flag to indicate this was an existing user
         return {
@@ -157,16 +157,16 @@ export async function ensureUserProfile(userId: string): Promise<any> {
       console.log("Error finding user by string ID:", findError);
       existingUser = null;
     }
-    
+
     // If not found by direct ID, check if it's a goatedId
     try {
       const results = await db.execute(sql`
         SELECT id, username, goated_id as "goatedId", goated_username as "goatedUsername"
         FROM users WHERE goated_id = ${userId} LIMIT 1
       `);
-      
+
       existingUser = results.rows && results.rows.length > 0 ? results.rows[0] : null;
-      
+
       if (existingUser) {
         // Add a flag to indicate this was an existing user
         return {
@@ -177,47 +177,47 @@ export async function ensureUserProfile(userId: string): Promise<any> {
     } catch (findError) {
       console.log("Error finding user by Goated ID:", findError);
     }
-    
+
     // No existing user, try to fetch user data from the leaderboard API if it's numeric (potential Goated ID)
     if (isNumericId) {
       const token = API_TOKEN || API_CONFIG.token;
-      
+
       // Try to fetch user data from the leaderboard API
       let userData = null;
-      
+
       if (token) {
         try {
           // Fetch leaderboard data which contains all users
           const leaderboardUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`;
           console.log(`Fetching leaderboard data to find user ${userId}`);
-          
+
           const response = await fetch(leaderboardUrl, {
             headers: {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             }
           });
-          
+
           if (response.ok) {
             const leaderboardData = await response.json();
-            
+
             // Search for the user in different time periods
             const timeframes = ['today', 'weekly', 'monthly', 'all_time'];
-            
+
             // Look through all timeframes to find the user
             for (const timeframe of timeframes) {
               const users = leaderboardData?.data?.[timeframe]?.data || [];
-              
+
               // Find the user with the matching UID
               const foundUser = users.find((user: any) => user.uid === userId);
-              
+
               if (foundUser) {
                 userData = foundUser;
                 console.log("Successfully found user in leaderboard data:", userData);
                 break;
               }
             }
-            
+
             if (!userData) {
               console.log(`User ID ${userId} not found in any leaderboard timeframe`);
             }
@@ -228,22 +228,22 @@ export async function ensureUserProfile(userId: string): Promise<any> {
           console.error("Error fetching from leaderboard API:", apiError);
         }
       }
-      
+
       // Attempt to retrieve the actual username from the Goated API data
       const username = userData?.name || null;
-      
+
       if (userData && username) {
         // We have valid data from the API, create a permanent profile for this Goated user
         try {
           const newUserId = Math.floor(1000 + Math.random() * 9000);
           const email = `${username.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
-          
+
           // Extract wager data from the user data
           const totalWager = userData.wagered?.all_time || 0;
           const wagerToday = userData.wagered?.today || 0;
           const wagerWeek = userData.wagered?.this_week || 0;
           const wagerMonth = userData.wagered?.this_month || 0;
-          
+
           // Log the data for debugging
           console.log(`Creating profile with wager data:`, {
             total: totalWager,
@@ -251,7 +251,7 @@ export async function ensureUserProfile(userId: string): Promise<any> {
             week: wagerWeek,
             month: wagerMonth
           });
-          
+
           // Create a complete profile with both new schema fields and legacy fields
           const result = await db.execute(sql`
             INSERT INTO users (
@@ -272,7 +272,7 @@ export async function ensureUserProfile(userId: string): Promise<any> {
               total_wager as "totalWager", wager_today as "wagerToday", 
               wager_week as "wagerWeek", wager_month as "wagerMonth"
           `);
-          
+
           if (result && result.rows && result.rows.length > 0) {
             console.log(`Created permanent profile for Goated player ${username} (${userId})`);
             return {
@@ -291,7 +291,7 @@ export async function ensureUserProfile(userId: string): Promise<any> {
           // Use 'Goated User' instead of 'Player_' to match the site's branding
           const tempUsername = `Goated User ${userId}`;
           const email = `user_${userId}@goated.placeholder.com`;
-          
+
           // Create a placeholder profile with clear indication this is temporary
           // Include both new schema fields and legacy fields
           const result = await db.execute(sql`
@@ -313,7 +313,7 @@ export async function ensureUserProfile(userId: string): Promise<any> {
               total_wager as "totalWager", wager_today as "wagerToday", 
               wager_week as "wagerWeek", wager_month as "wagerMonth"
           `);
-          
+
           if (result && result.rows && result.rows.length > 0) {
             console.log(`Created temporary profile for unknown Goated ID ${userId}`);
             return {
@@ -333,7 +333,7 @@ export async function ensureUserProfile(userId: string): Promise<any> {
         const newUserId = Math.floor(1000 + Math.random() * 9000);
         const username = `Goated Custom ${shortId}`;
         const email = `custom_${shortId}@goated.placeholder.com`;
-        
+
         // Clear indication this is a non-Goated profile
         // Include both new schema and legacy fields
         const result = await db.execute(sql`
@@ -355,7 +355,7 @@ export async function ensureUserProfile(userId: string): Promise<any> {
             total_wager as "totalWager", wager_today as "wagerToday", 
             wager_week as "wagerWeek", wager_month as "wagerMonth"
         `);
-        
+
         if (result && result.rows && result.rows.length > 0) {
           console.log(`Created custom profile for non-numeric ID ${shortId}`);
           return {
@@ -368,7 +368,7 @@ export async function ensureUserProfile(userId: string): Promise<any> {
         console.error(`Failed to create custom profile for ID ${userId}:`, insertError);
       }
     }
-    
+
     return null;
   } catch (error) {
     console.error(`Error ensuring profile for ID ${userId}:`, error);
@@ -384,17 +384,17 @@ export async function ensureUserProfile(userId: string): Promise<any> {
 async function syncUserProfiles() {
   try {
     console.log("Starting optimized user profile sync...");
-    
+
     const token = API_TOKEN || API_CONFIG.token;
     if (!token) {
       console.warn("API token not configured, skipping profile sync");
       return;
     }
-    
+
     const startTime = Date.now();
     const endpointKey = API_CONFIG.endpoints.leaderboard;
     const url = `${API_CONFIG.baseUrl}${endpointKey}`;
-    
+
     // Check if we have previously synced metadata for this endpoint
     const syncMetadata = await db.execute(sql`
       SELECT * FROM api_sync_metadata 
@@ -402,17 +402,17 @@ async function syncUserProfiles() {
       ORDER BY last_sync_time DESC 
       LIMIT 1
     `);
-    
+
     const lastSync = syncMetadata.rows && syncMetadata.rows.length > 0 
       ? syncMetadata.rows[0] 
       : null;
-    
+
     // Make initial request with HEAD to check ETag and Last-Modified
     let headers: Record<string, string> = {
       "Authorization": `Bearer ${token}`,
       "Content-Type": "application/json",
     };
-    
+
     // Add conditional headers if we have previous metadata
     if (lastSync) {
       if (lastSync.etag) {
@@ -422,16 +422,16 @@ async function syncUserProfiles() {
         headers["If-Modified-Since"] = lastSync.last_modified;
       }
     }
-    
+
     console.log(`Fetching leaderboard data from: ${url}`);
-    
+
     // Make the actual API request
     const response = await fetch(url, { headers });
-    
+
     // Handle 304 Not Modified case
     if (response.status === 304) {
       console.log("API data unchanged since last sync (304 Not Modified)");
-      
+
       // Update the sync time but keep other metadata the same
       await db.execute(sql`
         INSERT INTO api_sync_metadata (
@@ -446,30 +446,30 @@ async function syncUserProfiles() {
           }}
         )
       `);
-      
+
       console.log(`Quick sync completed. No changes detected from last sync (${lastSync.record_count} users).`);
       return;
     }
-    
+
     if (!response.ok) {
       console.error(`Failed to fetch leaderboard data: ${response.status}`);
       return;
     }
-    
+
     // Store response headers for future conditional requests
     const responseEtag = response.headers.get("etag");
     const responseLastModified = response.headers.get("last-modified");
-    
+
     const rawData = await response.json();
-    
+
     // Generate a simple hash of the response data for comparison
     const responseJSON = JSON.stringify(rawData);
     const responseHash = await generateSimpleHash(responseJSON);
-    
+
     // If we have a previous sync and the hash matches, skip full processing
     if (lastSync && lastSync.response_hash === responseHash) {
       console.log("API data unchanged since last sync (hash match)");
-      
+
       // Update the sync time but keep other metadata the same
       await db.execute(sql`
         INSERT INTO api_sync_metadata (
@@ -484,11 +484,11 @@ async function syncUserProfiles() {
           }}
         )
       `);
-      
+
       console.log(`Quick sync completed. No changes detected from content hash (${lastSync.record_count} users).`);
       return;
     }
-    
+
     // Handle different response formats to normalize the data structure
     let leaderboardData;
     if (rawData.data && rawData.data.all_time) {
@@ -536,51 +536,51 @@ async function syncUserProfiles() {
       console.error("Unknown API response format:", typeof rawData, Object.keys(rawData || {}));
       return;
     }
-    
+
     // Process all_time data to get unique users
     const allTimeData = leaderboardData?.data?.all_time?.data || [];
     let createdCount = 0;
     let existingCount = 0;
     let updatedCount = 0;
-    
+
     // Count users in the current database for comparison
     const userCountResult = await db.execute(sql`SELECT COUNT(*) FROM users WHERE goated_id IS NOT NULL`);
     const currentUserCount = parseInt(userCountResult.rows[0].count, 10) || 0;
-    
+
     console.log(`Current user count in database: ${currentUserCount}`);
     console.log(`Users in API response: ${allTimeData.length}`);
-    
+
     // Optimization: Skip full processing if user count hasn't changed significantly
     // and we've done a full sync before
     if (lastSync && lastSync.is_full_sync && 
         Math.abs(currentUserCount - allTimeData.length) < 10 && 
         allTimeData.length > 0) {
-      
+
       // Just update a small sample of users to keep data fresh
       // Get random users (10% or at least 10, but not more than 50)
       const sampleSize = Math.min(50, Math.max(10, Math.floor(allTimeData.length * 0.1)));
       const sampleUsers = allTimeData
         .sort(() => 0.5 - Math.random())  // Shuffle array
         .slice(0, sampleSize);  // Take a sample
-      
+
       console.log(`Performing partial sync with ${sampleUsers.length} sample users`);
-      
+
       for (const player of sampleUsers) {
         try {
           // Skip entries without uid or name
           if (!player.uid || !player.name) continue;
-          
+
           // Extract wager data from the player object
           const totalWager = player.wagered?.all_time || 0;
           const wagerToday = player.wagered?.today || 0;
           const wagerWeek = player.wagered?.this_week || 0;
           const wagerMonth = player.wagered?.this_month || 0;
-          
+
           // Check if user exists and update
           const existingUser = await db.select().from(users)
             .where(sql`goated_id = ${player.uid}`)
             .limit(1);
-          
+
           if (existingUser && existingUser.length > 0) {
             // Update existing user with latest wager data
             await db.execute(sql`
@@ -599,7 +599,7 @@ async function syncUserProfiles() {
           console.error(`Error updating sample user ${player?.name}:`, error);
         }
       }
-      
+
       // Record this partial sync
       await db.execute(sql`
         INSERT INTO api_sync_metadata (
@@ -616,34 +616,34 @@ async function syncUserProfiles() {
           }}
         )
       `);
-      
+
       console.log(`Partial sync completed. ${updatedCount} profiles updated of ${sampleSize} sampled.`);
       return;
     }
-    
+
     // Perform full sync when:
     // 1. We've never synced before
     // 2. Number of users has changed significantly 
     // 3. Response content has changed based on hash
     console.log(`Performing full sync with ${allTimeData.length} users from leaderboard`);
-    
+
     // Process each user from the leaderboard
     for (const player of allTimeData) {
       try {
         // Skip entries without uid or name
         if (!player.uid || !player.name) continue;
-        
+
         // Extract wager data from the player object
         const totalWager = player.wagered?.all_time || 0;
         const wagerToday = player.wagered?.today || 0;
         const wagerWeek = player.wagered?.this_week || 0;
         const wagerMonth = player.wagered?.this_month || 0;
-        
+
         // Check if user already exists by uid or goatedId (for backward compatibility)
         const existingUser = await db.select().from(users)
           .where(sql`goated_id = ${player.uid}`)
           .limit(1);
-        
+
         if (existingUser && existingUser.length > 0) {
           // Update existing user with latest wager data and set new schema fields
           await db.execute(sql`
@@ -664,14 +664,14 @@ async function syncUserProfiles() {
           existingCount++;
           continue; // Skip to the next user
         }
-        
+
         // Create a new permanent profile for this Goated user
         // Use the Goated UID to create a deterministic numeric ID
         // This ensures we always get the same ID for the same user
         const uidHash = player.uid.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
         const newUserId = 10000 + (uidHash % 90000); // Ensures ID is in range 10000-99999
         const email = `${player.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
-        
+
         try {
           await db.execute(sql`
             INSERT INTO users (
@@ -728,7 +728,7 @@ async function syncUserProfiles() {
         console.error(`Error creating/updating profile for ${player?.name}:`, error);
       }
     }
-    
+
     // Record this full sync
     const syncDuration = Date.now() - startTime;
     await db.execute(sql`
@@ -747,7 +747,7 @@ async function syncUserProfiles() {
         }}
       )
     `);
-    
+
     console.log(`Full profile sync completed in ${syncDuration}ms. Created ${createdCount} new profiles, updated ${updatedCount}, ${existingCount} already existed.`);
   } catch (error) {
     console.error("Error syncing profiles from leaderboard:", error);
@@ -761,7 +761,7 @@ async function syncUserProfiles() {
 async function generateSimpleHash(str: string): Promise<string> {
   // Use a simpler approach for browsers that might not support crypto
   if (str.length === 0) return "empty";
-  
+
   // Take the first 100 chars, middle 100 chars, and last a 100 chars for a rough comparison
   // plus the length which is a good indicator of changes
   const len = str.length;
@@ -770,7 +770,7 @@ async function generateSimpleHash(str: string): Promise<string> {
     str.substring(Math.floor(len/2) - 50, Math.floor(len/2) + 50) : 
     "";
   const end = len > 100 ? str.substring(len - 100) : "";
-  
+
   // Combine parts with length for a simple fingerprint
   return `len:${len}|start:${start}|mid:${middle}|end:${end}`;
 }
@@ -795,7 +795,7 @@ async function initializeServer() {
 
     await testDbConnection();
     log("info", "Database connection established");
-    
+
     // Synchronize user profiles from API
     await syncUserProfiles();
     log("info", "User profiles synchronized");
@@ -842,11 +842,11 @@ async function initializeServer() {
       // Graceful shutdown handler
       const shutdown = async () => {
         log("info", "Shutting down gracefully...");
-        
+
         // Close all WebSocket servers
         closeAllWebSocketServers();
         log("info", "All WebSocket servers closed");
-        
+
         // Close HTTP server
         server.close(() => {
           log("info", "HTTP server closed");
@@ -895,7 +895,7 @@ function setupWebSocket(server: any) {
  */
 function setupMiddleware(app: express.Application) {
   app.set('trust proxy', 1);
-  
+
   // Domain detection middleware (important to run first)
   app.use(domainRedirectMiddleware);
 
@@ -987,7 +987,7 @@ const requestLogger = (() => {
  */
 function serveStatic(app: express.Application) {
   const distPath = PATHS.clientBuild;
-  
+
   if (!fs.existsSync(distPath)) {
     throw new Error(`Could not find the build directory: ${distPath}. Please build the client first.`);
   }
