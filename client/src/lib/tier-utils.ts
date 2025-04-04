@@ -1,8 +1,9 @@
+
 /**
  * Utility functions for handling user tiers based on wager amounts
  */
 
-export type TierType = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
+export type TierType = 'copper' | 'bronze' | 'silver' | 'gold' | 'platinum' | 'pearl' | 'sapphire' | 'emerald' | 'diamond';
 
 interface TierDefinition {
   name: TierType;
@@ -11,13 +12,17 @@ interface TierDefinition {
   color: string;
 }
 
-// Define tier thresholds with colors
+// Define tier thresholds with colors - aligned with VipProgram.tsx
 const TIERS: TierDefinition[] = [
-  { name: 'bronze', minWager: 0, icon: '/images/Goated Emblems/bronze.e6ea941b.svg', color: '#CD7F32' },
-  { name: 'silver', minWager: 1000, icon: '/images/Goated Emblems/silver.8e3ec67f.svg', color: '#C0C0C0' },
-  { name: 'gold', minWager: 10000, icon: '/images/Goated Emblems/gold.1c810178.svg', color: '#FFD700' },
-  { name: 'platinum', minWager: 50000, icon: '/images/Goated Emblems/platinum.d258f583.svg', color: '#E5E4E2' },
-  { name: 'diamond', minWager: 250000, icon: '/images/Goated Emblems/diamond.ddf47a1e.svg', color: '#B9F2FF' },
+  { name: 'copper', minWager: 0, icon: '/images/Goated Emblems/copper.548d79cf.svg', color: '#B87333' },
+  { name: 'bronze', minWager: 1000, icon: '/images/Goated Emblems/bronze.e6ea941b.svg', color: '#CD7F32' },
+  { name: 'silver', minWager: 10000, icon: '/images/Goated Emblems/silver.8e3ec67f.svg', color: '#C0C0C0' },
+  { name: 'gold', minWager: 100000, icon: '/images/Goated Emblems/gold.1c810178.svg', color: '#FFD700' },
+  { name: 'platinum', minWager: 450000, icon: '/images/Goated Emblems/platinum.d258f583.svg', color: '#E5E4E2' },
+  { name: 'pearl', minWager: 1500000, icon: '/images/Goated Emblems/pearl.1815809f.svg', color: '#FAEBD7' },
+  { name: 'sapphire', minWager: 3000000, icon: '/images/Goated Emblems/sapphire.91e6756b.svg', color: '#0F52BA' },
+  { name: 'emerald', minWager: 7000000, icon: '/images/Goated Emblems/emerald.46bd38eb.svg', color: '#50C878' },
+  { name: 'diamond', minWager: 20000000, icon: '/images/Goated Emblems/diamond.ddf47a1e.svg', color: '#B9F2FF' },
 ];
 
 /**
@@ -28,11 +33,12 @@ const TIERS: TierDefinition[] = [
  */
 export function getTierFromWager(wagerAmount: number | string): TierType {
   // Convert string to number if necessary
-  const numericAmount = typeof wagerAmount === 'string' ? parseFloat(wagerAmount) : wagerAmount;
+  const numericAmount = typeof wagerAmount === 'string' ? 
+    parseFloat(wagerAmount.replace(/,/g, '')) : wagerAmount;
   
   // Handle NaN or invalid values
   if (isNaN(numericAmount)) {
-    return 'bronze';
+    return 'copper';
   }
   
   // Sort tiers in descending order by minWager
@@ -41,8 +47,8 @@ export function getTierFromWager(wagerAmount: number | string): TierType {
   // Find the highest tier the user qualifies for
   const tier = sortedTiers.find(tier => numericAmount >= tier.minWager);
   
-  // Default to bronze if no matching tier (shouldn't happen due to bronze being 0)
-  return tier?.name || 'bronze';
+  // Default to copper if no matching tier (shouldn't happen due to copper being 0)
+  return tier?.name || 'copper';
 }
 
 /**
@@ -53,7 +59,7 @@ export function getTierFromWager(wagerAmount: number | string): TierType {
  */
 export function getTierIcon(tierName: string): string {
   const tier = TIERS.find(t => t.name === tierName.toLowerCase());
-  return tier?.icon || '/images/Goated Emblems/bronze.e6ea941b.svg';
+  return tier?.icon || '/images/Goated Emblems/copper.548d79cf.svg';
 }
 
 /**
@@ -75,7 +81,7 @@ export function getTierMinimumWager(tierName: string): number {
  */
 export function getTierColor(tierName: string): string {
   const tier = TIERS.find(t => t.name === tierName.toLowerCase());
-  return tier?.color || '#CD7F32'; // Default to bronze color
+  return tier?.color || '#B87333'; // Default to copper color
 }
 
 /**
@@ -105,16 +111,17 @@ export function getTierProgress(wagerAmount: number | string): {
   currentTier: TierDefinition;
   nextTier: TierDefinition | null;
 } {
-  // Convert string to number if necessary
-  const numericAmount = typeof wagerAmount === 'string' ? parseFloat(wagerAmount) : wagerAmount;
+  // Convert string to number if necessary, removing commas if present
+  const numericAmount = typeof wagerAmount === 'string' ? 
+    parseFloat(wagerAmount.replace(/,/g, '')) : wagerAmount;
   
   // Handle NaN or invalid values
   if (isNaN(numericAmount)) {
-    const bronzeTier = TIERS.find(t => t.name === 'bronze') as TierDefinition;
+    const copperTier = TIERS.find(t => t.name === 'copper') as TierDefinition;
     return {
       percentage: 0,
-      currentTier: bronzeTier,
-      nextTier: TIERS[1] // Silver tier
+      currentTier: copperTier,
+      nextTier: TIERS[1] // Bronze tier
     };
   }
   
