@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { formatApiUrl } from '@/lib/domain-utils'; // Added import
 
 interface ApiOptions {
   enabled?: boolean;
@@ -22,7 +23,7 @@ async function fetchApi(endpoint: string, options: RequestInit = {}) {
   let lastError;
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch(formatApiUrl(endpoint), { // Updated to use formatApiUrl
         ...options,
         headers: {
           'Content-Type': 'application/json',

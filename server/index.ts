@@ -27,6 +27,7 @@ import { promisify } from "util";
 import { exec } from "child_process";
 import { sql } from "drizzle-orm";
 import compression from "compression";
+import { domainRouter } from './middleware/domain-router'; // Added import
 
 // Application modules
 import { log } from "./utils/logger";
@@ -901,7 +902,12 @@ function setupMiddleware(app: express.Application) {
 
   // CORS configuration for API routes
   app.use('/api', cors({
-    origin: CORS_ORIGINS,
+    origin: [
+      'https://goatedvips.gg', 
+      'https://goombas.net', 
+      'https://goatedvips.replit.app',
+      process.env.NODE_ENV === 'development' ? '*' : undefined
+    ].filter(Boolean),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
