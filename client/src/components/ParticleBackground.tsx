@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 
 interface Particle {
@@ -21,82 +20,84 @@ export function ParticleBackground() {
   const particles = useRef<Particle[]>([]);
   const animationFrameId = useRef<number | null>(null);
   const mousePosition = useRef<{ x: number; y: number } | null>(null);
-  const [carouselEffect, setCarouselEffect] = useState<{ direction: 'left' | 'right', strength: number, x: number } | null>(null);
-  
+  const [carouselEffect, setCarouselEffect] = useState<{ direction: 'left' | 'right'; strength: number; x: number; carouselTop?: number; carouselBottom?: number } | null>(null);
+
   // Observe carousel transitions with improved detection
   useEffect(() => {
     // Create a custom event for carousel changes that FeatureCarousel will dispatch
     window.addEventListener('carouselChange', ((e: CustomEvent) => {
-      const { direction } = e.detail;
+      const { direction, top, bottom } = e.detail;
       const centerX = window.innerWidth / 2;
-      
+
       // Apply wind effect based on direction
       setCarouselEffect({
         direction: direction === 'next' ? 'left' : 'right',
         strength: 1.5, // Increased strength for visibility
-        x: centerX
+        x: centerX,
+        carouselTop: top,
+        carouselBottom: bottom
       });
-      
+
       // Reset the effect after animation completes
       setTimeout(() => {
         setCarouselEffect(null);
       }, 1000);
     }) as EventListener);
-    
+
     // Fallback to DOM observation method
     const observeCarousel = () => {
       const carouselElement = document.querySelector('.feature-carousel');
-      
+
       if (!carouselElement) {
         // If not found yet, try again after a short delay
         setTimeout(observeCarousel, 500);
         return;
       }
-      
+
       // Create a MutationObserver to watch for changes in the carousel
       const observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
-          if (mutation.type === 'childList' || 
+          if (mutation.type === 'childList' ||
              (mutation.type === 'attributes' && mutation.attributeName === 'style')) {
-            
+
             // Detect direction based on DOM changes
             const target = mutation.target as HTMLElement;
-            const isNext = target.classList.contains('next') || 
+            const isNext = target.classList.contains('next') ||
                          target.getAttribute('data-direction') === 'next';
-            
+
             const direction = isNext ? 'left' : 'right';
             const centerX = window.innerWidth / 2;
-            
+
             setCarouselEffect({
               direction,
               strength: 1.5, // Increased strength for visibility
-              x: centerX
+              x: centerX,
             });
-            
+
             // Reset the effect after animation completes
             setTimeout(() => {
               setCarouselEffect(null);
             }, 1000);
-            
+
             // Only trigger once per mutation batch
             break;
           }
         }
       });
-      
+
       // Observe the entire carousel for any changes
-      observer.observe(carouselElement, { 
-        childList: true, 
-        attributes: true, 
+      observer.observe(carouselElement, {
+        childList: true,
+        attributes: true,
         attributeFilter: ['style', 'class'],
-        subtree: true 
+        subtree: true
       });
-      
+
       return () => observer.disconnect();
     };
-    
+
     observeCarousel();
-    
+
     return () => {
       window.removeEventListener('carouselChange', ((e: CustomEvent) => {}) as EventListener);
     };
@@ -113,7 +114,7 @@ export function ParticleBackground() {
     const handleResize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      
+
       // Reset particles when resizing
       initParticles();
     };
@@ -134,7 +135,7 @@ export function ParticleBackground() {
     window.addEventListener('resize', handleResize);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseleave', handleMouseLeave);
-    
+
     handleResize();
 
     function initParticles() {
@@ -154,7 +155,7 @@ export function ParticleBackground() {
         const velocity = Math.random() * 0.3 + 0.1;
         const wobble = Math.random() * 10;
         const wobbleSpeed = Math.random() * 0.03 + 0.01;
-        
+
         particles.current.push({
           x,
           y,
@@ -184,14 +185,14 @@ export function ParticleBackground() {
         glow.addColorStop(0, 'rgba(215, 255, 0, 0.4)');
         glow.addColorStop(0.5, 'rgba(215, 255, 0, 0.1)');
         glow.addColorStop(1, 'rgba(215, 255, 0, 0)');
-        
+
         // Draw the glow with reduced opacity
         ctx.globalAlpha = particle.opacity * 0.2;
         ctx.fillStyle = glow;
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size * 4, 0, Math.PI * 2);
         ctx.fill();
-        
+
         // Draw the particle core with reduced opacity
         ctx.globalAlpha = particle.opacity * 1.0; // Less bright
         ctx.fillStyle = '#D7FF00';
@@ -214,11 +215,11 @@ export function ParticleBackground() {
             );
             gradient.addColorStop(0, `rgba(215, 255, 0, ${(120 - distance) / 800 * particle.opacity})`);
             gradient.addColorStop(1, `rgba(215, 255, 0, ${(120 - distance) / 800 * otherParticle.opacity})`);
-            
+
             ctx.beginPath();
             ctx.strokeStyle = gradient;
             ctx.globalAlpha = (120 - distance) / 800 * (particle.opacity + otherParticle.opacity) / 2;
-            ctx.lineWidth = 0.3; 
+            ctx.lineWidth = 0.3;
             ctx.moveTo(particle.x, particle.y);
             ctx.lineTo(otherParticle.x, otherParticle.y);
             ctx.stroke();
@@ -233,21 +234,21 @@ export function ParticleBackground() {
         particle.angle += particle.wobbleSpeed;
         const wobbleX = Math.sin(particle.angle) * particle.wobble;
         const wobbleY = Math.cos(particle.angle) * particle.wobble;
-        
+
         // Update particle position with natural movement
         particle.x += particle.speedX + (Math.sin(particle.angle) * 0.2);
         particle.y += particle.speedY + (Math.cos(particle.angle) * 0.1);
-        
+
         // Add ember/spark-like floating effect
         particle.y -= Math.random() * 0.1; // Slight upward drift like embers
-        
+
         // Mouse interaction - particles move away from cursor
         if (mousePosition.current) {
           const dx = mousePosition.current.x - particle.x;
           const dy = mousePosition.current.y - particle.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           const maxDistance = 150; // Increased influence radius
-          
+
           if (distance < maxDistance) {
             const force = (maxDistance - distance) / maxDistance;
             // Enhanced repulsion effect
@@ -259,26 +260,42 @@ export function ParticleBackground() {
             particle.y += (particle.baseY - particle.y) * 0.003;
           }
         }
-        
-        // Enhanced carousel wind effect
+
+        // Enhanced carousel wind effect - only affects particles within the carousel's lane
         if (carouselEffect) {
-          const dx = particle.x - carouselEffect.x;
-          const dy = particle.y - window.innerHeight / 2;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          const maxDistance = 600; // Increased wind effect range
-          
-          if (distance < maxDistance) {
-            const force = (maxDistance - distance) / maxDistance * carouselEffect.strength;
-            const windDirectionX = carouselEffect.direction === 'left' ? -1 : 1;
-            
-            // Apply stronger wind force based on direction and distance
-            particle.x += windDirectionX * force * 5; // Increased force for visibility
-            
-            // Add more vertical spread for dramatic wind effect
-            particle.y += (Math.random() - 0.5) * force * 1.5;
-            
-            // Temporarily increase particle opacity for visual emphasis
-            particle.opacity = Math.min(particle.opacity * 1.5, 0.6);
+          // Get the carousel element position (approximately)
+          const carouselTop = window.innerHeight * 0.1; // Approx 10% from top
+          const carouselBottom = window.innerHeight * 0.3; // Approx 30% from top (covering the carousel height)
+          const carouselVerticalPadding = window.innerHeight * 0.15; // Extra padding for effect
+
+          // Use actual carousel position when available, otherwise use defaults
+          const actualCarouselTop = carouselEffect.carouselTop || carouselTop;
+          const actualCarouselBottom = carouselEffect.carouselBottom || carouselBottom;
+
+          // Check if particle is within the carousel's vertical lane (with padding)
+          const isInCarouselLane =
+            particle.y >= (actualCarouselTop - carouselVerticalPadding) &&
+            particle.y <= (actualCarouselBottom + carouselVerticalPadding);
+
+          if (isInCarouselLane) {
+            const dx = particle.x - carouselEffect.x;
+            const dy = particle.y - (actualCarouselTop + (actualCarouselBottom - actualCarouselTop) / 2); // Center of carousel
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const maxDistance = 600; // Wind effect range
+
+            if (distance < maxDistance) {
+              const force = (maxDistance - distance) / maxDistance * carouselEffect.strength;
+              const windDirectionX = carouselEffect.direction === 'left' ? -1 : 1;
+
+              // Apply stronger wind force based on direction and distance
+              particle.x += windDirectionX * force * 5; // Increased force for visibility
+
+              // Add subtle vertical spread for wind effect (less than before)
+              particle.y += (Math.random() - 0.5) * force * 1.0;
+
+              // Temporarily increase particle opacity for visual emphasis
+              particle.opacity = Math.min(particle.opacity * 1.5, 0.6);
+            }
           }
         }
 
