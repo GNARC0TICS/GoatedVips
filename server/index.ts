@@ -608,7 +608,8 @@ async function syncUserProfiles() {
                 total_wager = ${totalWager},
                 wager_today = ${wagerToday},
                 wager_week = ${wagerWeek},
-                wager_month = ${wagerMonth}
+                wager_month = ${wagerMonth},
+                is_active = ${totalWager > 0}
               WHERE goated_id = ${player.uid}
             `);
             updatedCount++;
@@ -669,23 +670,28 @@ async function syncUserProfiles() {
 
         if (existingUser && existingUser.length > 0) {
           // Update existing user with latest wager data and set new schema fields
-          await db.execute(sql`
-            UPDATE users 
-            SET 
-              goated_username = ${player.name},
-              goated_account_linked = true,
-              -- New schema fields
-              uid = ${player.uid},
-              total_wager = ${totalWager},
-              wager_today = ${wagerToday},
-              wager_week = ${wagerWeek},
-              wager_month = ${wagerMonth},
-              verified = true
-            WHERE goated_id = ${player.uid}
-          `);
-          updatedCount++;
-          existingCount++;
-          continue; // Skip to the next user
+          try {
+            await db.execute(sql`
+              UPDATE users 
+              SET 
+                goated_username = ${player.name},
+                goated_account_linked = true,
+                -- New schema fields
+                uid = ${player.uid},
+                total_wager = ${totalWager},
+                wager_today = ${wagerToday},
+                wager_week = ${wagerWeek},
+                wager_month = ${wagerMonth},
+                verified = true,
+                is_active = ${totalWager > 0}
+              WHERE goated_id = ${player.uid}
+            `);
+            updatedCount++;
+            existingCount++;
+            continue; // Skip to the next user
+          } catch (error) {
+            console.error(`Error updating user ${player.name} (goatedId: ${player.uid}):`, error);
+          }
         }
 
         // Create a new permanent profile for this Goated user
@@ -703,14 +709,14 @@ async function syncUserProfiles() {
               -- Legacy fields
               goated_id, goated_username, goated_account_linked,
               -- New schema fields
-              uid, total_wager, wager_today, wager_week, wager_month, verified
+              uid, total_wager, wager_today, wager_week, wager_month, verified, is_active
             ) VALUES (
               ${newUserId}, ${player.name}, ${email}, '', ${new Date()}, '#D7FF00', 
               'Official Goated.com player profile', false, 
               -- Legacy fields values
               ${player.uid}, ${player.name}, true,
               -- New schema fields values
-              ${player.uid}, ${totalWager}, ${wagerToday}, ${wagerWeek}, ${wagerMonth}, true
+              ${player.uid}, ${totalWager}, ${wagerToday}, ${wagerWeek}, ${wagerMonth}, true, ${totalWager > 0}
             )
           `);
           console.log(`Created new user profile for ${player.name} (UID: ${player.uid})`);
@@ -728,14 +734,14 @@ async function syncUserProfiles() {
                   -- Legacy fields
                   goated_id, goated_username, goated_account_linked,
                   -- New schema fields
-                  uid, total_wager, wager_today, wager_week, wager_month, verified
+                  uid, total_wager, wager_today, wager_week, wager_month, verified, is_active
                 ) VALUES (
                   ${altId}, ${player.name}, ${email}, '', ${new Date()}, '#D7FF00', 
                   'Official Goated.com player profile', false, 
                   -- Legacy fields values
                   ${player.uid}, ${player.name}, true,
                   -- New schema fields values
-                  ${player.uid}, ${totalWager}, ${wagerToday}, ${wagerWeek}, ${wagerMonth}, true
+                  ${player.uid}, ${totalWager}, ${wagerToday}, ${wagerWeek}, ${wagerMonth}, true, ${totalWager > 0}
                 )
               `);
               console.log(`Created new user profile with alt ID for ${player.name} (UID: ${player.uid})`);
@@ -744,7 +750,7 @@ async function syncUserProfiles() {
               console.error(`Failed to create user with alternative ID for ${player.name}:`, innerError);
             }
           } else {
-            throw error;
+            console.error(`Error creating user ${player.name} (goatedId: ${player.uid}):`, error);
           }
         }
       } catch (error) {
@@ -811,7 +817,7 @@ async function generateSimpleHash(str: string): Promise<string> {
  */
 async function initializeServer() {
   try {
-    log("info", "Starting server initialization...");
+    log("info", "Startingserver initialization...");
 
     await waitForPort(PORT);
     log("info", "Port available, proceeding with initialization");

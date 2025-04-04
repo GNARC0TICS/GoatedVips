@@ -61,19 +61,19 @@ async function syncUserProfiles() {
     .from(users)
     .where(eq(users.isActive, true))
     .orderBy(desc(users.lastActive)); // Start with users who haven't been updated recently
-  
+
   console.log(`Found ${activeUsers.length} active users to prioritize for updates`);
-  
+
   // Map Goated IDs of active users
   const activeGoatedIds = new Set(activeUsers.map(u => u.goatedId).filter(Boolean));
-  
+
   // Filter API data for active users first
   let usersToUpdate = allTimeData.filter(player => 
     player.uid && activeGoatedIds.has(player.uid)
   );
-  
+
   console.log(`Found ${usersToUpdate.length} active users in API data`);
-  
+
   // If we need to add more users (e.g., for new users that aren't marked active yet)
   // Find any users with wager data but not in our active set
   const potentialNewActiveUsers = allTimeData.filter(player => 
@@ -81,7 +81,7 @@ async function syncUserProfiles() {
     !activeGoatedIds.has(player.uid) && 
     (player.wagered?.all_time > 0)
   );
-  
+
   // Add them to our update list
   if (potentialNewActiveUsers.length > 0) {
     console.log(`Found ${potentialNewActiveUsers.length} potential new active users`);
@@ -119,7 +119,7 @@ async function syncUserProfiles() {
             wager_week = ${wagerWeek},
             wager_month = ${wagerMonth},
             lastActive = NOW(),
-            isActive = ${totalWager > 0}
+            is_active = ${totalWager > 0}
           WHERE goated_id = ${player.uid}
         `);
         updatedCount++;
