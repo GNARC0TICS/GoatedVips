@@ -3,7 +3,7 @@
  * Utility functions for handling user tiers based on wager amounts
  */
 
-export type TierType = 'copper' | 'bronze' | 'silver' | 'gold' | 'platinum' | 'pearl' | 'sapphire' | 'emerald' | 'diamond';
+export type TierType = 'copper' | 'bronze' | 'silver' | 'gold' | 'platinum' | 'pearl' | 'diamond';
 
 interface TierDefinition {
   name: TierType;
@@ -20,9 +20,7 @@ const TIERS: TierDefinition[] = [
   { name: 'gold', minWager: 100000, icon: '/images/Goated Emblems/gold.1c810178.svg', color: '#FFD700' },
   { name: 'platinum', minWager: 450000, icon: '/images/Goated Emblems/platinum.d258f583.svg', color: '#E5E4E2' },
   { name: 'pearl', minWager: 1500000, icon: '/images/Goated Emblems/pearl.1815809f.svg', color: '#FAEBD7' },
-  { name: 'sapphire', minWager: 3000000, icon: '/images/Goated Emblems/sapphire.91e6756b.svg', color: '#0F52BA' },
-  { name: 'emerald', minWager: 7000000, icon: '/images/Goated Emblems/emerald.46bd38eb.svg', color: '#50C878' },
-  { name: 'diamond', minWager: 20000000, icon: '/images/Goated Emblems/diamond.ddf47a1e.svg', color: '#B9F2FF' },
+  { name: 'diamond', minWager: 250000, icon: '/images/Goated Emblems/diamond.ddf47a1e.svg', color: '#B9F2FF' },
 ];
 
 /**

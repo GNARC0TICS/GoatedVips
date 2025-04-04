@@ -150,18 +150,22 @@ router.get("/stats/:userId", async (req, res) => {
     console.log("Extracted user data:", userData);
     
     // Calculate tier based on total wagered
-    // This calculation can be expanded or moved to a utility function
-    let tier = 'bronze';
+    // This calculation matches the tier structure in client/src/lib/tier-utils.ts
+    let tier = 'copper';
     const totalWagered = parseFloat(userData.totalWagered || '0');
     
-    if (totalWagered >= 250000) {
-      tier = 'diamond';
-    } else if (totalWagered >= 50000) {
+    if (totalWagered >= 1500000) {
+      tier = 'pearl';
+    } else if (totalWagered >= 450000) {
       tier = 'platinum';
-    } else if (totalWagered >= 10000) {
+    } else if (totalWagered >= 250000) {
+      tier = 'diamond';
+    } else if (totalWagered >= 100000) {
       tier = 'gold';
-    } else if (totalWagered >= 1000) {
+    } else if (totalWagered >= 10000) {
       tier = 'silver';
+    } else if (totalWagered >= 1000) {
+      tier = 'bronze';
     }
     
     // Return the combined user stats
