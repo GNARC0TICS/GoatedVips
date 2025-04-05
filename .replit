@@ -1,4 +1,74 @@
-modules = ["nodejs-20", "python-3.11"]
+# Specify the main entry point of your application
+entrypoint = "index.js"
 
+# Define the modules required for your project
+modules = ["nodejs-20", "web", "postgresql-16"]
+
+# List of files and directories to hide in the file explorer
+hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
+
+# Nix package manager settings
 [nix]
 channel = "stable-24_05"
+
+# Deployment configuration
+[deployment]
+deploymentTarget = "gce"
+build = ["sh", "-c", "npm run build"]
+run = ["sh", "-c", "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"]
+ignorePorts = false
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 5001
+externalPort = 3001
+
+[[ports]]
+localPort = 5173
+externalPort = 3000
+
+[server]
+host = "0.0.0.0"
+port = 5000
+
+[workflows]
+runButton = "Start GoatedVIPs"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+mode = "parallel"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"
+wait_for_port = 5000
+
+[[workflows.workflow]]
+name = "Start GoatedVIPs"
+author = 38337569
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"
+
+# Authentication settings
+[auth]
+pageEnabled = false
+buttonEnabled = false

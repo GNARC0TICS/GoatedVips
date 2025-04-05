@@ -817,16 +817,10 @@ async function generateSimpleHash(str: string): Promise<string> {
  */
 async function initializeServer() {
   try {
-    log("info", "Starting server initialization...");
+    log("info", "Startingserver initialization...");
 
-    // Skip port availability check in Replit environment
-    const isReplitEnv = process.env.REPL_ID !== undefined;
-    if (!isReplitEnv) {
-      await waitForPort(PORT);
-      log("info", "Port available, proceeding with initialization");
-    } else {
-      log("info", "Replit environment detected, skipping port availability check");
-    }
+    await waitForPort(PORT);
+    log("info", "Port available, proceeding with initialization");
 
     await testDbConnection();
     log("info", "Database connection established");
@@ -936,7 +930,7 @@ function setupMiddleware(app: express.Application) {
 
   // CORS configuration - allow all origins in any environment
   const isReplitEnv = process.env.REPL_ID !== undefined;
-
+  
   // More permissive CORS policy for all environments
   app.use(cors({
     origin: '*',
@@ -947,7 +941,7 @@ function setupMiddleware(app: express.Application) {
 
   // Session store configuration using PostgreSQL
   const PostgresSessionStore = connectPg(session);
-
+  
   app.use(session({
     store: new PostgresSessionStore({
       conObject: {
@@ -969,10 +963,10 @@ function setupMiddleware(app: express.Application) {
   // Security headers middleware
   app.use((req, res, next) => {
     // Use the existing isReplitEnv variable
-
+    
     // Set basic security headers
     res.setHeader('X-Content-Type-Options', 'nosniff');
-
+    
     // In Replit environment, use more permissive security headers
     if (isReplitEnv) {
       // Allow framing in Replit environment
@@ -983,7 +977,7 @@ function setupMiddleware(app: express.Application) {
       res.setHeader('X-XSS-Protection', '1; mode=block');
       res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
-
+    
     next();
   });
 
@@ -1141,11 +1135,6 @@ async function setupVite(app: express.Application, server: any) {
     }
     return templateCache;
   };
-
-  // For Replit environments, ensure we set allowed hosts
-  if (process.env.REPL_ID) {
-    process.env.ALLOWED_HOSTS = '.replit.dev,.replit.app,.repl.co,.spock.replit.dev';
-  }
 
   // Serve Vite-processed HTML
   app.use("*", async (req, res, next) => {

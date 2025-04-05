@@ -19,17 +19,17 @@ External API -> Transform Service -> Database -> WebSocket -> UI Update
 ```
 
 ### Core Components
-### Core Components
 1. **Main Server (Port 5000)**
    - Express.js REST API
    - Real-time WebSocket updates
    - Rate limiting & security middleware
    - Database operations
    - Domain-based routing system
+
+2. **Telegram Bot (Port 5001)**
    - User verification
    - Admin commands
    - Real-time notifications
-   - Challenge management
    - Challenge management
 
 ### Domain Routing System
