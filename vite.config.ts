@@ -33,6 +33,8 @@ export default defineConfig({
       usePolling: true, // Better for containerized environments like Replit
       interval: 1000,
     },
+    // Allow all Replit hosts automatically
+    allowedHosts: ['localhost', '0.0.0.0', '.replit.dev', '.replit.app', '.repl.co', '.spock.replit.dev'],
   },
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
