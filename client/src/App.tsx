@@ -27,6 +27,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 // Imports the authentication page component
 import AuthPage from "@/pages/auth-page";
+import EmailVerification from "@/pages/email-verification";
 import VipTransfer from "@/pages/VipTransfer";
 import ProvablyFair from "@/pages/ProvablyFair";
 import WagerRaces from "@/pages/WagerRaces";
@@ -114,6 +115,7 @@ function MainContent() {
                   {/* All user profile routes are public */}
                   <Route path="/user-profile/:id" component={UserProfile} />
                   <Route path="/user/:id" component={UserProfile} />
+                  <Route path="/verify-email/:token" component={EmailVerification} />
 
                   {/* Protected Routes - Require Authentication */}
                   <ProtectedRoute path="/bonus-codes" component={BonusCodes} />
