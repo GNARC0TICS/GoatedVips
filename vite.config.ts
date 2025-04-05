@@ -8,6 +8,10 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 export default defineConfig({
+  // Detect Replit deployment environment
+  base: process.env.REPL_SLUG && process.env.NODE_ENV === 'production' 
+    ? '/' 
+    : '/',
   plugins: [react(), runtimeErrorOverlay(), themePlugin()],
   resolve: {
     alias: {
@@ -32,11 +36,30 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: process.env.NODE_ENV === 'production',
+        drop_debugger: process.env.NODE_ENV === 'production',
+      },
+    },
+    sourcemap: process.env.NODE_ENV !== 'production',
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'client/index.html'),
         admin: path.resolve(__dirname, 'client/admin.html'),
       },
+      output: {
+        manualChunks: {
+          'vendor': ['react', 'react-dom', 'wouter'],
+          'ui': [
+            '@/components/ui',
+            'framer-motion',
+            'vaul',
+            'tailwind-merge'
+          ]
+        }
+      }
     },
   },
 });
