@@ -925,7 +925,7 @@ function setupWebSocket(server: any) {
 function setupMiddleware(app: express.Application) {
   app.set('trust proxy', 1);
 
-  // Domain detection middleware (important to run first)
+  // Simple middleware for request logging (no domain restrictions)
   app.use(domainRedirectMiddleware);
 
   // CORS configuration - allow all origins in any environment

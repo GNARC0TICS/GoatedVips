@@ -54,7 +54,8 @@ router.post('/goombas.net/logout', requireAdmin, (req: Request, res: Response) =
   });
 });
 
-import { adminDomainOnly } from '../middleware/domain-router';
+// Removed domain-specific middleware
+// import { adminDomainOnly } from '../middleware/domain-router';
 
 // Basic analytics endpoint - restricted to goombas.net domain
 router.get('/analytics', [adminDomainOnly, requireAdmin], async (req: Request, res: Response) => {

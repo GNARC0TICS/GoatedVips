@@ -1,51 +1,34 @@
 /**
- * Domain utility functions for determining the current domain type
- * and constructing appropriate API URLs
+ * Domain utility functions
+ * Modified to work with a single-domain approach
  */
 
 /**
- * Checks if the current domain is the admin domain (goombas.net)
+ * Always returns true since all features are now available on a single domain
  */
 export const isAdminDomain = (): boolean => {
-  const hostname = window.location.hostname;
-  return hostname === 'goombas.net' || 
-         hostname.includes('goombas.net') || 
-         hostname.includes('goombas.');
+  return true;
 };
 
 /**
- * Returns the appropriate API base URL based on the current domain
+ * Always returns true since all features are now available on a single domain
+ */
+export const isPublicDomain = (): boolean => {
+  return true;
+};
+
+/**
+ * Returns the base API URL for the application
  */
 export const getApiBaseUrl = (): string => {
-  if (isAdminDomain()) {
-    return '/api/admin';
-  }
+  // Use relative URL to ensure requests go to the same domain
   return '/api';
 };
 
 /**
- * Format API endpoint based on current domain
+ * Returns the base WebSocket URL for the application
  */
-export const formatApiUrl = (endpoint: string): string => {
-  return `${getApiBaseUrl()}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-};
-
-/**
- * Redirects to the appropriate domain if needed
- * @param requireAdmin Whether the current page requires admin access
- */
-export const enforceCorrectDomain = (requireAdmin: boolean): void => {
-  const currentIsAdmin = isAdminDomain();
-
-  // If we're on admin page but not admin domain, redirect
-  if (requireAdmin && !currentIsAdmin) {
-    const adminUrl = `https://goombas.net${window.location.pathname}`;
-    window.location.href = adminUrl;
-  }
-
-  // If we're on public page but using admin domain, redirect
-  if (!requireAdmin && currentIsAdmin) {
-    const publicUrl = `https://goatedvips.gg${window.location.pathname}`;
-    window.location.href = publicUrl;
-  }
+export const getWebSocketUrl = (): string => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}/ws`;
 };

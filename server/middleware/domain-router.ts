@@ -2,79 +2,35 @@ import { Request, Response, NextFunction } from 'express';
 import { log } from '../utils/logger';
 
 /**
- * Middleware to detect and set the domain type
- * Separates public site (goatedvips.gg) from admin site (goombas.net)
- * In Replit environment, allows access from any domain
+ * Simplified middleware that no longer enforces domain restrictions
+ * All routes will be available on a single domain
  */
 export const domainRedirectMiddleware = (req: Request, res: Response, next: NextFunction) => {
   const hostname = req.hostname;
-  const isReplitEnv = process.env.REPL_ID !== undefined;
-  
-  // Set domain in request
+
+  // Set domain in request (keep for compatibility)
   req.domain = hostname;
-  
-  // In Replit environment, allow all domains
-  if (isReplitEnv) {
-    // For Replit, consider admin vs public based on URL path
-    req.isAdminDomain = req.path.startsWith('/admin');
-    req.isPublicDomain = !req.isAdminDomain;
-    
-    if (req.isAdminDomain) {
-      log(`Admin path access in Replit: ${req.path}`);
-    }
-  } else {
-    // Production rules
-    req.isAdminDomain = hostname === 'goombas.net' || 
-                        hostname.includes('goombas.net') || 
-                        hostname.includes('goombas.');
-    
-    req.isPublicDomain = !req.isAdminDomain;
-    
-    if (req.isAdminDomain) {
-      log(`Admin domain access: ${hostname}`);
-    }
-  }
+
+  // All domains have access to all routes
+  req.isAdminDomain = true;
+  req.isPublicDomain = true;
 
   next();
 };
 
 /**
- * Middleware to restrict routes to admin domain only
+ * Legacy middleware - no longer restricts access
+ * Kept for backward compatibility
  */
 export const adminDomainOnly = (req: Request, res: Response, next: NextFunction) => {
-  const isReplitEnv = process.env.REPL_ID !== undefined;
-  
-  // In Replit, bypass domain restrictions
-  if (isReplitEnv) {
-    return next();
-  }
-  
-  if (!req.isAdminDomain) {
-    return res.status(403).json({ 
-      error: 'Access denied', 
-      message: 'This endpoint can only be accessed from the admin domain' 
-    });
-  }
   next();
 };
 
 /**
- * Middleware to restrict routes to public domain only
+ * Legacy middleware - no longer restricts access
+ * Kept for backward compatibility
  */
 export const publicDomainOnly = (req: Request, res: Response, next: NextFunction) => {
-  const isReplitEnv = process.env.REPL_ID !== undefined;
-  
-  // In Replit, bypass domain restrictions
-  if (isReplitEnv) {
-    return next();
-  }
-  
-  if (req.isAdminDomain) {
-    return res.status(403).json({ 
-      error: 'Access denied', 
-      message: 'This endpoint can only be accessed from the public domain' 
-    });
-  }
   next();
 };
 
