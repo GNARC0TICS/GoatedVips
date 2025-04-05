@@ -27,6 +27,7 @@ export default defineConfig({
     hmr: {
       clientPort: 443, // For Replit's HTTPS forwarding
       host: process.env.REPL_SLUG ? `${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : undefined,
+      protocol: 'wss', // Use secure WebSockets for Replit
     },
     watch: {
       usePolling: true, // Better for containerized environments like Replit
