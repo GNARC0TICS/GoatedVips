@@ -25,7 +25,6 @@ import type { SelectUser } from "@db/schema";
 import { ScrollToTop } from "./ScrollToTop";
 import { UserSearch } from "./UserSearch";
 import { ParticleBackground } from "./ParticleBackground";
-import { containerStyles, cardStyles, textStyles, buttonStyles, navStyles, footerStyles } from "@/lib/style-constants";
 import {
   Tooltip,
   TooltipContent,
@@ -41,54 +40,54 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UtilityPanelButton } from "./UtilityPanel";
-import { TelegramButton } from "./TelegramButton";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import giftIcon from '/images/GIFT.png';
 
-// --- Static Styles ---
-// Styles moved to style-constants.ts for reusability
-
-// Component-specific styles
+// --- Static Styles (Memoized as constants) ---
 const headerClasses = {
-  container: navStyles.header,
-  nav: `${containerStyles.page} ${navStyles.nav}`,
+  container:
+    "fixed top-0 left-0 right-0 z-50 bg-[#14151A]/80 backdrop-blur-xl border-b border-[#2A2B31]/50",
+  nav: "container mx-auto h-16 px-4 flex items-center justify-between",
   logo: "h-8 w-auto relative transition-transform duration-300 hover:scale-105",
-  menuButton: navStyles.mobileButton,
-  desktopNav: navStyles.desktop,
+  menuButton: "md:hidden relative overflow-hidden group",
+  desktopNav: "hidden md:flex items-center space-x-4",
   userSection: "flex items-center gap-2 md:gap-3",
 };
 
 const authSectionClasses = {
-  container: `${containerStyles.page} flex justify-end mt-16 pt-2`,
+  container: "container mx-auto flex justify-end mt-16 pt-2 px-4",
   wrapper: "hidden md:flex items-center gap-3 z-40 absolute right-4",
   buttons: "flex items-center gap-2",
 };
 
 const dropdownClasses = {
-  content: "w-56 bg-[#1A1B21]/95 backdrop-blur-xl border border-[#2A2B31] rounded-xl shadow-2xl py-2 px-1",
-  item: "px-4 py-2.5 font-bold text-white hover:text-[#D7FF00] hover:bg-[#2A2B31]/50 rounded-lg transition-all duration-200 cursor-pointer",
+  content:
+    "w-56 bg-[#1A1B21]/95 backdrop-blur-xl border border-[#2A2B31] rounded-xl shadow-2xl py-2 px-1",
+  item:
+    "px-4 py-2.5 font-bold text-white hover:text-[#D7FF00] hover:bg-[#2A2B31]/50 rounded-lg transition-all duration-200 cursor-pointer",
 };
 
-/**
- * Mobile Navigation Link Component
- * 
- * Optimized mobile navigation link with proper typings and ARIA attributes.
- */
-interface MobileNavLinkProps {
+const footerClasses = {
+  wrapper: "bg-[#D7FF00] relative mt-auto",
+  container: "container mx-auto px-4 py-16",
+  grid: "grid grid-cols-1 md:grid-cols-2 gap-12",
+  heading: "font-heading text-[#14151A] text-2xl font-bold",
+};
+
+// --- MobileNavLink Component ---
+type MobileNavLinkProps = {
   href: string;
   label: string | React.ReactNode;
   onClose: () => void;
   isTitle?: boolean;
-  externalLink?: boolean;
-}
+};
 
 const MobileNavLink = React.memo(function MobileNavLink({
   href,
   label,
   onClose,
   isTitle = false,
-  externalLink = false,
 }: MobileNavLinkProps) {
   const [location] = useLocation();
   const isActive = location === href;
@@ -97,9 +96,9 @@ const MobileNavLink = React.memo(function MobileNavLink({
     <Link href={href}>
       <motion.div
         whileTap={{ scale: 0.98 }}
-        onClick={onClose}
-        role="menuitem"
-        aria-current={isActive ? "page" : undefined}
+        onClick={(e) => {
+          onClose();
+        }}
         className={`px-4 py-2.5 rounded-lg transition-colors duration-200 cursor-pointer ${
           isActive ? "bg-[#D7FF00]/10 text-[#D7FF00]" : "text-white hover:bg-[#2A2B31]"
         } ${isTitle || isHome ? "text-base font-bold" : "text-sm"}`}
@@ -110,24 +109,14 @@ const MobileNavLink = React.memo(function MobileNavLink({
   );
 });
 
-/**
- * Desktop Navigation Link Component
- * 
- * Optimized desktop navigation link with proper typings and ARIA attributes.
- */
-interface NavLinkProps {
+// --- NavLink Component ---
+type NavLinkProps = {
   href: string;
   label: string | React.ReactNode;
   tooltip?: string;
-  externalLink?: boolean;
-}
+};
 
-const NavLink = React.memo(function NavLink({ 
-  href, 
-  label, 
-  tooltip,
-  externalLink = false
-}: NavLinkProps) {
+const NavLink = React.memo(function NavLink({ href, label, tooltip }: NavLinkProps) {
   const [location] = useLocation();
   const isActive = location === href;
 
@@ -138,8 +127,6 @@ const NavLink = React.memo(function NavLink({
       } hover:text-[#D7FF00] transition-all duration-300`}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
-      role="menuitem"
-      aria-current={isActive ? "page" : undefined}
     >
       {label}
       <motion.div
@@ -155,11 +142,7 @@ const NavLink = React.memo(function NavLink({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        {externalLink ? (
-          <a href={href} target="_blank" rel="noopener noreferrer">{linkContent}</a>
-        ) : (
-          <Link href={href}>{linkContent}</Link>
-        )}
+        <Link href={href}>{linkContent}</Link>
       </TooltipTrigger>
       {tooltip && (
         <TooltipContent sideOffset={5} className="bg-[#1A1B21] border-[#2A2B31] text-white">
@@ -170,17 +153,8 @@ const NavLink = React.memo(function NavLink({
   );
 });
 
-/**
- * Main Layout Component
- * 
- * Provides the application layout structure with navigation, main content area,
- * and footer. Includes performance optimizations and accessibility improvements.
- */
-interface LayoutProps {
-  children: ReactNode;
-}
-
-export function Layout({ children }: LayoutProps) {
+// --- Main Layout Component ---
+export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const footerRef = useRef<HTMLElement>(null);
   const [isFooterVisible, setIsFooterVisible] = useState(false);
@@ -212,7 +186,6 @@ export function Layout({ children }: LayoutProps) {
 
   const [, setLocation] = useLocation();
 
-  // Memoize logout handler to prevent unnecessary re-renders
   const handleLogout = useCallback(async () => {
     try {
       const response = await fetch("/api/logout", {
@@ -246,142 +219,22 @@ export function Layout({ children }: LayoutProps) {
     }
   }, [toast, queryClient, setLocation]);
 
-  // Memoize the footer to prevent unnecessary re-renders
-  const memoizedFooter = useMemo(() => (
-    <footer ref={footerRef} className={footerStyles.wrapper}>
-      <div className="absolute inset-0 bg-gradient-to-b from-[#D7FF00]/20 to-transparent pointer-events-none" />
-      <div className={footerStyles.content}>
-        <div className={footerStyles.grid}>
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <h4 className={footerStyles.heading}>
-                Ready to get Goated?
-              </h4>
-              <a
-                href="https://www.goated.com/r/VIPBOOST"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transform transition-transform duration-300 hover:scale-110"
-              >
-                <img
-                  src="/images/Goated Logo - Black.png"
-                  alt="Goated"
-                  className="h-8 w-auto entrance-zoom wiggle-animation"
-                  loading="lazy"
-                />
-              </a>
-            </div>
-            <p className="text-[#14151A] mb-6">
-              Sign up now and enjoy additional rewards from our side. Start
-              your journey to becoming a casino legend!
-            </p>
-            <Button
-              onClick={() =>
-                window.open("https://www.goated.com/r/EARLYACCESS", "_blank")
-              }
-              className="bg-[#14151A] text-white hover:bg-[#14151A]/90 transition-colors"
-            >
-              Sign Up Now
-            </Button>
-          </div>
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <h4 className={footerStyles.heading}>
-                Stay Updated
-              </h4>
-              <a
-                href="https://t.me/+iFlHl5V9VcszZTVh"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transform transition-transform duration-300 hover:scale-110"
-              >
-                <img
-                  src="/images/Goated logo with text.png"
-                  alt="Goated"
-                  className="h-[4.5rem] w-auto object-contain"
-                  loading="lazy"
-                />
-              </a>
-            </div>
-            <p className="text-[#14151A] mb-6">
-              Subscribe to our newsletter for exclusive offers and updates!
-            </p>
-            <form onSubmit={(e) => e.preventDefault()} className="flex gap-2">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-2 rounded-lg border border-[#14151A]/20 focus:outline-none focus:border-[#14151A] transition-colors duration-300"
-                aria-label="Email for newsletter"
-              />
-              <Button className="bg-[#14151A] text-white hover:bg-[#14151A]/90">
-                Subscribe
-              </Button>
-            </form>
-          </div>
-        </div>
-      </div>
-      <div className="bg-[#14151A] text-[#8A8B91] text-sm py-6">
-        <div className="container mx-auto px-4 text-center">
-          <div className="flex flex-col items-center gap-4 mb-6">
-            <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 px-4">
-              <a
-                href="https://www.goated.com/r/VIPBOOST"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transform transition-transform duration-300 hover:scale-105"
-              >
-                <img
-                  src="/images/Goated logo with text.png"
-                  alt="Goated"
-                  className="h-10 md:h-12 w-auto object-contain max-w-[200px]"
-                  loading="lazy"
-                />
-              </a>
-              <a
-                href="https://t.me/+iFlHl5V9VcszZTVh"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transform transition-transform duration-300 hover:scale-105"
-              >
-                <img
-                  src="/images/Goated logo with text1.png"
-                  alt="Goated Partner"
-                  className="h-10 md:h-12 w-auto object-contain max-w-[200px]"
-                  loading="lazy"
-                />
-              </a>
-            </div>
-          </div>
-          <p className="mb-2">
-            © 2024 GoatedVips.gg. All rights reserved.
-          </p>
-          <p className="mb-2">
-            Disclaimer: This website is an independent platform and is not affiliated with, endorsed by, or officially connected to Goated.com.
-          </p>
-          <p>Gamble responsibly. 18+ only. BeGambleAware.org</p>
-        </div>
-      </div>
-    </footer>
-  ), []);
-  
   return (
     <div className="min-h-screen flex flex-col bg-[#14151A]">
       <ParticleBackground />
       <header className={headerClasses.container}>
-        <nav className={headerClasses.nav} role="navigation" aria-label="Main Navigation">
+        <nav className={headerClasses.nav}>
           <div className="flex items-center gap-6">
             <Link href="/">
               <img src="/images/logo-neon.png" alt="GOATED" className={headerClasses.logo} />
             </Link>
 
-            <div className={headerClasses.desktopNav} role="menubar" aria-label="Desktop Menu">
+            <div className={headerClasses.desktopNav}>
               <NavLink href="/" label="HOME" />
               <div className="relative group">
                 <Button
                   variant="ghost"
                   className="flex items-center gap-1 font-heading text-white hover:text-[#D7FF00] transition-colors duration-300 hover:bg-transparent px-2"
-                  aria-expanded="false"
-                  aria-haspopup="true"
                 >
                   <span className="font-bold">EVENTS</span>
                 </Button>
@@ -411,8 +264,6 @@ export function Layout({ children }: LayoutProps) {
                   <Button
                     variant="ghost"
                     className="flex items-center gap-1 font-heading text-white hover:text-[#D7FF00] transition-colors duration-300 hover:bg-transparent px-2"
-                    aria-expanded="false"
-                    aria-haspopup="true"
                   >
                     <span className="font-bold">GET STARTED</span>
                   </Button>
@@ -447,8 +298,6 @@ export function Layout({ children }: LayoutProps) {
                   <Button
                     variant="ghost"
                     className="flex items-center gap-1 font-heading text-white hover:text-[#D7FF00] transition-colors duration-300 hover:bg-transparent px-2"
-                    aria-expanded="false"
-                    aria-haspopup="true"
                   >
                     <span className="font-bold">PROMOTIONS</span>
                   </Button>
@@ -490,8 +339,6 @@ export function Layout({ children }: LayoutProps) {
                   <Button
                     variant="ghost"
                     className="flex items-center gap-1 font-heading text-white hover:text-[#D7FF00] transition-colors duration-300 hover:bg-transparent px-2"
-                    aria-expanded="false"
-                    aria-haspopup="true"
                   >
                     <span className="font-bold">LEADERBOARDS</span>
                   </Button>
@@ -521,15 +368,31 @@ export function Layout({ children }: LayoutProps) {
                   </div>
                 </div>
               </div>
-              {/* Socials tab removed in favor of direct icon in the user section */}
+              <div className="relative group">
+                <Link href="/socials">
+                  <Button
+                    variant="ghost"
+                    className="flex items-center gap-1 font-heading text-white hover:text-[#D7FF00] transition-colors duration-300 hover:bg-transparent px-2"
+                  >
+                    <span className="font-bold">SOCIALS</span>
+                  </Button>
+                </Link>
+                <div className="absolute left-0 mt-2 w-56 opacity-0 invisible transition-all duration-300 ease-in-out group-hover:opacity-100 group-hover:visible">
+                  <div className="bg-[#1A1B21]/95 backdrop-blur-xl border border-[#2A2B31] rounded-xl shadow-2xl py-2 px-1">
+                    <Link href="/telegram">
+                      <div className={dropdownClasses.item}>
+                        Telegram Community
+                      </div>
+                    </Link>
+                  </div>
+                </div>
+              </div>
 
               {user?.isAdmin && (
                 <div className="relative group">
                   <Button
                     variant="ghost"
                     className="flex items-center gap-1 font-heading text-white hover:text-[#D7FF00] transition-colors duration-300 hover:bg-transparent px-2"
-                    aria-expanded="false"
-                    aria-haspopup="true"
                   >
                     <span className="font-bold">ADMIN</span>
                   </Button>
@@ -778,9 +641,6 @@ export function Layout({ children }: LayoutProps) {
               <UserSearch />
             </div>
 
-            {/* Telegram Button - Public access to our community */}
-            <TelegramButton size="md" />
-
             {/* Gift Button */}
             <UtilityPanelButton />
 
@@ -935,13 +795,13 @@ export function Layout({ children }: LayoutProps) {
 
       {children}
       <ScrollToTop />
-      <footer ref={footerRef} className={footerStyles.wrapper}>
+      <footer ref={footerRef} className={footerClasses.wrapper}>
         <div className="absolute inset-0 bg-gradient-to-b from-[#D7FF00]/20 to-transparent pointer-events-none" />
-        <div className={footerStyles.content}>
-          <div className={footerStyles.grid}>
+        <div className={footerClasses.container}>
+          <div className={footerClasses.grid}>
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <h4 className={footerStyles.heading}>
+                <h4 className={footerClasses.heading}>
                   Ready to get Goated?
                 </h4>
                 <a
@@ -972,7 +832,7 @@ export function Layout({ children }: LayoutProps) {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <h4 className={footerStyles.heading}>
+                <h4 className={footerClasses.heading}>
                   Stay Updated
                 </h4>
                 <a

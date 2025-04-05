@@ -1,34 +1,29 @@
+
 /**
- * Domain utility functions
- * Modified to work with a single-domain approach
+ * Domain utilities for client-side routing
  */
 
 /**
- * Always returns true since all features are now available on a single domain
+ * Check if the current domain is the admin domain (goombas.net)
  */
 export const isAdminDomain = (): boolean => {
-  return true;
+  return window.location.hostname === 'goombas.net' || 
+         window.location.hostname.includes('goombas.net');
 };
 
 /**
- * Always returns true since all features are now available on a single domain
- */
-export const isPublicDomain = (): boolean => {
-  return true;
-};
-
-/**
- * Returns the base API URL for the application
+ * Get the base API URL based on current domain
  */
 export const getApiBaseUrl = (): string => {
-  // Use relative URL to ensure requests go to the same domain
+  if (isAdminDomain()) {
+    return '/api/admin';
+  }
   return '/api';
 };
 
 /**
- * Returns the base WebSocket URL for the application
+ * Format API endpoint based on current domain
  */
-export const getWebSocketUrl = (): string => {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${window.location.host}/ws`;
+export const formatApiUrl = (endpoint: string): string => {
+  return `${getApiBaseUrl()}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 };

@@ -1,50 +1,58 @@
+
 import { Request, Response, NextFunction } from 'express';
 import { log } from '../utils/logger';
 
 /**
- * Simplified middleware that no longer enforces domain restrictions
- * All routes will be available on a single domain
+ * Middleware to route requests based on hostname
+ * Separates public site (goatedvips.gg) from admin site (goombas.net)
  */
-export const domainRedirectMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const domainRouter = (req: Request, res: Response, next: NextFunction) => {
   const hostname = req.hostname;
-
-  // Set domain in request (keep for compatibility)
+  
+  // Store the domain in request for later use
   req.domain = hostname;
 
-  // All domains have access to all routes
-  req.isAdminDomain = true;
-  req.isPublicDomain = true;
+  // Add domain info to request object for use in routes
+  if (hostname === 'goombas.net' || hostname.includes('goombas.net')) {
+    req.isAdminDomain = true;
+    log(`Admin domain access: ${hostname}`);
+  } else {
+    req.isAdminDomain = false;
+  }
 
   next();
 };
 
 /**
- * Legacy middleware - no longer restricts access
- * Kept for backward compatibility
+ * Middleware to restrict routes to admin domain only
  */
 export const adminDomainOnly = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.isAdminDomain) {
+    return res.status(404).json({
+      error: 'Resource not found'
+    });
+  }
   next();
 };
 
 /**
- * Legacy middleware - no longer restricts access
- * Kept for backward compatibility
+ * Middleware to restrict routes to public domain only
  */
 export const publicDomainOnly = (req: Request, res: Response, next: NextFunction) => {
+  if (req.isAdminDomain) {
+    return res.status(404).json({
+      error: 'Resource not found'
+    });
+  }
   next();
 };
 
-// Legacy router function - maintained for backward compatibility
-export const domainRouter = domainRedirectMiddleware;
-
 // Add custom properties to Request interface
-// Fix for TypeScript error about duplicate modifiers
 declare global {
   namespace Express {
     interface Request {
       domain?: string;
       isAdminDomain?: boolean;
-      isPublicDomain?: boolean;
     }
   }
 }

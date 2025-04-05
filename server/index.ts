@@ -925,15 +925,17 @@ function setupWebSocket(server: any) {
 function setupMiddleware(app: express.Application) {
   app.set('trust proxy', 1);
 
-  // Simple middleware for request logging (no domain restrictions)
+  // Domain detection middleware (important to run first)
   app.use(domainRedirectMiddleware);
 
-  // CORS configuration - allow all origins in any environment
-  const isReplitEnv = process.env.REPL_ID !== undefined;
-  
-  // More permissive CORS policy for all environments
-  app.use(cors({
-    origin: '*',
+  // CORS configuration for API routes
+  app.use('/api', cors({
+    origin: [
+      'https://goatedvips.gg', 
+      'https://goombas.net', 
+      'https://goatedvips.replit.app',
+      process.env.NODE_ENV === 'development' ? '*' : undefined
+    ].filter(Boolean),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
@@ -941,7 +943,6 @@ function setupMiddleware(app: express.Application) {
 
   // Session store configuration using PostgreSQL
   const PostgresSessionStore = connectPg(session);
-  
   app.use(session({
     store: new PostgresSessionStore({
       conObject: {
@@ -953,8 +954,7 @@ function setupMiddleware(app: express.Application) {
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: isReplitEnv ? false : COOKIE_SECURE, // Don't use secure cookies in Replit for development
-      sameSite: isReplitEnv ? 'none' : 'lax',      // Allow cross-site cookies in Replit
+      secure: COOKIE_SECURE,
       httpOnly: true,
       maxAge: COOKIE_MAX_AGE,
     },
@@ -962,22 +962,10 @@ function setupMiddleware(app: express.Application) {
 
   // Security headers middleware
   app.use((req, res, next) => {
-    // Use the existing isReplitEnv variable
-    
-    // Set basic security headers
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    
-    // In Replit environment, use more permissive security headers
-    if (isReplitEnv) {
-      // Allow framing in Replit environment
-      res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-    } else {
-      // Stricter security in production
-      res.setHeader('X-Frame-Options', 'DENY');
-      res.setHeader('X-XSS-Protection', '1; mode=block');
-      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    }
-    
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     next();
   });
 

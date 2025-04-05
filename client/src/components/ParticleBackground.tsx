@@ -263,44 +263,38 @@ export function ParticleBackground() {
 
         // Enhanced carousel wind effect - only affects particles within the carousel's lane
         if (carouselEffect) {
-          // Get the carousel element vertical position
+          // Get the carousel element position (approximately)
           const carouselTop = window.innerHeight * 0.1; // Approx 10% from top
-          const carouselBottom = window.innerHeight * 0.3; // Approx 30% from top
+          const carouselBottom = window.innerHeight * 0.3; // Approx 30% from top (covering the carousel height)
+          const carouselVerticalPadding = window.innerHeight * 0.15; // Extra padding for effect
 
           // Use actual carousel position when available, otherwise use defaults
           const actualCarouselTop = carouselEffect.carouselTop || carouselTop;
           const actualCarouselBottom = carouselEffect.carouselBottom || carouselBottom;
 
-          // Calculate vertical distance from particle to carousel center
-          const carouselCenter = actualCarouselTop + (actualCarouselBottom - actualCarouselTop) / 2;
-          const verticalDistance = Math.abs(particle.y - carouselCenter);
-          const maxVerticalDistance = window.innerHeight * 0.15; // ~15% of screen height influence zone
+          // Check if particle is within the carousel's vertical lane (with padding)
+          const isInCarouselLane =
+            particle.y >= (actualCarouselTop - carouselVerticalPadding) &&
+            particle.y <= (actualCarouselBottom + carouselVerticalPadding);
 
-          // Only apply effect if particle is within vertical influence zone
-          if (verticalDistance < maxVerticalDistance) {
+          if (isInCarouselLane) {
             const dx = particle.x - carouselEffect.x;
-            const distance = Math.sqrt(dx * dx);
-            const maxDistance = 600; // Horizontal wind effect range
+            const dy = particle.y - (actualCarouselTop + (actualCarouselBottom - actualCarouselTop) / 2); // Center of carousel
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const maxDistance = 600; // Wind effect range
 
             if (distance < maxDistance) {
-              // Calculate strength modifier based on vertical distance (1.0 at center, decreasing to 0 at max distance)
-              const verticalStrengthModifier = 1 - (verticalDistance / maxVerticalDistance);
-
-              // Calculate base force from horizontal distance
-              const baseForce = (maxDistance - distance) / maxDistance * carouselEffect.strength;
-
-              // Apply vertical distance modifier to reduce effect farther from carousel
-              const force = baseForce * verticalStrengthModifier;
+              const force = (maxDistance - distance) / maxDistance * carouselEffect.strength;
               const windDirectionX = carouselEffect.direction === 'left' ? -1 : 1;
 
-              // Apply wind force, stronger at center and weaker as you move away vertically
-              particle.x += windDirectionX * force * 4;
+              // Apply stronger wind force based on direction and distance
+              particle.x += windDirectionX * force * 5; // Increased force for visibility
 
-              // Add very subtle vertical movement, scaled by distance
-              particle.y += (Math.random() - 0.5) * force * 0.5 * verticalStrengthModifier;
+              // Add subtle vertical spread for wind effect (less than before)
+              particle.y += (Math.random() - 0.5) * force * 1.0;
 
-              // Temporarily increase particle opacity for visual emphasis, scaled by strength
-              particle.opacity = Math.min(particle.opacity * (1 + force), 0.5);
+              // Temporarily increase particle opacity for visual emphasis
+              particle.opacity = Math.min(particle.opacity * 1.5, 0.6);
             }
           }
         }

@@ -54,11 +54,10 @@ router.post('/goombas.net/logout', requireAdmin, (req: Request, res: Response) =
   });
 });
 
-// Domain-specific middleware has been removed
-// All routes are now available regardless of domain
+import { adminDomainOnly } from '../middleware/domain-router';
 
-// Basic analytics endpoint
-router.get('/analytics', requireAdmin, async (req: Request, res: Response) => {
+// Basic analytics endpoint - restricted to goombas.net domain
+router.get('/analytics', [adminDomainOnly, requireAdmin], async (req: Request, res: Response) => {
   try {
     // Count total users
     const userCount = await db.select({ count: count() }).from(users);
