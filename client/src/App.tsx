@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-// Imports necessary components for routing and state management
+// I.mports necessary components for routing and state management
 import { Switch, Route, useLocation } from "wouter";
 // Imports for error handling and boundary
 import { ErrorBoundary } from "react-error-boundary";
