@@ -35,7 +35,7 @@ host = "0.0.0.0"
 port = 5000
 
 [workflows]
-runButton = "Start application"
+runButton = "GoatedVIPs Development"
 
 [[workflows.workflow]]
 name = "Project"
@@ -67,6 +67,36 @@ mode = "parallel"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"
+
+[[workflows.workflow]]
+name = "GoatedVIPs Development"
+author = 38337569
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "echo \"Starting GoatedVIPs platform...\""
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "BOT_PORT=5001 HOST=0.0.0.0 PORT=5000 tsx --tsconfig tsconfig.json server/index.ts"
+
+[[workflows.workflow]]
+name = "Development with Monitoring"
+author = 38337569
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "BOT_PORT=5001 HOST=0.0.0.0 PORT=5000 tsx --tsconfig tsconfig.json server/index.ts"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "echo \"Starting system monitoring...\""
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "watch -n 5 \"ps aux | grep tsx | grep -v grep\""
 
 # Authentication settings
 [auth]
