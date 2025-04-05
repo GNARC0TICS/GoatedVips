@@ -16,6 +16,19 @@ export default defineConfig({
     },
   },
   root: path.resolve(__dirname, "client"),
+  server: {
+    port: 5173,
+    strictPort: true, // Fail if port is already in use
+    host: "0.0.0.0", // Expose to network for Replit compatibility
+    hmr: {
+      clientPort: 443, // For Replit's HTTPS forwarding
+      host: process.env.REPL_SLUG ? `${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : undefined,
+    },
+    watch: {
+      usePolling: true, // Better for containerized environments like Replit
+      interval: 1000,
+    },
+  },
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,

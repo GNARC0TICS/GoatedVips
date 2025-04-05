@@ -30,42 +30,66 @@ export async function setupVite(app: Express, server: Server) {
       ...viteLogger,
       error: (msg, options) => {
         viteLogger.error(msg, options);
-        process.exit(1);
+        console.error("Vite server error, attempting to recover...");
+        // Don't exit on error for better development experience
       },
     },
     server: {
       middlewareMode: true,
-      hmr: { server },
+      hmr: { 
+        server,
+        clientPort: 443, // For Replit's HTTPS forwarding
+        host: process.env.REPL_SLUG ? `${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : undefined,
+      },
+      watch: {
+        usePolling: true, // Better for containerized environments like Replit
+        interval: 1000,
+      }
     },
     appType: "custom",
   });
 
+  // Use Vite's middlewares (handles static assets, HMR, etc.)
   app.use(vite.middlewares);
+
+  // HTML handling middleware with proper caching
   app.use("*", async (req, res, next) => {
     // Skip API and WebSocket routes
     if (req.originalUrl.startsWith('/api') || 
         req.originalUrl.startsWith('/ws') || 
-        req.originalUrl.includes('.')) {
+        req.originalUrl.endsWith('.js') ||
+        req.originalUrl.endsWith('.css') ||
+        req.originalUrl.endsWith('.svg') ||
+        req.originalUrl.endsWith('.png') ||
+        req.originalUrl.endsWith('.jpg') ||
+        req.originalUrl.endsWith('.jpeg') ||
+        req.originalUrl.endsWith('.gif')) {
       return next();
     }
 
     try {
-      // Determine which HTML file to serve based on domain (This assumes req.isAdminDomain is defined elsewhere)
+      // Determine which HTML file to serve based on domain
       const isAdmin = req.isAdminDomain;
-      const htmlPath = isAdmin ? PATHS.ADMIN_HTML : PATHS.INDEX_HTML; // Assumes PATHS.ADMIN_HTML and PATHS.INDEX_HTML are defined elsewhere
+      const htmlPath = isAdmin 
+        ? path.resolve(__dirname, "..", "client", "admin.html")
+        : path.resolve(__dirname, "..", "client", "index.html");
 
       // Serve the appropriate HTML with Vite transformations
       let html = await fs.promises.readFile(htmlPath, 'utf-8');
-
 
       if (vite) {
         html = await vite.transformIndexHtml(req.originalUrl, html);
       }
 
-      res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
+      res.status(200).set({ 
+        'Content-Type': 'text/html',
+        'Cache-Control': 'no-cache',
+        'X-Content-Type-Options': 'nosniff'
+      }).end(html);
     } catch (e) {
       const error = e as Error;
       vite?.ssrFixStacktrace(error);
+      log("Vite HTML transform error:", error.message);
       next(error);
     }
   });
