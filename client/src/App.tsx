@@ -129,10 +129,10 @@ function MainContent() {
                   <AdminRoute path="/admin/notifications" component={NotificationManagement} />
                   <AdminRoute path="/admin/support" component={SupportManagement} />
                   <AdminRoute path="/admin/api-sync" component={ApiSyncManagement} />
+                  <AdminRoute path="/admin/dashboard" component={GoombasAdminDashboard} />
                   
-                  {/* Custom Admin Routes for goombas.net */}
-                  <Route path="/goombas.net/login" component={GoombasAdminLogin} />
-                  <Route path="/goombas.net/dashboard" component={GoombasAdminDashboard} />
+                  {/* Admin Login */}
+                  <Route path="/admin/login" component={GoombasAdminLogin} />
                   
                   {/* Crypto Swap Feature */}
                   <Route path="/crypto-swap" component={CryptoSwap} />

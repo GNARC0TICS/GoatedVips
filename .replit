@@ -35,7 +35,7 @@ host = "0.0.0.0"
 port = 5000
 
 [workflows]
-runButton = "Start application"
+runButton = "Start GoatedVIPs"
 
 [[workflows.workflow]]
 name = "Project"
@@ -58,6 +58,15 @@ agentRequireRestartOnSave = false
 task = "shell.exec"
 args = "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"
 wait_for_port = 5000
+
+[[workflows.workflow]]
+name = "Start GoatedVIPs"
+author = 38337569
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"
 
 # Authentication settings
 [auth]

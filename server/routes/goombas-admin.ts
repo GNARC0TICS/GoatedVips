@@ -1,13 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { db } from '@db/index';
 import { users, wheelSpins, bonusCodes, wagerRaces, wagerRaceParticipants, supportTickets } from '@db/schema';
-import { count } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 import { validateAdminCredentials, requireAdmin } from '../middleware/admin';
 
 const router = Router();
 
 // Secure admin login endpoint
-router.post('/goombas.net/login', async (req: Request, res: Response) => {
+router.post('/login', async (req: Request, res: Response) => {
   const { username, password, secretKey } = req.body;
 
   if (!username || !password || !secretKey) {
@@ -22,7 +22,9 @@ router.post('/goombas.net/login', async (req: Request, res: Response) => {
   
   if (isValid) {
     // Set session flag to indicate admin authentication
-    req.session.isAdmin = true;
+    if (req.session) {
+      req.session.isAdmin = true;
+    }
     
     return res.status(200).json({
       message: 'Authentication successful',
@@ -37,27 +39,32 @@ router.post('/goombas.net/login', async (req: Request, res: Response) => {
 });
 
 // Admin logout endpoint
-router.post('/goombas.net/logout', requireAdmin, (req: Request, res: Response) => {
+router.post('/logout', requireAdmin, (req: Request, res: Response) => {
   // Clear admin session
-  req.session.isAdmin = false;
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json({ 
-        message: 'Error during logout',
-        status: 'error'
+  if (req.session) {
+    req.session.isAdmin = false;
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ 
+          message: 'Error during logout',
+          status: 'error'
+        });
+      }
+      res.status(200).json({ 
+        message: 'Logout successful',
+        status: 'success'
       });
-    }
+    });
+  } else {
     res.status(200).json({ 
       message: 'Logout successful',
       status: 'success'
     });
-  });
+  }
 });
 
-import { adminDomainOnly } from '../middleware/domain-router';
-
-// Basic analytics endpoint - restricted to goombas.net domain
-router.get('/analytics', [adminDomainOnly, requireAdmin], async (req: Request, res: Response) => {
+// Basic analytics endpoint - now restricted by requireAdmin only
+router.get('/analytics', requireAdmin, async (req: Request, res: Response) => {
   try {
     // Count total users
     const userCount = await db.select({ count: count() }).from(users);
@@ -110,8 +117,8 @@ router.get('/analytics', [adminDomainOnly, requireAdmin], async (req: Request, r
   }
 });
 
-// User management endpoints
-router.get('/goombas.net/users', requireAdmin, async (req: Request, res: Response) => {
+// User management endpoints 
+router.get('/users', requireAdmin, async (req: Request, res: Response) => {
   try {
     const allUsers = await db.select().from(users);
     res.status(200).json(allUsers);
@@ -125,7 +132,7 @@ router.get('/goombas.net/users', requireAdmin, async (req: Request, res: Respons
 });
 
 // Get a specific user
-router.get('/goombas.net/users/:id', requireAdmin, async (req: Request, res: Response) => {
+router.get('/users/:id', requireAdmin, async (req: Request, res: Response) => {
   const userId = Number(req.params.id);
   
   if (isNaN(userId)) {
@@ -136,7 +143,8 @@ router.get('/goombas.net/users/:id', requireAdmin, async (req: Request, res: Res
   }
   
   try {
-    const user = await db.select().from(users).where(users.id === userId);
+    // Fixed query with proper type safety
+    const user = await db.select().from(users).where(eq(users.id, userId));
     
     if (!user || user.length === 0) {
       return res.status(404).json({ 
@@ -156,8 +164,8 @@ router.get('/goombas.net/users/:id', requireAdmin, async (req: Request, res: Res
 });
 
 // Check admin auth status
-router.get('/goombas.net/auth-status', (req: Request, res: Response) => {
-  if (req.session.isAdmin) {
+router.get('/auth-status', (req: Request, res: Response) => {
+  if (req.session && req.session.isAdmin) {
     res.status(200).json({ 
       isAdmin: true,
       status: 'success'

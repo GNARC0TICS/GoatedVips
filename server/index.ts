@@ -27,12 +27,11 @@ import { promisify } from "util";
 import { exec } from "child_process";
 import { sql, eq, gt, desc } from "drizzle-orm";
 import compression from "compression";
-import { domainRouter } from './middleware/domain-router'; // Added import
+// Removed domain routing middleware imports
 
 // Application modules
 import { log } from "./utils/logger";
 import { registerRoutes } from "./routes";
-import { domainRedirectMiddleware } from "./middleware/domain-handler";
 import { db } from "../db";
 import { setupAuth } from "./auth";
 import { API_CONFIG } from "./config/api";
@@ -40,7 +39,7 @@ import { users } from "../db/schema";
 
 // Configuration modules
 import { PATHS } from "./config/paths";
-import { ENV } from "./config/environment";
+import { ENV, APP_URL } from "./config/environment";
 
 // Middleware
 import cors from "cors";
@@ -924,17 +923,15 @@ function setupWebSocket(server: any) {
  */
 function setupMiddleware(app: express.Application) {
   app.set('trust proxy', 1);
+  
+  // Removed domain-specific routing middleware
 
-  // Domain detection middleware (important to run first)
-  app.use(domainRedirectMiddleware);
-
-  // CORS configuration for API routes
+  // CORS configuration for API routes - updated with environment variable
   app.use('/api', cors({
     origin: [
-      'https://goatedvips.gg', 
-      'https://goombas.net', 
+      APP_URL,
       'https://goatedvips.replit.app',
-      process.env.NODE_ENV === 'development' ? '*' : undefined
+      IS_DEVELOPMENT ? '*' : undefined
     ].filter(Boolean),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

@@ -234,8 +234,8 @@ function setupAPIRoutes(app: Express) {
   app.use("/api/sync", apiSyncRouter); // API sync monitoring routes
   app.use("/api", router); //Added this line
   
-  // Mount our custom admin routes at the non-obvious URL path
-  app.use("/goombas.net", goombasAdminRouter);
+  // Mount our admin routes at the /admin path
+  app.use("/admin", goombasAdminRouter);
 
 
   // Add other API routes here, ensuring they're all prefixed with /api
@@ -383,7 +383,7 @@ function setupAPIRoutes(app: Express) {
   );
 
   // Admin routes with custom URL path
-  app.get("/goated-supervisor/analytics",
+  app.get("/admin/dashboard/analytics",
     requireAdmin, // Ensure admin middleware is applied
     createRateLimiter('low'),
     cacheMiddleware(CACHE_TIMES.LONG),
@@ -529,7 +529,7 @@ function setupAPIRoutes(app: Express) {
       }
     }
   );
-  app.get("/goated-supervisor/transformation-metrics",
+  app.get("/admin/dashboard/transformation-metrics",
     requireAdmin,
     createRateLimiter('medium'),
     cacheMiddleware(CACHE_TIMES.LONG),
@@ -594,8 +594,8 @@ function setupAPIRoutes(app: Express) {
       }
     }
   );
-  app.get("/api/admin/export-logs",
-    createRateLimiter('low'),
+  app.get("/admin/dashboard/export-logs",
+    requireAdmin, createRateLimiter('low'),
     async (_req, res) => {
       try {
         console.log('Fetching logs for export...');
@@ -996,8 +996,8 @@ function setupRESTRoutes(app: Express) {
     }
   );
 
-  app.get("/api/admin/export-logs",
-    createRateLimiter('low'),
+  app.get("/admin/dashboard/export-logs",
+    requireAdmin, createRateLimiter('low'),
     async (_req, res) => {
       try {
         console.log('Fetching logs for export...');

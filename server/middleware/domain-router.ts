@@ -1,53 +1,43 @@
-
 import { Request, Response, NextFunction } from 'express';
 import { log } from '../utils/logger';
 
 /**
- * Middleware to route requests based on hostname
- * Separates public site (goatedvips.gg) from admin site (goombas.net)
+ * Middleware for path-based admin detection
+ * Instead of using domains, detects admin routes by URL path
  */
-export const domainRouter = (req: Request, res: Response, next: NextFunction) => {
-  const hostname = req.hostname;
+export const adminPathMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  // Admin routes are now identified by path prefix
+  const isAdminPath = req.path.startsWith('/admin');
   
-  // Store the domain in request for later use
-  req.domain = hostname;
+  // This property is kept for backward compatibility but 
+  // now reflects path-based routing instead of domain-based routing
+  req.isAdminDomain = isAdminPath;
 
-  // Add domain info to request object for use in routes
-  if (hostname === 'goombas.net' || hostname.includes('goombas.net')) {
-    req.isAdminDomain = true;
-    log(`Admin domain access: ${hostname}`);
-  } else {
-    req.isAdminDomain = false;
+  if (isAdminPath) {
+    log(`Admin path access: ${req.path}`);
   }
 
   next();
 };
 
 /**
- * Middleware to restrict routes to admin domain only
+ * Legacy middleware functions that are now effectively no-ops
+ * Maintained for backward compatibility only
  */
-export const adminDomainOnly = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.isAdminDomain) {
-    return res.status(404).json({
-      error: 'Resource not found'
-    });
-  }
+export const adminDomainOnly = (_req: Request, _res: Response, next: NextFunction) => {
+  // No longer restricts by domain - all routes are now available
   next();
 };
 
-/**
- * Middleware to restrict routes to public domain only
- */
-export const publicDomainOnly = (req: Request, res: Response, next: NextFunction) => {
-  if (req.isAdminDomain) {
-    return res.status(404).json({
-      error: 'Resource not found'
-    });
-  }
+export const publicDomainOnly = (_req: Request, _res: Response, next: NextFunction) => {
+  // No longer restricts by domain - all routes are now available
   next();
 };
 
-// Add custom properties to Request interface
+// Updated router function for path-based routing
+export const domainRouter = adminPathMiddleware;
+
+// Keep the interface for backward compatibility
 declare global {
   namespace Express {
     interface Request {
