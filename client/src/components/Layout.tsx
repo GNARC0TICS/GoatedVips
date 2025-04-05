@@ -41,6 +41,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UtilityPanelButton } from "./UtilityPanel";
+import { TelegramButton } from "./TelegramButton";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import giftIcon from '/images/GIFT.png';
@@ -520,27 +521,7 @@ export function Layout({ children }: LayoutProps) {
                   </div>
                 </div>
               </div>
-              <div className="relative group">
-                <Link href="/socials">
-                  <Button
-                    variant="ghost"
-                    className="flex items-center gap-1 font-heading text-white hover:text-[#D7FF00] transition-colors duration-300 hover:bg-transparent px-2"
-                    aria-expanded="false"
-                    aria-haspopup="true"
-                  >
-                    <span className="font-bold">SOCIALS</span>
-                  </Button>
-                </Link>
-                <div className="absolute left-0 mt-2 w-56 opacity-0 invisible transition-all duration-300 ease-in-out group-hover:opacity-100 group-hover:visible">
-                  <div className="bg-[#1A1B21]/95 backdrop-blur-xl border border-[#2A2B31] rounded-xl shadow-2xl py-2 px-1">
-                    <Link href="/telegram">
-                      <div className={dropdownClasses.item}>
-                        Telegram Community
-                      </div>
-                    </Link>
-                  </div>
-                </div>
-              </div>
+              {/* Socials tab removed in favor of direct icon in the user section */}
 
               {user?.isAdmin && (
                 <div className="relative group">
@@ -796,6 +777,9 @@ export function Layout({ children }: LayoutProps) {
             <div className="w-full max-w-[170px]">
               <UserSearch />
             </div>
+
+            {/* Telegram Button - Public access to our community */}
+            <TelegramButton size="md" />
 
             {/* Gift Button */}
             <UtilityPanelButton />
