@@ -19,10 +19,6 @@ run = ["sh", "-c", "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"]
 ignorePorts = false
 
 [[ports]]
-localPort = 5000
-externalPort = 80
-
-[[ports]]
 localPort = 5001
 externalPort = 3001
 
@@ -35,7 +31,7 @@ host = "0.0.0.0"
 port = 5000
 
 [workflows]
-runButton = "Start GoatedVIPs"
+runButton = "Run GoatedVIPs"
 
 [[workflows.workflow]]
 name = "Project"
@@ -63,6 +59,15 @@ wait_for_port = 5000
 name = "Start GoatedVIPs"
 author = 38337569
 mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"
+
+[[workflows.workflow]]
+name = "Run GoatedVIPs"
+author = 38337569
+mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
