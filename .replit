@@ -1,5 +1,5 @@
 # Specify the main entry point of your application
-entrypoint = "index.js"
+entrypoint = "index.ts"
 
 # Define the modules required for your project
 modules = ["nodejs-20", "web", "postgresql-16"]
