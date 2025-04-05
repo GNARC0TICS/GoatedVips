@@ -806,26 +806,26 @@ export function verifyJwtToken(req: Request, res: Response, next: NextFunction) 
     '/api/affiliate',
   ];
   
-  // Skip auth check for Replit WebView in development
-  const isReplitWebView = req.headers['x-replit-user-id'] || 
-                          req.headers['x-replit-user-name'] ||
-                          (process.env.NODE_ENV !== 'production' && req.headers.referer?.includes('replit.dev'));
-  
+  // Development environment detection with enhanced flexibility
   const isDevelopment = process.env.NODE_ENV !== 'production';
+  const isReplitEnv = process.env.REPL_ID !== undefined || 
+                      process.env.REPL_SLUG !== undefined || 
+                      req.headers['x-replit-user-id'] !== undefined;
   
+  // Allow all GET requests in development mode for better web view compatibility
   if (publicPaths.some(path => req.path.startsWith(path)) || 
-      (isDevelopment && (isReplitWebView || req.method === 'GET'))) {
+      (isDevelopment && (req.method === 'GET' || isReplitEnv))) {
     return next();
   }
 
-  // Get the token from the Authorization header or cookie
+  // Get the token from the Authorization header first (preferred method)
   const authHeader = req.headers.authorization;
   let token: string | undefined;
   
   if (authHeader?.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
-  } else {
-    // Check for token in cookies as fallback
+  } else if (!isDevelopment) {
+    // Only check cookies in production mode to avoid cookie-related issues in development
     token = req.cookies?.accessToken;
   }
 
