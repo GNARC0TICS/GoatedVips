@@ -14,7 +14,6 @@ export const IS_DEVELOPMENT = !IS_PRODUCTION;
 // Port configuration with fallbacks
 // For Replit environments, ensure we use the REPLIT_DOMAINS 
 export const PORT = parseInt(process.env.PORT || '5000', 10);
-export const BOT_PORT = parseInt(process.env.BOT_PORT || '5001', 10);
 export const VITE_PORT = parseInt(process.env.VITE_PORT || '5173', 10);
 export const HOST = process.env.HOST || '0.0.0.0';
 export const REPLIT_DOMAIN = process.env.REPLIT_DOMAINS || '';
@@ -42,7 +41,6 @@ export const ENV = {
   IS_PRODUCTION,
   IS_DEVELOPMENT,
   PORT,
-  BOT_PORT,
   VITE_PORT,
   HOST,
   REPLIT_DOMAIN,

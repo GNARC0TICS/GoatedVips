@@ -817,10 +817,16 @@ async function generateSimpleHash(str: string): Promise<string> {
  */
 async function initializeServer() {
   try {
-    log("info", "Startingserver initialization...");
+    log("info", "Starting server initialization...");
 
-    await waitForPort(PORT);
-    log("info", "Port available, proceeding with initialization");
+    // Skip port availability check in Replit environment
+    const isReplitEnv = process.env.REPL_ID !== undefined;
+    if (!isReplitEnv) {
+      await waitForPort(PORT);
+      log("info", "Port available, proceeding with initialization");
+    } else {
+      log("info", "Replit environment detected, skipping port availability check");
+    }
 
     await testDbConnection();
     log("info", "Database connection established");

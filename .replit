@@ -15,16 +15,12 @@ channel = "stable-24_05"
 [deployment]
 deploymentTarget = "gce"
 build = ["sh", "-c", "npm run build"]
-run = ["sh", "-c", "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"]
+run = ["sh", "-c", "HOST=0.0.0.0 PORT=5000 tsx --tsconfig tsconfig.json server/index.ts"]
 ignorePorts = false
 
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 5001
-externalPort = 3001
 
 [[ports]]
 localPort = 5173
@@ -35,19 +31,10 @@ host = "0.0.0.0"
 port = 5000
 
 [workflows]
-runButton = "Build & Start GoatedVIPs"
+runButton = "Start Application"
 
 [[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start application"
-
-[[workflows.workflow]]
-name = "Start application"
+name = "Start Application"
 author = "agent"
 mode = "parallel"
 
@@ -56,68 +43,8 @@ agentRequireRestartOnSave = false
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"
+args = "HOST=0.0.0.0 PORT=5000 tsx --tsconfig tsconfig.json server/index.ts"
 wait_for_port = 5000
-
-[[workflows.workflow]]
-name = "Start GoatedVIPs"
-author = 38337569
-mode = "parallel"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"
-
-[[workflows.workflow]]
-name = "GoatedVIPs Development"
-author = 38337569
-mode = "parallel"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "echo \"Starting GoatedVIPs platform...\""
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "BOT_PORT=5001 HOST=0.0.0.0 PORT=5000 tsx --tsconfig tsconfig.json server/index.ts"
-
-[[workflows.workflow]]
-name = "Development with Monitoring"
-author = 38337569
-mode = "parallel"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "BOT_PORT=5001 HOST=0.0.0.0 PORT=5000 tsx --tsconfig tsconfig.json server/index.ts"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "echo \"Starting system monitoring...\""
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "watch -n 5 \"ps aux | grep tsx | grep -v grep\""
-
-[[workflows.workflow]]
-name = "Build & Start GoatedVIPs"
-author = 38337569
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "echo \"Building client assets...\""
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run build"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "echo \"Starting GoatedVIPs platform...\""
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "BOT_PORT=5001 HOST=0.0.0.0 PORT=5000 tsx --tsconfig tsconfig.json server/index.ts"
 
 # Authentication settings
 [auth]
