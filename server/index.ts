@@ -286,9 +286,9 @@ export async function ensureUserProfile(userId: string): Promise<any> {
         // No user data found in leaderboard, create a temporary placeholder profile
         try {
           const newUserId = Math.floor(1000 + Math.random() * 9000);
-          // Use 'Goated User' instead of 'Player_' to match the site's branding
-          const tempUsername = `Goated User ${userId}`;
-          const email = `user_${userId}@goated.placeholder.com`;
+          // Use a more neutral username format that doesn't imply verification
+          const tempUsername = `User ${userId}`;
+          const email = `user_${userId}@placeholder.com`;
 
           // Create a placeholder profile with clear indication this is temporary
           const result = await db.execute(sql`
@@ -297,7 +297,7 @@ export async function ensureUserProfile(userId: string): Promise<any> {
               bio, is_admin, goated_id, goated_account_linked
             ) VALUES (
               ${newUserId}, ${tempUsername}, ${email}, '', ${new Date()}, '#D7FF00', 
-              'Temporary profile - this player has not been verified with Goated.com yet', false, ${userId}, false
+              'User profile', false, ${userId}, false
             ) RETURNING id, username, bio, profile_color as "profileColor", created_at as "createdAt", 
               goated_id as "goatedId", goated_username as "goatedUsername", goated_account_linked as "goatedAccountLinked"
           `);
@@ -319,8 +319,8 @@ export async function ensureUserProfile(userId: string): Promise<any> {
       try {
         const shortId = userId.substring(0, 8); // Use first 8 chars of UUID/string
         const newUserId = Math.floor(1000 + Math.random() * 9000);
-        const username = `Goated Custom ${shortId}`;
-        const email = `custom_${shortId}@goated.placeholder.com`;
+        const username = `User ${shortId}`;
+        const email = `user_${shortId}@placeholder.com`;
 
         // Clear indication this is a non-Goated profile
         const result = await db.execute(sql`
@@ -329,7 +329,7 @@ export async function ensureUserProfile(userId: string): Promise<any> {
             bio, is_admin, goated_id, goated_account_linked
           ) VALUES (
             ${newUserId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', 
-            'Custom profile - not linked to Goated.com', false, ${userId}, false
+            'User profile', false, ${userId}, false
           ) RETURNING id, username, bio, profile_color as "profileColor", created_at as "createdAt", 
             goated_id as "goatedId", goated_username as "goatedUsername", goated_account_linked as "goatedAccountLinked"
         `);
