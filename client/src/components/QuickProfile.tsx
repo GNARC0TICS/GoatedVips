@@ -1,63 +1,73 @@
 import React from "react";
-import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
+import { profileService } from "@/services/profileService";
 import { useToast } from "@/hooks/use-toast";
+import { QuickProfileCard } from "./profile/QuickProfileCard";
 
 interface QuickProfileProps {
-  userId: string;
-  username: string;
-  children: React.ReactNode;
+  userId: string | number;
+  onClose?: () => void;
+  size?: "sm" | "md";
+  className?: string;
 }
 
-export function QuickProfile({ userId, username, children }: QuickProfileProps) {
-  const [, setLocation] = useLocation();
-  const { toast } = useToast();
-
-  const handleClick = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // First make a request to ensure this profile exists
-    try {
-      const response = await fetch('/users/ensure-profile-from-id', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          // If the profile exists or was created, navigate to it
-          setLocation(`/user/${data.id || userId}`);
-        } else {
-          // This shouldn't happen as errors should throw
-          toast({
-            title: "Profile Error",
-            description: "There was an issue loading this user's profile",
-            variant: "destructive"
-          });
-        }
-      } else {
-        // Profile doesn't exist and couldn't be created
-        toast({
-          title: "Profile Not Found",
-          description: `Could not find profile for ${username}`,
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error("Error checking/creating profile:", error);
-      toast({
-        title: "Error",
-        description: "There was an error accessing this profile",
-        variant: "destructive"
-      });
-    }
-  };
-
+/**
+ * Backward-compatible wrapper for the new profile system
+ * Provides the same API as the old QuickProfile component
+ * but uses the new profile service and components
+ */
+export function QuickProfile({
+  userId,
+  onClose,
+  size = "md",
+  className,
+}: QuickProfileProps) {
   return (
-    <div onClick={handleClick} style={{ cursor: "pointer" }}>
-      {children}
-    </div>
+    <QuickProfileCard
+      profileId={userId}
+      onClose={onClose}
+      size={size}
+      className={className}
+    />
   );
 }
+
+/**
+ * Legacy function to ensure a profile exists
+ * Now delegates to the profile service
+ * 
+ * @deprecated Use the profile service directly instead
+ */
+export function useEnsureProfile(userId: string | number) {
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<Error | null>(null);
+  const [profile, setProfile] = React.useState<any>(null);
+  const { toast } = useToast();
+  
+  React.useEffect(() => {
+    async function fetchProfile() {
+      try {
+        setIsLoading(true);
+        const profileData = await profileService.getProfile(userId);
+        setProfile(profileData);
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+        setError(err instanceof Error ? err : new Error(String(err)));
+        
+        toast({
+          title: "Error loading profile",
+          description: "Could not retrieve user profile. Please try again later.",
+          type: "error",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    fetchProfile();
+  }, [userId, toast]);
+  
+  return { profile, isLoading, error };
+}
+
+export default QuickProfile;

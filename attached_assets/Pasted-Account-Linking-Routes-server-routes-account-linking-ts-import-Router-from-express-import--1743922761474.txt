@@ -1,0 +1,200 @@
+Account Linking Routes
+// server/routes/account-linking.ts
+import { Router } from "express";
+import { UserService } from "../services/user.service";
+import { GoatedApiService } from "../services/goated-api.service";
+
+const router = Router();
+const userService = new UserService();
+const goatedApiService = new GoatedApiService();
+
+// Route to check if a Goated ID exists and is available for linking
+router.get("/check-goated-id/:goatedId", async (req, res) => {
+  try {
+    const { goatedId } = req.params;
+    
+    // Validate that the user is authenticated
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required" 
+      });
+    }
+    
+    // Check if the Goated ID exists in the API
+    const apiUser = await goatedApiService.findUserByGoatedId(goatedId);
+    
+    if (!apiUser) {
+      return res.status(404).json({
+        success: false,
+        message: "This Goated ID was not found in our system"
+      });
+    }
+    
+    // Check if this Goated ID is already linked to an account
+    const existingLinked = await userService.findUser({ goatedId });
+    
+    if (existingLinked && existingLinked.id !== req.user.id) {
+      // It's already linked to another account
+      if (existingLinked.sourceType === 'temporary') {
+        // Temporary accounts can be claimed
+        return res.json({
+          success: true,
+          canLink: true,
+          willReplace: true,
+          goatedUsername: apiUser.name
+        });
+      } else {
+        // Permanent accounts can't be claimed
+        return res.json({
+          success: true,
+          canLink: false,
+          reason: "This Goated ID is already linked to another account"
+        });
+      }
+    }
+    
+    // Available for linking
+    return res.json({
+      success: true,
+      canLink: true,
+      goatedUsername: apiUser.name
+    });
+  } catch (error) {
+    console.error("Error checking Goated ID:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to check Goated ID"
+    });
+  }
+});
+
+// Route to initiate account linking
+router.post("/link-account", async (req, res) => {
+  try {
+    const { goatedId } = req.body;
+    
+    // Validate that the user is authenticated
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required" 
+      });
+    }
+    
+    // Link the account
+    await userService.linkGoatedAccount(req.user.id, goatedId, 'id_verification');
+    
+    return res.json({
+      success: true,
+      message: "Account linked successfully"
+    });
+  } catch (error) {
+    console.error("Error linking account:", error);
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to link account"
+    });
+  }
+});
+
+// Route to unlink an account
+router.post("/unlink-account", async (req, res) => {
+  try {
+    // Validate that the user is authenticated
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required" 
+      });
+    }
+    
+    // Check if user has a linked account
+    if (!req.user.goatedId) {
+      return res.status(400).json({
+        success: false,
+        message: "No linked account to unlink"
+      });
+    }
+    
+    // Unlink the account
+    await db.execute(sql`
+      UPDATE users
+      SET goated_id = NULL,
+          goated_username = NULL,
+          goated_account_linked = false,
+          link_status = 'not_linked',
+          updated_at = ${new Date()}
+      WHERE id = ${req.user.id}
+    `);
+    
+    return res.json({
+      success: true,
+      message: "Account unlinked successfully"
+    });
+  } catch (error) {
+    console.error("Error unlinking account:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to unlink account"
+    });
+  }
+});
+
+export default router;
+3.2 Add Routes to Main Router
+// server/routes.ts
+import { Router } from "express";
+import userRoutes from "./routes/users";
+import accountLinkingRoutes from "./routes/account-linking";
+// Other imports...
+
+export function registerRoutes(app: any) {
+  // Existing routes...
+  app.use("/api/users", userRoutes);
+  app.use("/api/account", accountLinkingRoutes);
+  // Other routes...
+}
+4. Refactor Server Initialization
+4.1 Clean Up server/index.ts
+// server/index.ts
+// Move the ensureUserProfile function to UserService
+// Replace with this simplified version that uses the service
+
+import { UserService } from "./services/user.service";
+import { GoatedApiService } from "./services/goated-api.service";
+
+const userService = new UserService();
+const goatedApiService = new GoatedApiService();
+
+// Simplified version that delegates to the service
+export async function ensureUserProfile(userId: string): Promise<any> {
+  return userService.ensureUserProfile(userId);
+}
+
+async function syncUserProfiles() {
+  try {
+    const result = await goatedApiService.syncUserProfiles(userService);
+    console.log(`Profile sync completed. Created ${result.created} new profiles, updated ${result.updated}, ${result.existing} already existed.`);
+  } catch (error) {
+    console.error("Error syncing profiles from leaderboard:", error);
+  }
+}
+
+// Keep the rest of the file the same...
+5. Frontend Integration Points
+While focusing primarily on the backend, here are the key UI integration points we should prepare for:
+
+5.1 Account Linking UI Components
+Account Status Card - Shows current account status (linked/unlinked)
+Goated ID Input Form - For entering Goated ID to link
+Verification Success/Error Messages - Clear feedback UI
+Profile Management Section - For viewing/managing linked accounts
+5.2 API Routes for Frontend
+// Endpoints the frontend will need to implement account linking
+{
+  checkGoatedId: '/api/account/check-goated-id/:goatedId', // GET - Check if ID exists and is available
+  linkAccount: '/api/account/link-account',                // POST - Link account with Goated ID
+  unlinkAccount: '/api/account/unlink-account',           // POST - Unlink current account
+  getAccountStatus: '/api/users/me/account-status'         // GET - Get current linking status
+}
