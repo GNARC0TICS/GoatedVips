@@ -220,34 +220,49 @@ export function getNextTierProgress(totalWager: number): number {
 /**
  * Get information about the next tier
  * 
- * @param totalWager - User's total wager amount
+ * @param currentTier - Current tier level or totalWager amount 
  * @returns Next tier information or null if at highest tier
  */
-export function getNextTierInfo(totalWager: number): { 
-  tier: TierLevel; 
-  info: TierInfo; 
-  remaining: number;
-  progress: number;
-} | null {
-  const currentTier = getTierFromWager(totalWager);
+export function getNextTierInfo(currentTier: TierLevel | number): TierInfo | null {
+  // If passed a number (totalWager), convert to tier level
+  const tierLevel = typeof currentTier === 'number' ? getTierFromWager(currentTier) : currentTier;
   
   // If already at legend tier, return null
-  if (currentTier === "legend") {
+  if (tierLevel === "legend") {
     return null;
+  }
+  
+  const tiers = Object.keys(TIERS) as TierLevel[];
+  const currentTierIndex = tiers.indexOf(tierLevel);
+  const nextTier = tiers[currentTierIndex + 1];
+  
+  return TIERS[nextTier];
+}
+
+/**
+ * Calculate the progress percentage to the next tier
+ * 
+ * @param totalWager - User's total wager amount
+ * @returns Progress percentage (0-100)
+ */
+export function getTierProgressPercentage(totalWager: number): number {
+  const currentTier = getTierFromWager(totalWager);
+  
+  // If already at legend tier, return 100%
+  if (currentTier === "legend") {
+    return 100;
   }
   
   const tiers = Object.keys(TIERS) as TierLevel[];
   const currentTierIndex = tiers.indexOf(currentTier);
   const nextTier = tiers[currentTierIndex + 1];
   
+  const currentTierMin = TIERS[currentTier].minWager;
   const nextTierMin = TIERS[nextTier].minWager;
-  const remaining = nextTierMin - totalWager;
-  const progress = getNextTierProgress(totalWager);
   
-  return {
-    tier: nextTier,
-    info: TIERS[nextTier],
-    remaining,
-    progress
-  };
+  // Calculate progress within the current tier
+  const progressInTier = totalWager - currentTierMin;
+  const tierRange = nextTierMin - currentTierMin;
+  
+  return Math.min(Math.floor((progressInTier / tierRange) * 100), 100);
 }

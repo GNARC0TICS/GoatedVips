@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { db } from '../db';
-import { users } from '@db/schema';
+import { db } from '../../db';
+import { users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import userService from '../services/userService';
 import goatedApiService from '../services/goatedApiService';
@@ -8,12 +8,12 @@ import goatedApiService from '../services/goatedApiService';
 const router = Router();
 
 /**
- * Route to initiate account linking
- * POST /api/account/link-account
+ * Route to request account linking (user initiated)
+ * POST /api/account/request-link
  */
-router.post("/link-account", async (req, res) => {
+router.post("/request-link", async (req, res) => {
   try {
-    const { goatedId } = req.body;
+    const { goatedUsername } = req.body;
     
     // Validate that the user is authenticated
     if (!req.user) {
@@ -23,18 +23,15 @@ router.post("/link-account", async (req, res) => {
       });
     }
     
-    // Link the account
-    await userService.linkGoatedAccount(req.user.id, goatedId, 'id_verification');
+    // Request account linking
+    const result = await userService.requestGoatedAccountLink(String(req.user.id), goatedUsername);
     
-    return res.json({
-      success: true,
-      message: "Account linked successfully"
-    });
+    return res.json(result);
   } catch (error) {
-    console.error("Error linking account:", error);
+    console.error("Error requesting account link:", error);
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Failed to link account"
+      message: error instanceof Error ? error.message : "Failed to request account linking"
     });
   }
 });
@@ -85,12 +82,12 @@ router.post("/unlink-account", async (req, res) => {
 });
 
 /**
- * Route to check if a Goated ID exists and is available for linking
- * GET /api/account/check-goated-id/:goatedId
+ * Route to check if a Goated username exists
+ * GET /api/account/check-goated-username/:username
  */
-router.get("/check-goated-id/:goatedId", async (req, res) => {
+router.get("/check-goated-username/:username", async (req, res) => {
   try {
-    const { goatedId } = req.params;
+    const { username } = req.params;
     
     // Validate that the user is authenticated
     if (!req.user) {
@@ -100,40 +97,86 @@ router.get("/check-goated-id/:goatedId", async (req, res) => {
       });
     }
     
-    // Check if the Goated ID exists in the API
-    const apiUser = await goatedApiService.findUserByGoatedId(goatedId);
+    // Check if the Goated username exists
+    const goatedCheck = await goatedApiService.checkGoatedUsername(username);
     
-    if (!apiUser) {
-      return res.status(404).json({
-        success: false,
-        message: "This Goated ID was not found in our system"
-      });
-    }
-    
-    // Check if this Goated ID is already linked to an account
-    const existingLinked = await userService.findUserByGoatedId(goatedId);
-    
-    if (existingLinked && existingLinked.id !== req.user.id) {
-      // It's already linked to another account
-      // All accounts are considered permanent in this implementation
-      return res.json({
-        success: true,
-        canLink: false,
-        reason: "This Goated ID is already linked to another account"
-      });
-    }
-    
-    // Available for linking
-    return res.json({
-      success: true,
-      canLink: true,
-      goatedUsername: apiUser.name
-    });
+    // Return the check result
+    return res.json(goatedCheck);
   } catch (error) {
-    console.error("Error checking Goated ID:", error);
+    console.error("Error checking Goated username:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to check Goated ID"
+      message: "Failed to check Goated username"
+    });
+  }
+});
+
+/**
+ * Route for admin to approve account linking
+ * POST /api/account/admin-approve-link
+ */
+router.post("/admin-approve-link", async (req, res) => {
+  try {
+    const { userId, goatedId } = req.body;
+    
+    // Validate that the user is authenticated and is an admin
+    if (!req.user || !req.user.isAdmin) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Admin authorization required" 
+      });
+    }
+    
+    // Approve the link
+    const updatedUser = await userService.approveGoatedAccountLink(
+      userId,
+      goatedId,
+      req.user.username
+    );
+    
+    return res.json({
+      success: true,
+      message: `Account link approved for ${updatedUser.username}`,
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("Error approving account link:", error);
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to approve account link"
+    });
+  }
+});
+
+/**
+ * Route for admin to reject account linking
+ * POST /api/account/admin-reject-link
+ */
+router.post("/admin-reject-link", async (req, res) => {
+  try {
+    const { userId, reason } = req.body;
+    
+    // Validate that the user is authenticated and is an admin
+    if (!req.user || !req.user.isAdmin) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Admin authorization required" 
+      });
+    }
+    
+    // Reject the link
+    const result = await userService.rejectGoatedAccountLink(
+      userId,
+      reason || "Rejected by admin",
+      req.user.username
+    );
+    
+    return res.json(result);
+  } catch (error) {
+    console.error("Error rejecting account link:", error);
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to reject account link"
     });
   }
 });

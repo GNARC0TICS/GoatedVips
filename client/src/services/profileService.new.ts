@@ -77,8 +77,8 @@ class ProfileService {
    * Set the current authenticated user
    * This is used to determine profile ownership
    */
-  setCurrentUser(user: UserProfile | null) {
-    this.currentUser = user;
+  setCurrentUser(user: UserProfile | null | undefined) {
+    this.currentUser = user || null;
   }
 
   /**
@@ -227,22 +227,23 @@ class ProfileService {
   }
 
   /**
-   * Link a Goated.com account to the user profile
+   * Request to link a Goated.com account by username to the user profile
+   * This initiates the admin approval process
    */
-  async linkGoatedAccount(goatedId: string): Promise<{ success: boolean; message: string }> {
+  async requestGoatedAccountLink(goatedUsername: string): Promise<{ success: boolean; message: string; username?: string }> {
     try {
-      const response = await fetch(`${this.baseUrl}/account/link-account`, {
+      const response = await fetch(`${this.baseUrl}/account/request-link`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ goatedId }),
+        body: JSON.stringify({ goatedUsername }),
         credentials: 'include'
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "Account linking failed" }));
+        const errorData = await response.json().catch(() => ({ message: "Account linking request failed" }));
         throw new ProfileError(
-          errorData.message || "Account linking failed",
-          'ACCOUNT_LINK_ERROR'
+          errorData.message || "Account linking request failed",
+          'ACCOUNT_LINK_REQUEST_ERROR'
         );
       }
 
@@ -256,12 +257,45 @@ class ProfileService {
       
       return await response.json();
     } catch (error) {
-      console.error("Error linking account:", error);
+      console.error("Error requesting account link:", error);
       throw error instanceof ProfileError 
         ? error 
         : new ProfileError(
-            `Error linking account: ${error instanceof Error ? error.message : String(error)}`,
-            'ACCOUNT_LINK_ERROR'
+            `Error requesting account link: ${error instanceof Error ? error.message : String(error)}`,
+            'ACCOUNT_LINK_REQUEST_ERROR'
+          );
+    }
+  }
+  
+  /**
+   * Check if a Goated username exists and can be linked
+   */
+  async checkGoatedUsername(username: string): Promise<{
+    exists: boolean;
+    goatedId?: string;
+    message: string;
+  }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/account/check-goated-username/${username}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Username check failed" }));
+        throw new ProfileError(
+          errorData.message || "Username check failed",
+          'USERNAME_CHECK_ERROR'
+        );
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error checking username:", error);
+      throw error instanceof ProfileError 
+        ? error 
+        : new ProfileError(
+            `Error checking username: ${error instanceof Error ? error.message : String(error)}`,
+            'USERNAME_CHECK_ERROR'
           );
     }
   }

@@ -26,6 +26,13 @@ export const users = pgTable("users", {
   goatedId: text("goated_id").unique(),
   goatedUsername: text("goated_username"),
   goatedAccountLinked: boolean("goated_account_linked").default(false),
+  goatedLinkRequested: boolean("goated_link_requested").default(false),
+  goatedUsernameRequested: text("goated_username_requested"),
+  goatedLinkRequestedAt: timestamp("goated_link_requested_at"),
+  totalWager: text("total_wager"),
+  emailVerificationToken: text("email_verification_token"),
+  emailVerificationSentAt: timestamp("email_verification_sent_at"),
+  emailVerifiedAt: timestamp("email_verified_at"),
   lastActive: timestamp("last_active"),
 });
 

@@ -5,8 +5,8 @@
  * This service encapsulates all database operations related to users.
  */
 
-import { db } from '../db';
-import { users, insertUserSchema } from '@db/schema';
+import { db } from '../../db';
+import { users, insertUserSchema } from '../../db/schema';
 import { eq, or, and, isNull } from 'drizzle-orm';
 import goatedApiService from './goatedApiService';
 import bcrypt from 'bcrypt';
@@ -17,7 +17,7 @@ class UserService {
    */
   async findUserById(id: string) {
     const result = await db.query.users.findFirst({
-      where: eq(users.id, id),
+      where: eq(users.id, parseInt(id, 10)),
     });
     
     return result;
@@ -82,7 +82,7 @@ class UserService {
     const [updatedUser] = await db
       .update(users)
       .set({ ...userData, lastActive: new Date() })
-      .where(eq(users.id, id))
+      .where(eq(users.id, parseInt(id, 10)))
       .returning();
     
     return updatedUser;
@@ -92,7 +92,7 @@ class UserService {
    * Delete a user
    */
   async deleteUser(id: string) {
-    await db.delete(users).where(eq(users.id, id));
+    await db.delete(users).where(eq(users.id, parseInt(id, 10)));
   }
   
   /**
@@ -124,10 +124,10 @@ class UserService {
     if (!user) {
       // Create a basic placeholder user
       return await this.createUser({
-        id: userId,
+        id: parseInt(userId, 10),
         username: `user_${userId.substring(0, 6)}`,
         password: await bcrypt.hash(Math.random().toString(36), 10),
-        email: null,
+        email: `temp_${userId.substring(0, 6)}@example.com`, // Temporary placeholder email
         createdAt: new Date(),
         lastActive: new Date(),
       });
@@ -135,49 +135,126 @@ class UserService {
     
     // If the user exists but has a linked Goated account, refresh the data
     if (user.goatedId && user.goatedAccountLinked) {
-      await this.refreshGoatedUserData(user.id, user.goatedId);
+      await this.refreshGoatedUserData(String(user.id), user.goatedId);
     }
     
     return user;
   }
   
   /**
-   * Link a Goated account to a user
+   * Request Goated account linking by username
+   * This starts the admin approval process
    */
-  async linkGoatedAccount(userId: string, goatedId: string, method: 'id_verification' | 'email_match' | 'admin') {
+  async requestGoatedAccountLink(userId: string, goatedUsername: string) {
     // First check if the user exists
     const user = await this.findUserById(userId);
     if (!user) {
       throw new Error('User not found');
     }
     
-    // Check if the Goated ID is valid
-    const goatedUser = await goatedApiService.findUserByGoatedId(goatedId);
-    if (!goatedUser) {
-      throw new Error('Goated ID not found');
+    // Check if the user already has a pending request
+    if (user.goatedLinkRequested) {
+      throw new Error('You already have a pending link request');
+    }
+    
+    // Check if the user already has a linked account
+    if (user.goatedAccountLinked) {
+      throw new Error('Your account is already linked to a Goated account');
+    }
+    
+    // Check if the Goated username exists
+    const goatedCheck = await goatedApiService.checkGoatedUsername(goatedUsername);
+    if (!goatedCheck.exists) {
+      throw new Error('Goated username not found or invalid');
+    }
+    
+    // Store the request for admin approval
+    await this.updateUser(userId, {
+      goatedLinkRequested: true,
+      goatedUsernameRequested: goatedUsername,
+      goatedLinkRequestedAt: new Date()
+    });
+    
+    return {
+      success: true,
+      message: 'Link request submitted. An admin will review your request.',
+      username: goatedUsername
+    };
+  }
+  
+  /**
+   * Admin approval of Goated account linking
+   * This is called by admin users to approve a linking request
+   */
+  async approveGoatedAccountLink(userId: string, goatedId: string, approvedBy: string) {
+    // First check if the user exists
+    const user = await this.findUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    // Check if there is a pending request
+    if (!user.goatedLinkRequested) {
+      throw new Error('No pending link request for this user');
     }
     
     // Check if this Goated ID is already linked to another account
     const existingLinked = await this.findUserByGoatedId(goatedId);
-    if (existingLinked && existingLinked.id !== userId) {
+    const userIdNumber = parseInt(userId, 10);
+    if (existingLinked && existingLinked.id !== userIdNumber) {
       throw new Error('This Goated ID is already linked to another account');
     }
     
-    // Get wager data from Goated API
-    const wagerData = await goatedApiService.getUserWagerData(goatedId);
+    // Get goated user info
+    const goatedUser = await goatedApiService.getUserInfo(goatedId);
+    if (!goatedUser) {
+      throw new Error('Goated user information not found');
+    }
+    
+    // Get wager data
+    const wagerData = goatedUser.wager;
     
     // Update the user with Goated info
     const updatedUser = await this.updateUser(userId, {
       goatedId,
       goatedUsername: goatedUser.name,
       goatedAccountLinked: true,
-      goatedAccountLinkMethod: method,
-      goatedAccountLinkedAt: new Date(),
+      goatedLinkRequested: false,
+      goatedUsernameRequested: null,
       // Store All-Time wager amount if available
       totalWager: wagerData?.all_time !== undefined ? String(wagerData.all_time) : user.totalWager,
     });
     
     return updatedUser;
+  }
+  
+  /**
+   * Admin rejection of Goated account linking
+   * This is called by admin users to reject a linking request
+   */
+  async rejectGoatedAccountLink(userId: string, reason: string, rejectedBy: string) {
+    // First check if the user exists
+    const user = await this.findUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    // Check if there is a pending request
+    if (!user.goatedLinkRequested) {
+      throw new Error('No pending link request for this user');
+    }
+    
+    // Update the user to reject the request
+    await this.updateUser(userId, {
+      goatedLinkRequested: false,
+      goatedUsernameRequested: null,
+    });
+    
+    return {
+      success: true,
+      message: 'Link request rejected',
+      reason
+    };
   }
   
   /**
@@ -204,7 +281,7 @@ class UserService {
             totalWager: String(wagerData.all_time),
             lastActive: new Date(),
           })
-          .where(eq(users.id, userId));
+          .where(eq(users.id, parseInt(userId, 10)));
       }
     } catch (error) {
       console.error(`Error refreshing Goated data for user ${userId}:`, error);
@@ -274,7 +351,7 @@ class UserService {
     }
     
     // Mark email as verified
-    await this.updateUser(user.id, {
+    await this.updateUser(String(user.id), {
       emailVerified: true,
       emailVerifiedAt: new Date(),
       emailVerificationToken: null,

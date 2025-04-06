@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         const userData = await response.json();
-        return userData;
+        return userData as User;
       } catch (err) {
         console.error("Error fetching user:", err);
         return null;
@@ -208,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = async (): Promise<User | null> => {
     try {
       const { data } = await refetch();
-      return data;
+      return data || null;
     } catch (err) {
       console.error("Error refreshing user:", err);
       return null;
@@ -219,7 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Auth context value
    */
   const authContextValue: AuthContextType = {
-    user,
+    user: (user === undefined ? null : user) as User | null,
     isAuthenticated: !!user,
     isLoading: isLoading || loginMutation.isPending || registerMutation.isPending || logoutMutation.isPending,
     error,
