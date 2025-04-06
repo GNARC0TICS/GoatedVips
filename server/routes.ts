@@ -77,6 +77,12 @@ const cacheMiddleware = (ttl = 30000, namespace = 'api') => async (req: Request,
   const { data, found, stale } = cacheService.get(key, { namespace, ttl, staleWhileRevalidate: true });
   
   if (found) {
+    // Check if headers have already been sent
+    if (res.headersSent) {
+      console.log(`Headers already sent in cacheMiddleware for ${key}, skipping cache response`);
+      return;
+    }
+    
     // Set appropriate cache headers
     res.setHeader('X-Cache', stale ? 'STALE' : 'HIT');
     
@@ -117,7 +123,12 @@ const cacheMiddleware = (ttl = 30000, namespace = 'api') => async (req: Request,
       }
     }
     
-    return res.json(data);
+    // Final check if headers have already been sent
+    if (!res.headersSent) {
+      return res.json(data);
+    } else {
+      console.log(`Headers sent during cache middleware processing for ${key}`);
+    }
   }
   
   // No cache hit, proceed with request
@@ -407,6 +418,12 @@ function setupAPIRoutes(app: Express) {
       let responseHasBeenSent = false;
 
       try {
+        // If the cacheMiddleware has already sent a response, don't proceed further
+        if (res.headersSent) {
+          responseHasBeenSent = true;
+          return;
+        }
+
         const username = typeof req.query.username === 'string' ? req.query.username : undefined;
         // Use the direct URL for now to ensure it works
         let url = 'https://api.goated.com/user2/affiliate/referral-leaderboard/2RW440E';
@@ -464,16 +481,16 @@ function setupAPIRoutes(app: Express) {
         };
         log('Transformed leaderboard data: ' + JSON.stringify(logData));
 
-        // Only send response if it hasn't been sent already
-        if (!responseHasBeenSent) {
+        // Check both responseHasBeenSent flag and res.headersSent for maximum safety
+        if (!responseHasBeenSent && !res.headersSent) {
           responseHasBeenSent = true;
           return res.json(transformedData);
         }
       } catch (error) {
         log(`Error in /api/affiliate/stats: ${error instanceof Error ? error.message : String(error)}`);
         
-        // Only send error response if no response has been sent yet
-        if (!responseHasBeenSent) {
+        // Only send error response if no response has been sent yet (double-check)
+        if (!responseHasBeenSent && !res.headersSent) {
           responseHasBeenSent = true;
           return res.status(error instanceof ApiError ? error.status || 500 : 500).json({
             status: "error",
@@ -500,6 +517,12 @@ function setupAPIRoutes(app: Express) {
       let responseHasBeenSent = false;
       
       try {
+        // If the cacheMiddleware has already sent a response, don't proceed further
+        if (res.headersSent) {
+          responseHasBeenSent = true;
+          return;
+        }
+        
         // Using direct URL approach to match the affiliate stats endpoint
         const url = 'https://api.goated.com/user2/affiliate/referral-leaderboard/2RW440E';
         
@@ -544,14 +567,14 @@ function setupAPIRoutes(app: Express) {
           wagerTotals: totals
         };
 
-        // Only send response if it hasn't been sent already
-        if (!responseHasBeenSent) {
+        // Check both responseHasBeenSent flag and res.headersSent for maximum safety
+        if (!responseHasBeenSent && !res.headersSent) {
           responseHasBeenSent = true;
           return res.json(stats);
         }
       } catch (error) {
-        // Only send error response if no response has been sent yet
-        if (!responseHasBeenSent) {
+        // Only send error response if no response has been sent yet (double-check)
+        if (!responseHasBeenSent && !res.headersSent) {
           responseHasBeenSent = true;
           return res.status(500).json({ 
             error: "Failed to fetch analytics", 
@@ -658,6 +681,12 @@ function setupAPIRoutes(app: Express) {
       let responseHasBeenSent = false;
       
       try {
+        // If the cacheMiddleware has already sent a response, don't proceed further
+        if (res.headersSent) {
+          responseHasBeenSent = true;
+          return;
+        }
+        
         console.log('Executing transformation metrics query...');
 
         const result = await db.query.transformationLogs.findMany({
@@ -697,8 +726,8 @@ function setupAPIRoutes(app: Express) {
 
         console.log('Processed response:', response);
         
-        // Only send response if it hasn't been sent already
-        if (!responseHasBeenSent) {
+        // Check both responseHasBeenSent flag and res.headersSent for maximum safety
+        if (!responseHasBeenSent && !res.headersSent) {
           responseHasBeenSent = true;
           return res.json(response);
         }
@@ -712,8 +741,8 @@ function setupAPIRoutes(app: Express) {
           timestamp: new Date().toISOString()
         });
 
-        // Only send error response if no response has been sent yet
-        if (!responseHasBeenSent) {
+        // Only send error response if no response has been sent yet (double-check)
+        if (!responseHasBeenSent && !res.headersSent) {
           responseHasBeenSent = true;
           return res.status(500).json({
             status: 'error',
@@ -732,6 +761,11 @@ function setupAPIRoutes(app: Express) {
       // Flag to track if response has been sent
       let responseHasBeenSent = false;
       
+        // If headers have already been sent, don't proceed further
+        if (res.headersSent) {
+          responseHasBeenSent = true;
+          return;
+        }
       try {
         console.log('Fetching logs for export...');
 

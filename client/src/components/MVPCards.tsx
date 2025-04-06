@@ -1,12 +1,16 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { Trophy, TrendingUp } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect as ReactuseEffect } from "react";
 import { QuickProfile } from "./QuickProfile";
-import { getTierFromWager, getTierIcon } from "@/lib/tier-utils"; // Added import
+import { getTierFromWager, getTierInfo, getTierIcon, getTierIconComponent } from "@/lib/tier-utils";
 import { Dialog, DialogContent } from "./ui/dialog";
+import { ProfileTierProgress } from './profile/ProfileTierProgress';
+import { profileService } from '@/services/profileService';
 
+/**
+ * MVP card type definition with all required properties
+ */
 type MVP = {
   username: string;
   uid: string;
@@ -23,10 +27,17 @@ type MVP = {
   };
 };
 
+// Cache for profile data to prevent multiple API fetches
+const profileCache = new Map<string, any>();
+
+/**
+ * Time period definitions for different MVP cards
+ */
 const timeframes = [
   { 
     title: "Daily MVP", 
     period: "daily", 
+    wagerKey: "today",
     colors: {
       primary: "#8B5CF6", // violet
       accent: "#7C3AED",
@@ -36,6 +47,7 @@ const timeframes = [
   { 
     title: "Weekly MVP", 
     period: "weekly", 
+    wagerKey: "this_week",
     colors: {
       primary: "#10B981", // emerald
       accent: "#059669",
@@ -45,6 +57,7 @@ const timeframes = [
   { 
     title: "Monthly MVP", 
     period: "monthly", 
+    wagerKey: "this_month",
     colors: {
       primary: "#F59E0B", // amber
       accent: "#D97706",
@@ -53,6 +66,10 @@ const timeframes = [
   }
 ];
 
+/**
+ * Individual MVP Card component
+ * Displays a single timeframe MVP with their wager information
+ */
 function MVPCard({ 
   timeframe, 
   mvp, 
@@ -67,9 +84,32 @@ function MVPCard({
   leaderboardData: any
 }) {
   const [showIncrease, setShowIncrease] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+
+  // Pre-fetch profile data for this MVP
+  useEffect(() => {
+    if (mvp && mvp.uid) {
+      // Check if we already have this profile in cache
+      if (profileCache.has(mvp.uid)) {
+        setProfile(profileCache.get(mvp.uid));
+        return;
+      }
+
+      // Otherwise fetch it, but don't block rendering
+      setLoadingProfile(true);
+      profileService.getProfile(mvp.uid)
+        .then(data => {
+          setProfile(data);
+          profileCache.set(mvp.uid, data);
+        })
+        .catch(err => console.error("Error pre-fetching profile:", err))
+        .finally(() => setLoadingProfile(false));
+    }
+  }, [mvp?.uid]);
 
   // Show increase indicator for 10 seconds when wager amount changes
-  ReactuseEffect(() => {
+  useEffect(() => {
     if (mvp?.lastWagerChange) {
       setShowIncrease(true);
       const timer = setTimeout(() => setShowIncrease(false), 10000);
@@ -77,10 +117,32 @@ function MVPCard({
     }
   }, [mvp?.lastWagerChange]);
 
+  // Calculate tier information based on all-time wagered amount
+  const tierLevel = useMemo(() => {
+    if (!mvp) return null;
+    return getTierFromWager(mvp.wagered.all_time);
+  }, [mvp?.wagered?.all_time]);
+
+  const tierInfo = useMemo(() => {
+    if (!tierLevel) return null;
+    return getTierInfo(tierLevel);
+  }, [tierLevel]);
+
+  // Loading state
   if (!mvp) {
     return (
       <div className="p-6 bg-[#1A1B21]/50 animate-pulse h-48 rounded-xl">
-        <div className="h-full"></div>
+        <div className="w-full space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="h-6 w-24 rounded bg-black/20 animate-pulse"></div>
+            <div className="h-4 w-16 rounded bg-black/20 animate-pulse"></div>
+          </div>
+          <div className="mt-4 flex items-center space-x-2">
+            <div className="w-10 h-10 rounded-full bg-black/20 animate-pulse"></div>
+            <div className="h-5 w-32 rounded bg-black/20 animate-pulse"></div>
+          </div>
+          <div className="h-10 w-full rounded bg-black/20 animate-pulse mt-4"></div>
+        </div>
       </div>
     );
   }
@@ -117,6 +179,19 @@ function MVPCard({
                 </svg>
                 <h3 className="text-lg font-heading text-white">{timeframe.title}</h3>
               </div>
+              {tierLevel && (
+                <div 
+                  className="flex items-center gap-1 bg-black/40 px-2 py-1 rounded-full text-xs" 
+                  style={{ color: tierInfo?.color }}
+                >
+                  <img 
+                    src={getTierIcon(tierLevel)} 
+                    alt={tierInfo?.name}
+                    className="h-3 w-3" 
+                  />
+                  <span>{tierInfo?.name}</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">
@@ -171,11 +246,13 @@ function MVPCard({
             <div className="relative">
               <div className="mb-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <img 
-                    src={getTierIcon(getTierFromWager(mvp.wagered.all_time))}
-                    alt="VIP Tier"
-                    className="w-8 h-8"
-                  />
+                  {tierLevel && (
+                    <img 
+                      src={getTierIcon(tierLevel)} 
+                      alt={tierInfo?.name}
+                      className="h-6 w-6" 
+                    />
+                  )}
                   <h4 className="text-xl md:text-2xl font-heading text-white">{mvp.username}</h4>
                 </div>
                 <div className="flex items-center gap-2 text-xl font-heading text-white">
@@ -185,12 +262,23 @@ function MVPCard({
                   Player Statistics
                 </div>
               </div>
+              
+              {/* TIER PROGRESS SECTION - Only show if profile is loaded */}
+              {profile && (
+                <div className="mb-4">
+                  <ProfileTierProgress profile={{
+                    ...profile, 
+                    totalWager: mvp.wagered.all_time
+                  }} />
+                </div>
+              )}
+              
               <div className="space-y-4">
                 {[
-                  { label: "Daily Rank", value: leaderboardData?.data?.today?.data.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: "#8B5CF6" },
-                  { label: "Weekly Rank", value: leaderboardData?.data?.weekly?.data.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: "#10B981" },
-                  { label: "Monthly Rank", value: leaderboardData?.data?.monthly?.data.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: "#F59E0B" },
-                  { label: "All-Time Rank", value: leaderboardData?.data?.all_time?.data.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: "#EC4899" }
+                  { label: "Daily Rank", value: leaderboardData?.data?.today?.data?.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: "#8B5CF6" },
+                  { label: "Weekly Rank", value: leaderboardData?.data?.weekly?.data?.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: "#10B981" },
+                  { label: "Monthly Rank", value: leaderboardData?.data?.monthly?.data?.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: "#F59E0B" },
+                  { label: "All-Time Rank", value: leaderboardData?.data?.all_time?.data?.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: "#EC4899" }
                 ].map((stat, index) => (
                   <div key={index} className="flex justify-between items-center p-2 rounded-lg bg-black/20 hover:bg-black/30 transition-colors">
                     <span className="text-white/80 text-sm">{stat.label}:</span>
@@ -218,24 +306,67 @@ function MVPCard({
 
 export const MVPCardMemo = React.memo(MVPCard);
 
+/**
+ * Main MVP Cards component
+ * Displays MVP cards for daily, weekly, and monthly periods
+ */
 export function MVPCards() {
   const [openCard, setOpenCard] = useState<string | null>(null);
   const dialogTimeoutRef = React.useRef<NodeJS.Timeout>();
 
+  // Enhanced data fetching with refresh interval
   const { data: leaderboardData, isLoading } = useQuery<any>({
     queryKey: ["/api/affiliate/stats"],
-    staleTime: 30000,
+    staleTime: 30000, // 30 seconds cache
+    refetchInterval: 60000, // 1 minute refresh interval
   });
 
-  ReactuseEffect(() => {
-    console.log("leaderboardData:", leaderboardData);
+  // Extract and normalize MVP data with robust error handling
+  const mvps = useMemo(() => {
+    if (!leaderboardData || typeof leaderboardData !== 'object') {
+      console.log("Leaderboard data not available or not an object", leaderboardData);
+      return { daily: undefined, weekly: undefined, monthly: undefined };
+    }
+    
+    const data = leaderboardData as any;
+    
+    // Extract users from appropriate data paths
+    let dailyUsers = data?.data?.today?.data || [];
+    let weeklyUsers = data?.data?.weekly?.data || [];
+    let monthlyUsers = data?.data?.monthly?.data || [];
+    
+    // Fallback logic for different API response formats
+    if (dailyUsers.length === 0 && data?.data?.today) {
+      if (Array.isArray(data.data.today)) {
+        dailyUsers = data.data.today;
+      }
+    }
+    
+    if (weeklyUsers.length === 0 && data?.data?.weekly) {
+      if (Array.isArray(data.data.weekly)) {
+        weeklyUsers = data.data.weekly;
+      } else if (data.data.weekly?.this_week && Array.isArray(data.data.weekly.this_week)) {
+        weeklyUsers = data.data.weekly.this_week;
+      }
+    }
+    
+    if (monthlyUsers.length === 0 && data?.data?.monthly) {
+      if (Array.isArray(data.data.monthly)) {
+        monthlyUsers = data.data.monthly;
+      }
+    }
+    
+    // Extract first user from each group if available
+    const dailyMVP = dailyUsers.length > 0 ? dailyUsers[0] : undefined;
+    const weeklyMVP = weeklyUsers.length > 0 ? weeklyUsers[0] : undefined;
+    const monthlyMVP = monthlyUsers.length > 0 ? monthlyUsers[0] : undefined;
+    
+    return {
+      daily: dailyMVP,
+      weekly: weeklyMVP,
+      monthly: monthlyMVP
+    };
   }, [leaderboardData]);
-
-  const mvps = useMemo(() => ({
-    daily: leaderboardData?.data?.today?.data?.[0],
-    weekly: leaderboardData?.data?.weekly?.data?.[0],
-    monthly: leaderboardData?.data?.monthly?.data?.[0]
-  }), [leaderboardData]);
 
   const handleDialogChange = useCallback((open: boolean, period: string) => {
     if (dialogTimeoutRef.current) {
@@ -250,7 +381,7 @@ export function MVPCards() {
     }
   }, []);
 
-  ReactuseEffect(() => {
+  useEffect(() => {
     return () => {
       if (dialogTimeoutRef.current) {
         clearTimeout(dialogTimeoutRef.current);
@@ -258,17 +389,27 @@ export function MVPCards() {
     };
   }, []);
 
-  if (isLoading || !mvps?.daily) {
+  // More engaging loading state with staggered animation
+  if (isLoading) {
     return (
       <div className="grid md:grid-cols-3 gap-4 max-w-5xl mx-auto">
-        {timeframes.map((timeframe) => (
+        {timeframes.map((timeframe, index) => (
           <motion.div
             key={timeframe.period}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            transition={{ delay: index * 0.1 }}
             className="p-6 bg-[#1A1B21]/50 h-48 rounded-xl relative overflow-hidden"
           >
-            <div className="w-full h-full animate-pulse bg-gradient-to-r from-[#1A1B21]/30 to-[#1A1B21]/50" />
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-5 h-5 rounded-full" style={{ backgroundColor: timeframe.colors.primary }} />
+              <div className="h-4 w-24 animate-pulse bg-gradient-to-r from-[#1A1B21]/30 to-[#1A1B21]/50 rounded" />
+            </div>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 rounded-full animate-pulse" style={{ backgroundColor: `${timeframe.colors.primary}20` }} />
+              <div className="h-5 w-32 animate-pulse bg-gradient-to-r from-[#1A1B21]/30 to-[#1A1B21]/50 rounded" />
+            </div>
+            <div className="h-8 w-full animate-pulse bg-gradient-to-r from-[#1A1B21]/30 to-[#1A1B21]/50 rounded" />
           </motion.div>
         ))}
       </div>
@@ -277,25 +418,61 @@ export function MVPCards() {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-0 max-w-5xl mx-auto perspective-1000 px-0">
-      {timeframes.map((timeframe) => (
+      {timeframes.map((timeframe, index) => (
         <motion.div
           key={timeframe.period}
           initial={{ opacity: 0, y: 20, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           whileHover={{ scale: 1.02 }}
-          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 400, 
+            damping: 30,
+            delay: index * 0.1  // Staggered animation
+          }}
           className="group relative transform transition-all duration-300 p-2 md:p-3"
         >
           <MVPCardMemo 
             timeframe={timeframe}
-            mvp={mvps[timeframe.period as keyof typeof mvps] ? {
-              username: mvps[timeframe.period as keyof typeof mvps]?.name || '',
-              uid: mvps[timeframe.period as keyof typeof mvps]?.uid || '',
-              wagerAmount: mvps[timeframe.period as keyof typeof mvps]?.wagered?.[timeframe.period === 'daily' ? 'today' : timeframe.period === 'weekly' ? 'this_week' : 'this_month'] || 0,
-              wagered: mvps[timeframe.period as keyof typeof mvps]?.wagered || { today: 0, this_week: 0, this_month: 0, all_time: 0 },
-              avatarUrl: mvps[timeframe.period as keyof typeof mvps]?.avatarUrl,
-              rank: 1 // MVP is always rank 1
-            } : undefined}
+            mvp={mvps[timeframe.period as keyof typeof mvps] ? (() => {
+              const mvpData = mvps[timeframe.period as keyof typeof mvps];
+              
+              // Try to determine the structure of the data and extract needed fields
+              const username = mvpData.name || mvpData.username || '';
+              const uid = mvpData.uid || mvpData.id || '';
+              
+              // Figure out the wager amount based on what's available
+              let wagerAmount = 0;
+              if (timeframe.period === 'daily' && typeof mvpData.wagered?.today === 'number') {
+                wagerAmount = mvpData.wagered.today;
+              } else if (timeframe.period === 'weekly' && typeof mvpData.wagered?.this_week === 'number') {
+                wagerAmount = mvpData.wagered.this_week;
+              } else if (timeframe.period === 'monthly' && typeof mvpData.wagered?.this_month === 'number') {
+                wagerAmount = mvpData.wagered.this_month;
+              } else if (typeof mvpData.wagerAmount === 'number') {
+                wagerAmount = mvpData.wagerAmount;
+              } else if (typeof mvpData.amount === 'number') {
+                wagerAmount = mvpData.amount;
+              }
+              
+              // Create a standard wagered object or use what we have
+              const wagered = mvpData.wagered || {
+                today: typeof mvpData.today === 'number' ? mvpData.today : 0,
+                this_week: typeof mvpData.this_week === 'number' ? mvpData.this_week : 0,
+                this_month: typeof mvpData.this_month === 'number' ? mvpData.this_month : 0,
+                all_time: typeof mvpData.all_time === 'number' ? mvpData.all_time : 
+                          (typeof mvpData.wagered?.all_time === 'number' ? mvpData.wagered.all_time : wagerAmount)
+              };
+              
+              return {
+                username,
+                uid,
+                wagerAmount,
+                wagered,
+                avatarUrl: mvpData.avatarUrl || mvpData.avatar || '',
+                rank: 1 // MVP is always rank 1
+              };
+            })() : undefined}
             isOpen={openCard === timeframe.period}
             onOpenChange={(open) => handleDialogChange(open, timeframe.period)}
             leaderboardData={leaderboardData}

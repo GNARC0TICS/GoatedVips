@@ -19,7 +19,7 @@ import {
 import { CryptoSwapHomeWidget } from "@/components/CryptoSwapHomeWidget";
 import { CryptoSwapTooltip } from "@/components/CryptoSwapTooltip";
 import { FeatureCarousel } from "@/components/FeatureCarousel";
-import { MVPCardsEnhanced } from "@/components/MVPCardsEnhanced";
+import { MVPCards } from "@/components/MVPCards";
 import { RaceTimer } from "@/components/RaceTimer";
 import { BonusCodeHeroCard } from "@/components/BonusCodeHeroCard";
 import {
@@ -122,7 +122,7 @@ export default function Home() {
                 <Crown className="w-8 h-8 text-[#D7FF00] animate-wiggle" />
                 TOP PERFORMERS
               </h2>
-              <MVPCardsEnhanced />
+              <MVPCards />
             </motion.div>
 
             <motion.div
