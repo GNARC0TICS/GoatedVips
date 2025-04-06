@@ -73,6 +73,7 @@
 - Apply rate limiting to prevent abuse
 - Implement proper authentication for all API endpoints
 - Use HTTPS for all external communication
+- ABSOLUTELY NO MOCK DATA CREATION/IMPLMENTATION
 
 ## Project Workflow
 
