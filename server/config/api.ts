@@ -9,7 +9,7 @@
  */
 export const API_CONFIG = {
   // Base URL for all API requests
-  baseUrl: process.env.API_BASE_URL || 'https://api.goated.com/api/v1',
+  baseUrl: process.env.API_BASE_URL || 'https://api.goated.com',
   
   // API token used for authentication with the external service
   // Retrieved from environment variables
@@ -18,21 +18,21 @@ export const API_CONFIG = {
   // Endpoints organized by function
   endpoints: {
     // User-related endpoints
-    users: '/users',
-    profile: '/profile',
+    users: '/user2/users',
+    profile: '/user2/profile',
     
     // Leaderboard/stats endpoints
-    leaderboard: '/leaderboard',
-    statistics: '/statistics',
+    leaderboard: '/user2/affiliate/referral-leaderboard/2RW440E',
+    statistics: '/user2/statistics',
     
     // Game data endpoints
-    games: '/games',
-    outcomes: '/outcomes',
-    wagers: '/wagers',
+    games: '/user2/games',
+    outcomes: '/user2/outcomes',
+    wagers: '/user2/wagers',
     
     // Bonus/promotion endpoints
-    bonuses: '/bonuses',
-    promotions: '/promotions',
+    bonuses: '/user2/bonuses',
+    promotions: '/user2/promotions',
   },
   
   // Request configuration

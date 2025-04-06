@@ -190,14 +190,15 @@ export async function ensureUserProfile(userId: string): Promise<any> {
       if (token) {
         try {
           // Fetch leaderboard data which contains all users
-          const leaderboardUrl = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`;
+          const leaderboardUrl = `https://api.goated.com/user2/affiliate/referral-leaderboard/2RW440E`;
           console.log(`Fetching leaderboard data to find user ${userId}`);
           
           const response = await fetch(leaderboardUrl, {
             headers: {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
-            }
+            },
+            signal: AbortSignal.timeout(15000), // Add timeout to prevent hanging requests
           });
           
           if (response.ok) {
@@ -348,12 +349,13 @@ async function syncUserProfiles() {
     
     // Fetch leaderboard data to get all users
     const response = await fetch(
-      `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`, 
+      'https://api.goated.com/user2/affiliate/referral-leaderboard/2RW440E', 
       {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
+        signal: AbortSignal.timeout(60000), // 60 seconds timeout
       }
     );
     
