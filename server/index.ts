@@ -25,8 +25,9 @@ import { fileURLToPath } from "url";
 import { createServer as createViteServer, createLogger } from "vite";
 import { promisify } from "util";
 import { exec } from "child_process";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 import compression from "compression";
+import schedule from "node-schedule";
 
 // Application modules
 import { log } from "./utils/logger";
@@ -453,27 +454,25 @@ async function initializeServer() {
     setupAuth(app);
     registerRoutes(app);
 
-    // Add error handling after routes are registered
-    // 404 handler for unmatched routes
-    app.use(notFoundHandler);
-    // Global error handler as the last middleware
-    app.use(errorHandler);
-
-    // Admin routes are set up through the middleware and routes system
-    log("info", "Admin routes initialized");
-
     server = createServer(app);
     setupWebSocket(server);
-
 
     // Setup development or production server based on environment
     if (IS_DEVELOPMENT) {
       await setupVite(app, server);
     } else {
       serveStatic(app);
+      
+      // Add error handling after routes are registered
+      // 404 handler only for API routes in production mode
+      app.use('/api', notFoundHandler);
     }
+    
+    // Global error handler as the last middleware
+    app.use(errorHandler);
 
-    // Global error handler already registered previously
+    // Admin routes are set up through the middleware and routes system
+    log("info", "Admin routes initialized");
 
     // Start server and handle graceful shutdown
     return new Promise((resolve, reject) => {

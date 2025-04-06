@@ -74,23 +74,31 @@ export const wagerRaces = pgTable("wager_races", {
   prizePool: decimal("prize_pool", { precision: 18, scale: 2 }).notNull(),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
-  minWager: decimal("min_wager", { precision: 18, scale: 2 }).notNull(),
-  prizeDistribution: jsonb("prize_distribution").notNull(), // { "1": 25, "2": 15, ... }
+  minWager: decimal("min_wager", { precision: 18, scale: 2 }).default("0").notNull(),
+  prizeDistribution: jsonb("prize_distribution").default({}).notNull(), // { "1": 25, "2": 15, ... }
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
   rules: text("rules"),
   description: text("description"),
+  name: text("name"), // Added for backwards compatibility
 });
 
 export const wagerRaceParticipants = pgTable("wager_race_participants", {
   id: serial("id").primaryKey(),
   raceId: integer("race_id").references(() => wagerRaces.id),
-  userId: integer("user_id").references(() => users.id),
-  totalWager: decimal("total_wager", { precision: 18, scale: 2 }).notNull(),
-  rank: integer("rank"),
+  userId: integer("user_id").references(() => users.id),  // Reference to internal users
+  username: text("username").notNull(),                   // Store username directly
+  wagered: decimal("wagered", { precision: 18, scale: 2 }).notNull(), // Total amount wagered
+  position: integer("position").notNull(),                // Position in the race (1st, 2nd, etc.)
+  prizeAmount: decimal("prize_amount", { precision: 18, scale: 2 }).default("0"),
+  prizeClaimed: boolean("prize_claimed").default(false).notNull(),
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  wagerHistory: jsonb("wager_history"), // Track wager progress over time
+  wagerHistory: jsonb("wager_history"),                   // Track wager progress over time
+  // Keeping column compatibility with actual database schema
+  totalWager: decimal("total_wager_backup", { precision: 18, scale: 2 }),
+  rank: integer("rank_backup"),
 });
 
 // Support System tables

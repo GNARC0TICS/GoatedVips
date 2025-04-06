@@ -1,0 +1,264 @@
+Database Guide: GoatedVIPs Platform
+Overview
+This document provides a comprehensive guide to the database architecture for the GoatedVIPs platform. The application uses PostgreSQL as the database system with Drizzle ORM for type-safe database operations.
+
+Technology Stack
+Database: PostgreSQL
+ORM: Drizzle ORM
+Schema Validation: Drizzle-Zod integration
+Connection: Node-Postgres
+Database Schema
+The database consists of several tables designed to support the platform's features. Below is a detailed description of each table and its relationships.
+
+Core Tables
+Users
+The users table is the central entity that stores all user information.
+
+export const users = pgTable("users", {
+  // Primary identification
+  id: serial("id").primaryKey(),                          // Internal user ID
+  username: text("username").notNull().unique(),          // Display name
+  
+  // Authentication and account fields
+  password: text("password").notNull(),                   // Password
+  email: text("email").notNull().unique(),                // Email address
+  isAdmin: boolean("is_admin").default(false).notNull(),  // Admin privileges
+  emailVerified: boolean("email_verified").default(false),// Email verification status
+  
+  // Profile and customization
+  bio: text("bio"),                                       // User biography
+  profileColor: text("profile_color").default('#D7FF00'), // Profile color preference
+  
+  // Timestamps and activity tracking
+  createdAt: timestamp("created_at").defaultNow().notNull(), // Account creation time
+  lastActive: timestamp("last_active"),                   // Last activity timestamp
+  isActive: boolean("is_active").default(false).notNull(), // If the user is active
+  
+  // Additional fields for external integration
+  uid: text("uid").unique(),                              // External system user ID
+  total_wager: decimal("total_wager", { precision: 18, scale: 8 }).default('0').notNull(),
+  wager_today: decimal("wager_today", { precision: 18, scale: 8 }).default('0').notNull(),
+  wager_week: decimal("wager_week", { precision: 18, scale: 8 }).default('0').notNull(),
+  wager_month: decimal("wager_month", { precision: 18, scale: 8 }).default('0').notNull(),
+  verified: boolean("verified").default(false).notNull(), // External account verification status
+});
+Wheel Spins
+Tracks user participation in the wheel spin challenge.
+
+export const wheelSpins = pgTable("wheel_spins", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  segmentIndex: integer("segment_index").notNull(),
+  rewardCode: text("reward_code"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+Bonus Codes
+Manages promotional bonus codes that users can claim.
+
+export const bonusCodes = pgTable("bonus_codes", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  userId: integer("user_id").references(() => users.id),
+  claimedAt: timestamp("claimed_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  isUsed: boolean("is_used").default(false).notNull(),
+});
+Wager Race System
+Wager Races
+Defines wager races where users compete based on their wagering activity.
+
+export const wagerRaces = pgTable("wager_races", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  type: text("type").notNull(), // 'weekly' | 'monthly' | 'weekend'
+  status: text("status").notNull(), // 'upcoming' | 'live' | 'completed'
+  prizePool: decimal("prize_pool", { precision: 18, scale: 2 }).notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  minWager: decimal("min_wager", { precision: 18, scale: 2 }).notNull(),
+  prizeDistribution: jsonb("prize_distribution").notNull(), // { "1": 25, "2": 15, ... }
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  rules: text("rules"),
+  description: text("description"),
+});
+Wager Race Participants
+Tracks user participation and performance in wager races.
+
+export const wagerRaceParticipants = pgTable("wager_race_participants", {
+  id: serial("id").primaryKey(),
+  raceId: integer("race_id").references(() => wagerRaces.id),
+  userId: integer("user_id").references(() => users.id),
+  totalWager: decimal("total_wager", { precision: 18, scale: 2 }).notNull(),
+  rank: integer("rank"),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  wagerHistory: jsonb("wager_history"), // Track wager progress over time
+});
+Support System
+Support Tickets
+Stores user support requests.
+
+export const supportTickets = pgTable("support_tickets", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  subject: text("subject").notNull(),
+  description: text("description").notNull(),
+  status: text("status").notNull().default("open"), // 'open' | 'in_progress' | 'closed'
+  priority: text("priority").notNull().default("medium"), // 'low' | 'medium' | 'high'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+Ticket Messages
+Tracks communication between users and support staff on tickets.
+
+export const ticketMessages = pgTable("ticket_messages", {
+  id: serial("id").primaryKey(),
+  ticketId: integer("ticket_id").references(() => supportTickets.id),
+  userId: integer("user_id").references(() => users.id),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  isStaffReply: boolean("is_staff_reply").default(false).notNull(),
+});
+Additional Tables
+Historical Races
+Archives completed wager races for reference.
+
+export const historicalRaces = pgTable("historical_races", {
+  id: serial("id").primaryKey(),
+  month: text("month").notNull(),
+  year: text("year").notNull(),
+  prizePool: decimal("prize_pool", { precision: 10, scale: 2 }).notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  participants: jsonb("participants").notNull(),
+  totalWagered: decimal("total_wagered", { precision: 18, scale: 2 }).notNull(),
+  participantCount: text("participant_count").notNull(),
+  status: text("status").notNull().default("completed"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  metadata: jsonb("metadata").default({}).notNull(),
+});
+Newsletter Subscriptions
+Manages email newsletter subscriptions.
+
+export const newsletterSubscriptions = pgTable("newsletter_subscriptions", {
+  id: serial("id").primaryKey(),
+  email: text("email").unique().notNull(),
+  isSubscribed: boolean("is_subscribed").default(true).notNull(),
+  subscribedAt: timestamp("subscribed_at").defaultNow().notNull(),
+  unsubscribedAt: timestamp("unsubscribed_at"),
+  source: text("source"),
+});
+Notification Preferences
+Stores user preferences for notifications.
+
+export const notificationPreferences = pgTable("notification_preferences", {
+  id: serial("id").primaryKey(),
+  wagerRaceUpdates: boolean("wager_race_updates").default(true).notNull(),
+  vipStatusChanges: boolean("vip_status_changes").default(true).notNull(),
+  promotionalOffers: boolean("promotional_offers").default(true).notNull(),
+  monthlyStatements: boolean("monthly_statements").default(true).notNull(),
+  emailNotifications: boolean("email_notifications").default(true).notNull(),
+  pushNotifications: boolean("push_notifications").default(true).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+Entity Relationships
+The database implements several key relationships:
+
+Users to Wheel Spins: One-to-many relationship where a user can have multiple wheel spins.
+Users to Bonus Codes: One-to-many relationship where a user can claim multiple bonus codes.
+Wager Races to Participants: One-to-many relationship where a wager race can have multiple participants.
+Users to Wager Race Participants: One-to-many relationship where a user can participate in multiple races.
+Support Tickets to Messages: One-to-many relationship where a support ticket can have multiple messages.
+These relationships are defined using Drizzle's relations API:
+
+export const userRelations = relations(users, ({ many }) => ({
+  wheelSpins: many(wheelSpins),
+  wagerRaceParticipations: many(wagerRaceParticipants),
+}));
+export const supportTicketRelations = relations(supportTickets, ({ one, many }) => ({
+  user: one(users, {
+    fields: [supportTickets.userId],
+    references: [users.id],
+  }),
+  messages: many(ticketMessages),
+}));
+Database Setup and Migration
+Initial Setup
+To initialize the database with the necessary tables, run:
+
+npm run db:reset
+This command uses the db-reset-simple.ts script to create all tables defined in the schema.
+
+Database Migrations
+For schema changes, use the Drizzle Kit to manage migrations:
+
+npm run db:push
+This updates the database schema based on the current schema definitions without data loss.
+
+Database Connection
+The application connects to the database using the credentials specified in environment variables:
+
+DATABASE_URL=postgresql://username:password@hostname:port/database
+Validation with Zod
+The application uses Drizzle-Zod integration to provide runtime validation of database entities:
+
+export const insertUserSchema = createInsertSchema(users);
+export const selectUserSchema = createSelectSchema(users);
+These schemas can be used to validate data before insertion or after selection.
+
+Using the Database in the Application
+Querying Data
+Example of querying the database using Drizzle:
+
+import { db } from "@db";
+import { users } from "@db/schema";
+import { eq } from "drizzle-orm";
+// Find a user by ID
+const user = await db.query.users.findFirst({
+  where: eq(users.id, userId),
+});
+// Get all active wager races
+const activeRaces = await db.query.wagerRaces.findMany({
+  where: eq(wagerRaces.status, "live"),
+  with: {
+    participants: true, // Include related participants
+  },
+});
+Inserting Data
+Example of inserting data:
+
+import { db } from "@db";
+import { users, insertUserSchema } from "@db/schema";
+// Validate user data with Zod schema
+const validatedData = insertUserSchema.parse({
+  username: "newuser",
+  email: "user@example.com",
+  password: hashedPassword,
+});
+// Insert into the database
+const [newUser] = await db.insert(users).values(validatedData).returning();
+Best Practices
+Always use parameter binding to prevent SQL injection.
+Validate data using the provided Zod schemas before database operations.
+Use transactions for operations that modify multiple related records.
+Include proper error handling for database operations.
+Avoid raw SQL when possible, using Drizzle's query builder instead.
+Troubleshooting
+Common Issues
+Connection Errors: Check that the database is running and the connection string is correct.
+Permission Errors: Ensure the database user has the necessary permissions.
+Schema Mismatch: Run the db:push command to update the schema if you get column/table not found errors.
+Debugging Tools
+Use the query logging capability in Drizzle to debug SQL queries:
+
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Client } from "pg";
+const client = new Client({
+  connectionString: process.env.DATABASE_URL,
+});
+await client.connect();
+const db = drizzle(client, {
+  logger: true, // Enable SQL query logging
+});
+This guide should help you understand and work with the database structure in the GoatedVIPs platform. For further details, refer to the schema definitions in db/schema.ts.

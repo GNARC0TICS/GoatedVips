@@ -1,88 +1,190 @@
-import { QueryClient, QueryKey } from "@tanstack/react-query";
+import { QueryClient, QueryKey, QueryClientConfig } from "@tanstack/react-query";
 
-type GetQueryFnOptions = {
-  on401?: "throw" | "returnNull";
+/**
+ * Network request types
+ */
+export type ApiErrorResponse = {
+  success: false;
+  error: {
+    code: number;
+    message: string;
+    context?: Record<string, any>;
+  };
 };
 
-export async function apiRequest(
-  method: string,
-  endpoint: string,
-  body?: any
-): Promise<Response> {
-  const response = await fetch(endpoint, {
-    method,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-cache",
-      "Pragma": "no-cache"
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
+export type ApiSuccessResponse<T = any> = {
+  success: true;
+  data: T;
+};
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(error);
-  }
+export type ApiResponse<T = any> = ApiSuccessResponse<T> | ApiErrorResponse;
 
-  return response;
+interface ApiRequestOptions {
+  method?: string;
+  body?: any;
+  headers?: Record<string, string>;
+  signal?: AbortSignal;
+  cache?: RequestCache;
+  useAuth?: boolean;
 }
 
-export function getQueryFn({ on401 = "throw" }: GetQueryFnOptions = {}) {
-  return async ({ queryKey }: { queryKey: QueryKey }) => {
+/**
+ * Enhanced API request function with better error handling
+ * and response normalization
+ */
+export async function apiRequest<T = any>(
+  endpoint: string,
+  options: ApiRequestOptions = {}
+): Promise<T> {
+  const {
+    method = 'GET',
+    body,
+    headers = {},
+    signal,
+    cache = 'default',
+    useAuth = true,
+  } = options;
+
+  // Default headers
+  const requestHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...headers,
+  };
+
+  // Request config
+  const config: RequestInit = {
+    method,
+    headers: requestHeaders,
+    signal,
+    cache,
+    ...(useAuth ? { credentials: 'include' } : {}),
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  };
+
+  try {
+    // Network-level error handling
+    const response = await fetch(endpoint, config);
+    const contentType = response.headers.get('content-type');
+    
+    // Parse response based on content type
+    let data: any;
+    if (contentType?.includes('application/json')) {
+      data = await response.json();
+    } else {
+      data = await response.text();
+    }
+
+    // Check for API-level errors
+    if (!response.ok) {
+      // If we have a structured error response, use it
+      if (typeof data === 'object' && data?.error) {
+        throw new Error(data.error.message || 'API request failed');
+      }
+      // Otherwise create a generic error
+      throw new Error(`${response.status}: ${typeof data === 'string' ? data : 'Unknown error'}`);
+    }
+
+    return data as T;
+  } catch (error) {
+    // Enhance error with additional context
+    if (error instanceof Error) {
+      // Add request context to the error
+      (error as any).endpoint = endpoint;
+      (error as any).method = method;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Create a queryFn for React Query that uses our enhanced apiRequest
+ */
+export function createQueryFn(options: { 
+  shouldReturnNullOn401?: boolean,
+  useMemoryCache?: boolean 
+} = {}) {
+  return async ({ queryKey }: { queryKey: QueryKey }): Promise<any> => {
+    const { shouldReturnNullOn401 = false, useMemoryCache = false } = options;
+    
     try {
-      const cacheKey = Array.isArray(queryKey) ? queryKey.join("-") : String(queryKey);
-      const cachedData = sessionStorage.getItem(cacheKey);
-
-      if (cachedData) {
-        const { data, timestamp } = JSON.parse(cachedData);
-        const isStale = Date.now() - timestamp > 60000;
-
-        if (!isStale) {
-          return data;
-        }
-      }
-
-      const res = await apiRequest("GET", queryKey[0] as string);
-
-      if (!res.ok) {
-        if (res.status === 401 && on401 === "returnNull") {
-          return null;
-        }
-        throw new Error(`${res.status}: ${await res.text()}`);
-      }
-
-      const data = await res.json();
-      sessionStorage.setItem(cacheKey, JSON.stringify({
-        data,
-        timestamp: Date.now()
-      }));
-
-      return data;
+      // Build the endpoint from the queryKey
+      // If the first item is a string and starts with /, use it as the endpoint
+      const endpoint = typeof queryKey[0] === 'string' && queryKey[0].startsWith('/')
+        ? queryKey[0]
+        : `/api/${queryKey.join('/')}`;
+      
+      // Add params if they exist in queryKey
+      const params = queryKey.length > 1 && typeof queryKey[1] === 'object' 
+        ? queryKey[1] 
+        : undefined;
+        
+      const url = params 
+        ? `${endpoint}?${new URLSearchParams(params as Record<string, string>).toString()}`
+        : endpoint;
+      
+      return await apiRequest(url);
     } catch (error) {
-      console.error("Query error:", error);
+      // Handle specific error cases
+      if (error instanceof Error && error.message.includes('401') && shouldReturnNullOn401) {
+        return null;
+      }
+      
+      // Rethrow the error for React Query to handle
       throw error;
     }
   };
 }
 
-export const queryClient = new QueryClient({
+/**
+ * Optimized QueryClient configuration
+ * - Improved error handling
+ * - Better retry logic with exponential backoff
+ * - Automatic background refetching
+ */
+const queryClientConfig: QueryClientConfig = {
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn(),
-      refetchInterval: 60000,
-      refetchOnWindowFocus: true,
-      staleTime: 60000,
-      gcTime: 300000,
+      // Don't set a default queryFn to allow for more flexibility in individual hooks
+      staleTime: 2 * 60 * 1000,      // 2 minutes
+      gcTime: 10 * 60 * 1000,        // 10 minutes
+      refetchOnWindowFocus: true,    // Refetch when window regains focus
+      refetchOnReconnect: true,      // Refetch when network reconnects
+      refetchOnMount: true,          // Refetch when component mounts
       retry: (failureCount, error: any) => {
-        return failureCount < 3 && !error.message.includes("401");
+        // Don't retry auth errors or after 3 failures
+        if (error.message?.includes('401') || error.message?.includes('403')) {
+          return false;
+        }
+        return failureCount < 3;
       },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      retryDelay: (attemptIndex) => {
+        // Exponential backoff with jitter
+        const baseDelay = 1000; // 1 second
+        const maxDelay = 30000; // 30 seconds
+        const calculatedDelay = Math.min(
+          baseDelay * (2 ** attemptIndex) * (0.8 + Math.random() * 0.4), // Add 20% jitter
+          maxDelay
+        );
+        return calculatedDelay;
+      },
     },
     mutations: {
       retry: (failureCount, error: any) => {
-        return failureCount < 2 && !error.message.includes("401");
+        // Only retry network/server errors, not validation errors
+        if (
+          error.message?.includes('401') || 
+          error.message?.includes('403') || 
+          error.message?.includes('422')
+        ) {
+          return false;
+        }
+        return failureCount < 2;
       },
+      // Don't cache mutations
+      gcTime: 0,
     },
   },
-});
+};
+
+// Create the QueryClient instance
+export const queryClient = new QueryClient(queryClientConfig);

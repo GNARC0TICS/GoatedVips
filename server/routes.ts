@@ -4,7 +4,15 @@ import { db } from "@db";
 import { sql } from "drizzle-orm";
 import { createServer, type Server } from "http";
 import { WebSocket, WebSocketServer } from "ws";
-import { log } from "./vite";
+import { log as baseLog } from "./vite";
+// Enhanced log wrapper to handle objects
+function log(message: string | object, source?: string): void {
+  if (typeof message === 'object') {
+    baseLog(JSON.stringify(message), source);
+  } else {
+    baseLog(message, source);
+  }
+}
 import { createWebSocketServer, broadcast, closeAllWebSocketServers } from "./config/websocket";
 import { API_CONFIG } from "./config/api";
 import { RateLimiterMemory, type RateLimiterRes } from 'rate-limiter-flexible';
@@ -12,7 +20,7 @@ import bonusChallengesRouter from "./routes/bonus-challenges";
 import usersRouter from "./routes/users";
 import goombasAdminRouter from "./routes/goombas-admin";
 import { requireAdmin } from "./middleware/admin";
-import { wagerRaces, users, transformationLogs } from "@db/schema";
+import { wagerRaces, users, transformationLogs, wagerRaceParticipants } from "@db/schema";
 import { ensureUserProfile } from "./index";
 
 type RateLimitTier = 'HIGH' | 'MEDIUM' | 'LOW';
@@ -50,60 +58,78 @@ const createRateLimiter = (tier: keyof typeof rateLimiters) => {
   };
 };
 
-const cacheMiddleware = (ttl = 30000) => async (req: any, res: any, next: any) => {
-  const key = req.originalUrl;
-  const cachedResponse = cacheManager.get(key);
-  if (cachedResponse) {
-    res.setHeader('X-Cache', 'HIT');
-    return res.json(cachedResponse);
-  }
-  res.originalJson = res.json;
-  res.json = (body: any) => {
-    cacheManager.set(key, body);
-    return res.originalJson(body);
-  };
-  next();
-};
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import type { SelectUser } from "@db/schema";
+import { cacheService, withCache } from "./services/cacheService";
 
-class CacheManager {
-  private cache: Map<string, { data: any; timestamp: number }>;
-  private readonly defaultTTL: number;
-
-  constructor(defaultTTL = 30000) {
-    this.cache = new Map();
-    this.defaultTTL = defaultTTL;
-  }
-
-  generateKey(req: any): string {
-    return `${req.method}-${req.originalUrl}-${JSON.stringify(req.query)}`;
-  }
-
-  get(key: string): any {
-    const cached = this.cache.get(key);
-    if (!cached) return null;
-
-    if (Date.now() - cached.timestamp > this.defaultTTL) {
-      this.cache.delete(key);
-      return null;
+/**
+ * Enhanced caching middleware with support for different caching strategies
+ * 
+ * @param ttl - Time to live in milliseconds (default: 30 seconds)
+ * @param namespace - Optional cache namespace for better organization
+ */
+const cacheMiddleware = (ttl = 30000, namespace = 'api') => async (req: Request, res: Response, next: NextFunction) => {
+  // Generate a cache key based on the request
+  const key = `${req.method}-${req.originalUrl}-${JSON.stringify(req.query)}`;
+  const { data, found, stale } = cacheService.get(key, { namespace, ttl, staleWhileRevalidate: true });
+  
+  if (found) {
+    // Set appropriate cache headers
+    res.setHeader('X-Cache', stale ? 'STALE' : 'HIT');
+    
+    // If data is stale, trigger a background refresh but still return cached data
+    if (stale && !cacheService.isRefreshing(key, namespace)) {
+      // Clone the request and continue processing in the background
+      cacheService.markRefreshing(key, namespace);
+      
+      // Use a copy of the response that only captures the data
+      const resCopy = {
+        json: (body: any) => {
+          cacheService.set(key, body, { namespace, ttl });
+          cacheService.markRefreshComplete(key, namespace);
+          return body;
+        },
+        status: () => resCopy,
+        send: () => {},
+        end: () => {},
+      };
+      
+      // Process the request in the background
+      try {
+        // Store the original json method
+        const originalJson = res.json;
+        res.json = resCopy.json;
+        
+        // Execute the next middleware
+        await new Promise((resolve) => {
+          next();
+          resolve(undefined);
+        });
+        
+        // Restore the original json method
+        res.json = originalJson;
+      } catch (error) {
+        console.error('Background refresh error:', error);
+        cacheService.markRefreshComplete(key, namespace);
+      }
     }
-
-    return cached.data;
+    
+    return res.json(data);
   }
-
-  set(key: string, data: any): void {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-    });
-  }
-
-  clear(): void {
-    this.cache.clear();
-  }
-}
+  
+  // No cache hit, proceed with request
+  res.setHeader('X-Cache', 'MISS');
+  
+  // Capture the response to store in cache
+  const originalJson = res.json;
+  res.json = (body: any) => {
+    cacheService.set(key, body, { namespace, ttl });
+    return originalJson.call(res, body);
+  };
+  
+  next();
+};
 
 // Router setup
 const router = Router();
@@ -113,7 +139,8 @@ router.use(compression());
 const CACHE_TIMES = {
   SHORT: 15000,    // 15 seconds
   MEDIUM: 60000,   // 1 minute
-  LONG: 300000     // 5 minutes
+  LONG: 300000,    // 5 minutes
+  VERY_LONG: 900000 // 15 minutes
 };
 
 // Health check endpoint
@@ -132,13 +159,15 @@ router.get("/health", async (_req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({
       status: "error",
-      message: process.env.NODE_ENV === "production" ? "Health check failed" : error.message
+      message: process.env.NODE_ENV === "production" 
+        ? "Health check failed" 
+        : error instanceof Error ? error.message : String(error)
     });
   }
 });
 
-// Wager races endpoint
-router.get("/wager-races/current", 
+// Wager races endpoint - moved to /api prefix
+router.get("/api/wager-races/current", 
   createRateLimiter('high'),
   cacheMiddleware(CACHE_TIMES.SHORT),
   async (_req: Request, res: Response) => {
@@ -161,10 +190,75 @@ router.get("/wager-races/current",
       const stats = await transformLeaderboardData(rawData);
       const raceData = formatRaceData(stats);
 
-      res.json(raceData);
+      return res.json(raceData);
     } catch (error) {
-      console.error('Error in /wager-races/current:', error);
-      res.status(200).json(getDefaultRaceData());
+      log(`Error in /api/wager-races/current: ${error instanceof Error ? error.message : String(error)}`);
+      return res.status(200).json(getDefaultRaceData());
+    }
+  }
+);
+
+// Previous wager races endpoint
+router.get("/api/wager-races/previous", 
+  createRateLimiter('high'),
+  cacheMiddleware(CACHE_TIMES.MEDIUM),
+  async (_req: Request, res: Response) => {
+    try {
+      // Query the database for the most recent completed race
+      const [lastCompletedRace] = await db
+        .select()
+        .from(wagerRaces)
+        .where(eq(wagerRaces.status, 'completed'))
+        .orderBy(desc(wagerRaces.endDate))
+        .limit(1);
+      
+      if (!lastCompletedRace) {
+        return res.json({
+          id: 'previous-race-placeholder',
+          status: 'completed',
+          startDate: new Date(2025, 1, 1).toISOString(), // February 2025
+          endDate: new Date(2025, 1, 28, 23, 59, 59).toISOString(),
+          prizePool: 500,
+          participants: [],
+          metadata: {
+            transitionEnds: new Date(Date.now() + 3600000).toISOString() // 1 hour from now
+          }
+        });
+      }
+      
+      // Get participants for this race
+      const participants = await db
+        .select()
+        .from(wagerRaceParticipants)
+        .where(eq(wagerRaceParticipants.raceId, lastCompletedRace.id))
+        .orderBy(desc(wagerRaceParticipants.wagered));
+      
+      return res.json({
+        ...lastCompletedRace,
+        participants: participants.map((p, index) => ({
+          uid: p.userId,
+          name: p.username || 'Unknown',
+          wagered: p.wagered,
+          position: p.position || index + 1,
+          prize: p.prizeClaimed ? p.prizeAmount : null
+        })),
+        metadata: {
+          transitionEnds: new Date(new Date(lastCompletedRace.endDate).getTime() + 86400000).toISOString() // 24 hours after end
+        }
+      });
+    } catch (error) {
+      log(`Error in /api/wager-races/previous: ${error instanceof Error ? error.message : String(error)}`);
+      return res.status(200).json({
+        id: 'error-previous-race',
+        status: 'completed',
+        startDate: new Date(2025, 1, 1).toISOString(),
+        endDate: new Date(2025, 1, 28, 23, 59, 59).toISOString(),
+        prizePool: 500,
+        participants: [],
+        metadata: {
+          transitionEnds: new Date(Date.now() + 3600000).toISOString() // 1 hour from now
+        }
+      });
     }
   }
 );
@@ -281,7 +375,8 @@ function setupAPIRoutes(app: Express) {
           
           createdCount++;
           console.log(`Created test user: ${user.username} with ID ${randomId}`);
-        } catch (insertError) {
+        } catch (err) {
+          const insertError = err as Error;
           console.error(`Error creating test user ${user.username}:`, insertError);
           errors.push(`Failed to create ${user.username}: ${insertError.message || 'Unknown error'}`);
         }
@@ -333,7 +428,7 @@ function setupAPIRoutes(app: Express) {
         const rawData = await response.json();
 
         // More detailed logging of the raw data structure
-        log('Raw API response structure:', {
+        const logInfo = {
           hasData: Boolean(rawData),
           dataStructure: typeof rawData,
           keys: Object.keys(rawData),
@@ -343,11 +438,12 @@ function setupAPIRoutes(app: Express) {
           successValue: rawData?.success,
           nestedData: Boolean(rawData?.data),
           nestedDataLength: rawData?.data?.length,
-        });
+        };
+        log('Raw API response structure: ' + JSON.stringify(logInfo));
 
         const transformedData = await transformLeaderboardData(rawData);
 
-        log('Transformed leaderboard data:', {
+        const logData = {
           status: transformedData.status,
           totalUsers: transformedData.metadata?.totalUsers,
           dataLengths: {
@@ -356,11 +452,12 @@ function setupAPIRoutes(app: Express) {
             monthly: transformedData.data?.monthly?.data?.length,
             allTime: transformedData.data?.all_time?.data?.length,
           }
-        });
+        };
+        log('Transformed leaderboard data: ' + JSON.stringify(logData));
 
         res.json(transformedData);
       } catch (error) {
-        log(`Error in /api/affiliate/stats: ${error}`);
+        log(`Error in /api/affiliate/stats: ${error instanceof Error ? error.message : String(error)}`);
         res.status(error instanceof ApiError ? error.status || 500 : 500).json({
           status: "error",
           message: error instanceof Error ? error.message : "An unexpected error occurred",
@@ -819,7 +916,8 @@ declare module 'ws' {
   }
 }
 
-const cacheManager = new CacheManager();
+// Use the new cacheService instead of the old CacheManager
+// const cacheManager = new CacheManager();
 
 const batchHandler = async (req: any, res: any) => {
   try {
