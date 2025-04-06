@@ -403,6 +403,9 @@ function setupAPIRoutes(app: Express) {
     createRateLimiter('medium'),
     cacheMiddleware(CACHE_TIMES.MEDIUM),
     async (req, res) => {
+      // Flag to track if response has been sent
+      let responseHasBeenSent = false;
+
       try {
         const username = typeof req.query.username === 'string' ? req.query.username : undefined;
         // Use the direct URL for now to ensure it works
@@ -461,19 +464,28 @@ function setupAPIRoutes(app: Express) {
         };
         log('Transformed leaderboard data: ' + JSON.stringify(logData));
 
-        res.json(transformedData);
+        // Only send response if it hasn't been sent already
+        if (!responseHasBeenSent) {
+          responseHasBeenSent = true;
+          return res.json(transformedData);
+        }
       } catch (error) {
         log(`Error in /api/affiliate/stats: ${error instanceof Error ? error.message : String(error)}`);
-        res.status(error instanceof ApiError ? error.status || 500 : 500).json({
-          status: "error",
-          message: error instanceof Error ? error.message : "An unexpected error occurred",
-          data: {
-            today: { data: [] },
-            weekly: { data: [] },
-            monthly: { data: [] },
-            all_time: { data: [] },
-          },
-        });
+        
+        // Only send error response if no response has been sent yet
+        if (!responseHasBeenSent) {
+          responseHasBeenSent = true;
+          return res.status(error instanceof ApiError ? error.status || 500 : 500).json({
+            status: "error",
+            message: error instanceof Error ? error.message : "An unexpected error occurred",
+            data: {
+              today: { data: [] },
+              weekly: { data: [] },
+              monthly: { data: [] },
+              all_time: { data: [] },
+            },
+          });
+        }
       }
     }
   );
@@ -484,6 +496,9 @@ function setupAPIRoutes(app: Express) {
     createRateLimiter('low'),
     cacheMiddleware(CACHE_TIMES.LONG),
     async (_req, res) => {
+      // Flag to track if response has been sent
+      let responseHasBeenSent = false;
+      
       try {
         // Using direct URL approach to match the affiliate stats endpoint
         const url = 'https://api.goated.com/user2/affiliate/referral-leaderboard/2RW440E';
@@ -529,9 +544,20 @@ function setupAPIRoutes(app: Express) {
           wagerTotals: totals
         };
 
-        res.json(stats);
+        // Only send response if it hasn't been sent already
+        if (!responseHasBeenSent) {
+          responseHasBeenSent = true;
+          return res.json(stats);
+        }
       } catch (error) {
-        res.status(500).json({ error: "Failed to fetch analytics" });
+        // Only send error response if no response has been sent yet
+        if (!responseHasBeenSent) {
+          responseHasBeenSent = true;
+          return res.status(500).json({ 
+            error: "Failed to fetch analytics", 
+            details: error instanceof Error ? error.message : String(error)
+          });
+        }
       }
     }
   );
@@ -628,6 +654,9 @@ function setupAPIRoutes(app: Express) {
     createRateLimiter('medium'),
     cacheMiddleware(CACHE_TIMES.LONG),
     async (_req, res) => {
+      // Flag to track if response has been sent
+      let responseHasBeenSent = false;
+      
       try {
         console.log('Executing transformation metrics query...');
 
@@ -667,7 +696,12 @@ function setupAPIRoutes(app: Express) {
         };
 
         console.log('Processed response:', response);
-        res.json(response);
+        
+        // Only send response if it hasn't been sent already
+        if (!responseHasBeenSent) {
+          responseHasBeenSent = true;
+          return res.json(response);
+        }
       } catch (error) {
         console.error('Error in transformation metrics endpoint:', {
           error: error instanceof Error ? {
@@ -678,19 +712,26 @@ function setupAPIRoutes(app: Express) {
           timestamp: new Date().toISOString()
         });
 
-        res.status(500).json({
-          status: 'error',
-          message: 'Failed to fetch transformation metrics',
-          details: process.env.NODE_ENV === 'development'
-            ? error instanceof Error ? error.message : String(error)
-            : undefined
-        });
+        // Only send error response if no response has been sent yet
+        if (!responseHasBeenSent) {
+          responseHasBeenSent = true;
+          return res.status(500).json({
+            status: 'error',
+            message: 'Failed to fetch transformation metrics',
+            details: process.env.NODE_ENV === 'development'
+              ? error instanceof Error ? error.message : String(error)
+              : undefined
+          });
+        }
       }
     }
   );
   app.get("/api/admin/export-logs",
     createRateLimiter('low'),
     async (_req, res) => {
+      // Flag to track if response has been sent
+      let responseHasBeenSent = false;
+      
       try {
         console.log('Fetching logs for export...');
 
@@ -711,32 +752,42 @@ function setupAPIRoutes(app: Express) {
           payload: log.payload ? JSON.stringify(log.payload) : ''
         }));
 
-        // Set headers for CSV download
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', `attachment; filename=transformation_logs_${new Date().toISOString().split('T')[0]}.csv`);
-
-        // Convert to CSV format
-        const csvData = [
-          // Header row
-          Object.keys(formattedLogs[0] || {}).join(','),
-          // Data rows
-          ...formattedLogs.map(log =>
-            Object.values(log)
-              .map(value => `"${String(value).replace(/"/g, '""')}"`)
-              .join(',')
-          )
-        ].join('\n');
-
-        res.send(csvData);
+        // Only send response if it hasn't been sent already
+        if (!responseHasBeenSent) {
+          responseHasBeenSent = true;
+          
+          // Set headers for CSV download
+          res.setHeader('Content-Type', 'text/csv');
+          res.setHeader('Content-Disposition', `attachment; filename=transformation_logs_${new Date().toISOString().split('T')[0]}.csv`);
+  
+          // Convert to CSV format
+          const csvData = [
+            // Header row
+            Object.keys(formattedLogs[0] || {}).join(','),
+            // Data rows
+            ...formattedLogs.map(log =>
+              Object.values(log)
+                .map(value => `"${String(value).replace(/"/g, '""')}"`)
+                .join(',')
+            )
+          ].join('\n');
+  
+          return res.send(csvData);
+        }
       } catch (error) {
         console.error('Error exporting logs:', error);
-        res.status(500).json({
-          status: 'error',
-          message: 'Failed to export logs',
-          details: process.env.NODE_ENV === 'development'
-            ? error instanceof Error ? error.message : String(error)
-            : undefined
-        });
+        
+        // Only send error response if no response has been sent yet
+        if (!responseHasBeenSent) {
+          responseHasBeenSent = true;
+          return res.status(500).json({
+            status: 'error',
+            message: 'Failed to export logs',
+            details: process.env.NODE_ENV === 'development'
+              ? error instanceof Error ? error.message : String(error)
+              : undefined
+          });
+        }
       }
     }
   );
@@ -1146,6 +1197,9 @@ function setupRESTRoutes(app: Express) {
   app.get("/api/admin/export-logs",
     createRateLimiter('low'),
     async (_req, res) => {
+      // Flag to track if response has been sent
+      let responseHasBeenSent = false;
+      
       try {
         console.log('Fetching logs for export...');
 
@@ -1166,32 +1220,42 @@ function setupRESTRoutes(app: Express) {
           payload: log.payload ? JSON.stringify(log.payload) : ''
         }));
 
-        // Set headers for CSV download
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', `attachment; filename=transformation_logs_${new Date().toISOString().split('T')[0]}.csv`);
-
-        // Convert to CSV format
-        const csvData = [
-          // Header row
-          Object.keys(formattedLogs[0] || {}).join(','),
-          // Data rows
-          ...formattedLogs.map(log =>
-            Object.values(log)
-              .map(value => `"${String(value).replace(/"/g, '""')}"`)
-              .join(',')
-          )
-        ].join('\n');
-
-        res.send(csvData);
+        // Only send response if it hasn't been sent already
+        if (!responseHasBeenSent) {
+          responseHasBeenSent = true;
+          
+          // Set headers for CSV download
+          res.setHeader('Content-Type', 'text/csv');
+          res.setHeader('Content-Disposition', `attachment; filename=transformation_logs_${new Date().toISOString().split('T')[0]}.csv`);
+  
+          // Convert to CSV format
+          const csvData = [
+            // Header row
+            Object.keys(formattedLogs[0] || {}).join(','),
+            // Data rows
+            ...formattedLogs.map(log =>
+              Object.values(log)
+                .map(value => `"${String(value).replace(/"/g, '""')}"`)
+                .join(',')
+            )
+          ].join('\n');
+  
+          return res.send(csvData);
+        }
       } catch (error) {
         console.error('Error exporting logs:', error);
-        res.status(500).json({
-          status: 'error',
-          message: 'Failed to export logs',
-          details: process.env.NODE_ENV === 'development'
-            ? error instanceof Error ? error.message : String(error)
-            : undefined
-        });
+        
+        // Only send error response if no response has been sent yet
+        if (!responseHasBeenSent) {
+          responseHasBeenSent = true;
+          return res.status(500).json({
+            status: 'error',
+            message: 'Failed to export logs',
+            details: process.env.NODE_ENV === 'development'
+              ? error instanceof Error ? error.message : String(error)
+              : undefined
+          });
+        }
       }
     }
   );
