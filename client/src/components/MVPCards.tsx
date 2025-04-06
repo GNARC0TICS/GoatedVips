@@ -227,6 +227,10 @@ export function MVPCards() {
     staleTime: 30000,
   });
 
+  ReactuseEffect(() => {
+    console.log("leaderboardData:", leaderboardData);
+  }, [leaderboardData]);
+
   const mvps = useMemo(() => ({
     daily: leaderboardData?.data?.today?.data?.[0],
     weekly: leaderboardData?.data?.weekly?.data?.[0],
