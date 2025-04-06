@@ -32,9 +32,12 @@ export function QuickProfile({
     return (
       <Popover>
         <PopoverTrigger asChild>
-          <div className="cursor-pointer">
+          <button 
+            className="cursor-pointer inline-block text-inherit bg-transparent border-0 p-0 m-0" 
+            style={{ font: 'inherit' }}
+          >
             {children}
-          </div>
+          </button>
         </PopoverTrigger>
         <PopoverContent className="w-80 p-0">
           <QuickProfileCard

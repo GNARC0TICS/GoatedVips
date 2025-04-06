@@ -28,104 +28,91 @@ export interface TierInfo {
 
 /**
  * Tier system configuration
- * Maps tier levels to their respective information
+ * Maps tier levels to their respective information based on the VIP Program
  */
 export const TIERS: Record<TierLevel, TierInfo> = {
   bronze: {
     name: "Bronze",
     color: "text-amber-600",
     icon: TrendingUp,
-    minWager: 0,
-    maxWager: 999,
+    minWager: 1000,
+    maxWager: 9999,
     benefits: [
-      "Access to basic features",
-      "Standard support",
-      "Weekly bonuses"
+      "Instant Rakeback",
+      "Level Up Bonus",
+      "Weekly Bonus"
     ]
   },
   silver: {
     name: "Silver",
     color: "text-slate-400",
     icon: Star,
-    minWager: 1000,
-    maxWager: 4999,
+    minWager: 10000,
+    maxWager: 99999,
     benefits: [
       "All Bronze benefits",
-      "Priority support",
-      "Enhanced weekly bonuses",
-      "Monthly rewards"
+      "Monthly Bonus",
+      "Bonus Increase"
     ]
   },
   gold: {
     name: "Gold",
     color: "text-yellow-500",
     icon: Award,
-    minWager: 5000,
-    maxWager: 14999,
+    minWager: 100000,
+    maxWager: 449999,
     benefits: [
       "All Silver benefits",
-      "Premium support",
-      "Daily bonuses",
-      "Exclusive promotions",
-      "Higher withdrawal limits"
+      "Referral Increase",
+      "Loss Back Bonus"
     ]
   },
   platinum: {
     name: "Platinum",
     color: "text-blue-400",
     icon: Trophy,
-    minWager: 15000,
-    maxWager: 49999,
+    minWager: 450000,
+    maxWager: 1499999,
     benefits: [
       "All Gold benefits",
-      "VIP support",
-      "Increased daily bonuses",
-      "Special events access",
-      "Dedicated account manager"
+      "Higher bonuses",
+      "Premium rewards"
     ]
   },
   diamond: {
     name: "Diamond",
     color: "text-cyan-400",
     icon: Diamond,
-    minWager: 50000,
-    maxWager: 99999,
+    minWager: 1500000,
+    maxWager: 2999999,
     benefits: [
       "All Platinum benefits",
-      "24/7 VIP support",
-      "Exclusive VIP events",
-      "Personalized offers",
-      "Premium cashback",
-      "Luxury gifts"
+      "VIP Host",
+      "Exclusive perks"
     ]
   },
   master: {
     name: "Master",
     color: "text-purple-500",
     icon: Crown,
-    minWager: 100000,
-    maxWager: 499999,
+    minWager: 3000000,
+    maxWager: 6999999,
     benefits: [
       "All Diamond benefits",
       "Elite VIP events",
-      "Highest cashback rates",
-      "Unlimited withdrawals",
-      "Custom bonuses",
-      "Exclusive merchandise"
+      "Highest cashback rates"
     ]
   },
   legend: {
     name: "Legend",
     color: "text-rose-500",
     icon: Zap,
-    minWager: 500000,
+    minWager: 7000000,
     maxWager: null,
     benefits: [
       "All Master benefits",
-      "Personal host",
-      "Private tournaments",
+      "Goated Event Invitations",
       "Tailor-made promotions",
-      "Exclusive travel packages",
       "Unlimited privileges"
     ]
   }

@@ -2,7 +2,7 @@ import React from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getTierFromWager, getTierInfo, getNextTierInfo, getTierProgressPercentage } from '@/lib/tier-utils';
-import { UserProfile } from '@/services/profileService.new';
+import { UserProfile } from '@/services/profileService';
 import { cn } from '@/lib/utils';
 import { Info } from 'lucide-react';
 

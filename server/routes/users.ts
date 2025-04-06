@@ -13,8 +13,9 @@ import { db } from '@db';
 import { users, mockWagerData } from '@db/schema';
 import { eq, like, or, and, not, sql } from 'drizzle-orm';
 import { ensureUserProfile } from '../index';
-import { authenticateJWT } from '../middleware/auth';
+import { requireAuth } from '../middleware/auth';
 import { requireAdmin } from '../middleware/admin';
+import { z } from 'zod';
 
 const router = Router();
 
@@ -39,21 +40,27 @@ const errorHandler = (err: any, req: Request, res: Response, next: NextFunction)
 router.get('/:id', async (req, res) => {
   try {
     const userId = req.params.id;
-
-    // First try to find user by internal ID
-    let user = await db.query.users.findFirst({
-      where: eq(users.id, parseInt(userId)),
-      columns: {
-        id: true,
-        username: true,
-        bio: true,
-        profileColor: true,
-        goatedId: true,
-        goatedUsername: true,
-        goatedAccountLinked: true,
-        createdAt: true,
-      }
-    });
+    
+    // Check if userId is a valid number
+    const isNumericId = /^\d+$/.test(userId);
+    
+    // First try to find user by internal ID (only if it's a valid number)
+    let user = null;
+    if (isNumericId) {
+      user = await db.query.users.findFirst({
+        where: eq(users.id, parseInt(userId)),
+        columns: {
+          id: true,
+          username: true,
+          bio: true,
+          profileColor: true,
+          goatedId: true,
+          goatedUsername: true,
+          goatedAccountLinked: true,
+          createdAt: true,
+        }
+      });
+    }
 
     // If not found by ID, try to find by goatedId
     if (!user) {
@@ -206,7 +213,7 @@ router.get('/leaderboard/:timeframe', async (req, res) => {
  */
 
 // Get all users (admin only)
-router.get('/admin/all', authenticateJWT, requireAdmin, async (req, res) => {
+router.get('/admin/all', requireAuth, requireAdmin, async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
@@ -217,15 +224,18 @@ router.get('/admin/all', authenticateJWT, requireAdmin, async (req, res) => {
       .limit(limit)
       .offset(offset);
 
-    const total = await db.select({ count: sql`count(*)` })
+    const totalResult = await db.select({ count: sql`count(*)::int` })
       .from(users);
+
+    // Use type assertion for the count result
+    const count = (totalResult[0]?.count as number) || 0;
 
     return res.json({
       users: results,
       pagination: {
         page,
         limit,
-        total: parseInt(total[0].count.toString())
+        total: count
       }
     });
   } catch (error) {
@@ -291,20 +301,35 @@ router.get('/:id/stats', async (req: Request, res: Response, next: NextFunction)
  */
 router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = req.params.id;
+    
+    // Check if userId is a valid number
+    const isNumericId = /^\d+$/.test(userId);
+    
+    if (!isNumericId) {
+      return res.status(400).json({ 
+        error: 'Invalid user ID format. Profile updates require a numeric user ID.' 
+      });
+    }
+    
     const updateSchema = z.object({
       username: z.string().optional(),
       bio: z.string().optional(),
       profileColor: z.string().optional(),
     });
+    
     const updateData = updateSchema.parse(req.body);
+    const numericId = parseInt(userId);
+    
     const result = await db.update(users)
       .set(updateData)
-      .where(eq(users.id, userId))
+      .where(eq(users.id, numericId))
       .returning();
+      
     if (!result.length) {
       return res.status(404).json({ error: 'User not found' });
     }
+    
     res.json(result[0]);
   } catch (error) {
     next(error);

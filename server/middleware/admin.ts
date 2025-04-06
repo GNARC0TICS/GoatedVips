@@ -1,5 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 import bcrypt from "bcrypt";
+import "express-session";
+
+// Add type augmentation for express-session
+declare module "express-session" {
+  interface SessionData {
+    isAdmin?: boolean;
+  }
+}
 
 export const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "";
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";

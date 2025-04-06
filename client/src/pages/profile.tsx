@@ -15,6 +15,7 @@ import {
   Monitor,
   MessageSquare,
 } from "lucide-react";
+import { AccountLinkStatus, AccountLinkingDialog, UnlinkAccountDialog } from "@/components/profile/AccountLinkingDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,8 @@ export default function ProfilePage() {
   const [bio, setBio] = useState("");
   const [profileColor, setProfileColor] = useState("#D7FF00");
   const [activeTab, setActiveTab] = useState("profile");
+  const [showLinkingDialog, setShowLinkingDialog] = useState(false);
+  const [showUnlinkDialog, setShowUnlinkDialog] = useState(false);
 
   const { data: user, isLoading, refetch } = useQuery<SelectUser>({
     queryKey: ["/api/user"],
@@ -309,22 +312,11 @@ export default function ProfilePage() {
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between p-3 bg-[#2A2B31] rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <img src="/images/goated-icon.png" alt="Goated" className="h-5 w-5" />
-                          <span>Goated.com</span>
-                        </div>
-                        {user.goatedId ? (
-                          <span className="text-[#D7FF00]">Connected</span>
-                        ) : (
-                          <Button 
-                            variant="ghost" 
-                            className="text-[#8A8B91] hover:text-[#D7FF00] text-xs"
-                          >
-                            <LinkIcon className="h-3 w-3 mr-1" /> Connect
-                          </Button>
-                        )}
-                      </div>
+                      {/* Goated Account Linking Component */}
+                      <AccountLinkStatus
+                        onLinkClick={() => setShowLinkingDialog(true)}
+                        onUnlinkClick={() => setShowUnlinkDialog(true)}
+                      />
                     </div>
                   </div>
                 </div>
@@ -549,6 +541,7 @@ export default function ProfilePage() {
                     <Button 
                       variant="outline" 
                       className="border-[#2A2B31] text-white hover:border-[#D7FF00] hover:text-[#D7FF00]"
+                      onClick={() => setShowLinkingDialog(true)}
                     >
                       <ExternalLink className="h-4 w-4 mr-2" /> Connect Goated
                     </Button>
@@ -565,6 +558,17 @@ export default function ProfilePage() {
           </motion.div>
         </motion.div>
       </div>
+
+      {/* Account Linking Dialogs */}
+      <AccountLinkingDialog
+        isOpen={showLinkingDialog}
+        onClose={() => setShowLinkingDialog(false)}
+      />
+      
+      <UnlinkAccountDialog
+        isOpen={showUnlinkDialog}
+        onClose={() => setShowUnlinkDialog(false)}
+      />
     </div>
   );
 }
