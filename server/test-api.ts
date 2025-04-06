@@ -31,8 +31,10 @@ async function analyzeLeaderboardAPI() {
       healthCheck.statusText,
     );
 
-    // Make leaderboard request
-    const response = await fetch(`${API_CONFIG.baseUrl}/api/affiliate/stats`, {
+    // Make leaderboard request using the correct endpoint from config
+    const leaderboardEndpoint = API_CONFIG.endpoints.leaderboard;
+    console.log(`Making leaderboard request to: ${API_CONFIG.baseUrl}${leaderboardEndpoint}`);
+    const response = await fetch(`${API_CONFIG.baseUrl}${leaderboardEndpoint}`, {
       headers: {
         Authorization: `Bearer ${API_CONFIG.token}`,
         "Content-Type": "application/json",
