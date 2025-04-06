@@ -25,6 +25,7 @@ interface AuthContextType {
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<boolean>;  // Token refresh function
+  refreshUser: () => Promise<void>;      // Refresh user data function
   isAuthenticated: boolean;
   isAdmin: boolean;
 }
@@ -134,6 +135,22 @@ const refreshToken = async (): Promise<boolean> => {
 };
 
 /**
+ * Refresh the current user data from the server
+ * Used to update user data after profile changes or verification
+ */
+const refreshUser = async (): Promise<void> => {
+  try {
+    // Skip if user is not authenticated
+    if (!user) return;
+    
+    const userData = await checkAuthStatus();
+    setUser(userData);
+  } catch (err) {
+    console.error("User refresh failed:", err);
+  }
+};
+
+/**
  * Provide authentication context to children
  * Makes auth state and functions available throughout the app
  */
@@ -146,9 +163,10 @@ return (
     register, 
     logout,
     refreshToken, // Add the token refresh function
+    refreshUser,  // Add the user refresh function
     isAuthenticated: !!user, // Derived property based on user existence
     isAdmin: isAdminUser(user) // Using the utility function from authService
-  }}>
+  } as AuthContextType}>
       {children}
     </AuthContext.Provider>
   );
