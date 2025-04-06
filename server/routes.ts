@@ -179,6 +179,44 @@ router.get("/health", async (_req: Request, res: Response) => {
   }
 });
 
+// Special route to trigger sync of profiles from the API manually
+router.get("/sync-profiles", requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    // Import the goatedApiService dynamically to avoid circular dependencies
+    const { default: goatedApiService } = await import('./services/goatedApiService');
+    
+    console.log("Manually triggered profile sync started");
+    
+    // Begin the sync process
+    const result = await goatedApiService.syncUserProfiles();
+    
+    // Start the wager data update as well
+    const wagerResult = await goatedApiService.updateAllWagerData();
+    
+    res.json({ 
+      status: "success", 
+      message: "Profile sync completed", 
+      stats: {
+        profiles: {
+          created: result.created,
+          updated: result.updated,
+          existing: result.existing
+        },
+        wagerData: {
+          updated: wagerResult
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Manual profile sync failed:", error);
+    res.status(500).json({ 
+      status: "error", 
+      message: "Profile sync failed", 
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
 // Wager races endpoint - moved to /api prefix
 router.get("/api/wager-races/current", 
   createRateLimiter('high'),

@@ -398,6 +398,20 @@ async function initializeServer() {
     // Initialize scheduled data synchronization tasks
     const { initializeDataSyncTasks } = await import('./tasks/dataSyncTasks');
     initializeDataSyncTasks();
+    
+    // Run an immediate profile sync to ensure all user profiles are created
+    try {
+      log("info", "Starting immediate data sync...");
+      await syncUserProfiles();
+      
+      // Also update wager data
+      const goatedApiService = (await import('./services/goatedApiService')).default;
+      const wagerCount = await goatedApiService.updateAllWagerData();
+      log("info", `Initial wager data update completed for ${wagerCount} users`);
+    } catch (syncError) {
+      log("error", `Error during initial data sync: ${syncError instanceof Error ? syncError.message : String(syncError)}`);
+      // Non-fatal error, continue with server initialization
+    }
     log("info", "Data synchronization tasks initialized");
 
 

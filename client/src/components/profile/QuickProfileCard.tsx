@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'wouter';
-import { ExternalLink, Check, Clock, Shield, AlertTriangle, MessageCircle, Share2, User } from 'lucide-react';
+import { ExternalLink, Check, Clock, Shield, AlertTriangle, MessageCircle, Share2, User, RefreshCw } from 'lucide-react';
 import { ProfileEmblem } from './ProfileEmblem';
 import { ProfileTierProgress } from './ProfileTierProgress';
 import { cn } from '@/lib/utils';
@@ -36,35 +36,44 @@ export function QuickProfileCard({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   
+  // Define the fetch profile function outside useEffect so it can be called from retry buttons
+  const fetchProfile = async () => {
+    if (!profileId) return;
+    
+    let isMounted = true;
+    try {
+      setIsLoading(true);
+      
+      // Try to safely handle both numeric and non-numeric IDs
+      // If it's a numeric string, convert to number, otherwise pass as is
+      let id = profileId;
+      if (typeof profileId === 'string' && /^\d+$/.test(profileId)) {
+        id = parseInt(profileId, 10);
+      }
+      
+      console.log(`Fetching profile for ID: ${id} (original: ${profileId}, type: ${typeof id})`);
+      const profileData = await profileService.getProfile(id);
+      
+      if (isMounted) {
+        setProfile(profileData);
+        setError(null);
+      }
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+      
+      if (isMounted) {
+        setError(err instanceof Error ? err : new Error(String(err)));
+      }
+    } finally {
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    }
+  };
+  
   // Fetch profile data on mount
   useEffect(() => {
     let isMounted = true;
-    
-    async function fetchProfile() {
-      if (!profileId) return;
-      
-      try {
-        setIsLoading(true);
-        // Convert string IDs to numbers to fix the "Expected number, received string" error
-        const id = typeof profileId === 'string' ? parseInt(profileId, 10) : profileId;
-        const profileData = await profileService.getProfile(id);
-        
-        if (isMounted) {
-          setProfile(profileData);
-          setError(null);
-        }
-      } catch (err) {
-        console.error('Error fetching profile:', err);
-        
-        if (isMounted) {
-          setError(err instanceof Error ? err : new Error(String(err)));
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
     
     fetchProfile();
     
@@ -93,7 +102,7 @@ export function QuickProfileCard({
   }
   
   // Handle error state
-  if (error || !profile) {
+  if (error) {
     return (
       <Card className={cn('p-6 overflow-hidden shadow-lg border border-[#2C2D33]', className)}>
         <div className="text-center space-y-3">
@@ -103,14 +112,25 @@ export function QuickProfileCard({
               ? error.message 
               : error?.message || 'Unable to load profile'}
           </p>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={onClose}
-            className="mt-3 bg-[#23242A] hover:bg-[#2C2D33] text-white border-[#3A3B41]"
-          >
-            Close
-          </Button>
+          <div className="flex flex-col gap-2 mt-3">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => fetchProfile()} // Add retry functionality
+              className="bg-[#23242A] hover:bg-[#2C2D33] text-white border-[#3A3B41]"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry Loading
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={onClose}
+              className="bg-[#23242A] hover:bg-[#2C2D33] text-white border-[#3A3B41]"
+            >
+              Close
+            </Button>
+          </div>
         </div>
       </Card>
     );
@@ -123,14 +143,25 @@ export function QuickProfileCard({
         <div className="text-center space-y-3">
           <User className="h-10 w-10 text-gray-400 mx-auto mb-3" />
           <p className="text-sm text-gray-400 font-medium">Profile not found</p>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={onClose}
-            className="mt-3 bg-[#23242A] hover:bg-[#2C2D33] text-white border-[#3A3B41]"
-          >
-            Close
-          </Button>
+          <div className="flex flex-col gap-2 mt-3">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => fetchProfile()} // Add retry functionality
+              className="bg-[#23242A] hover:bg-[#2C2D33] text-white border-[#3A3B41]"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry Loading
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={onClose}
+              className="bg-[#23242A] hover:bg-[#2C2D33] text-white border-[#3A3B41]"
+            >
+              Close
+            </Button>
+          </div>
         </div>
       </Card>
     );

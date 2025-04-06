@@ -93,16 +93,31 @@ class ProfileService {
 
   /**
    * Check if a profile is owned by the current user
+   * Safely handles both string and numeric IDs
    */
   isProfileOwner(profileId: string | number): boolean {
     if (!this.currentUser) return false;
-    return this.currentUser.id === parseInt(String(profileId));
+    
+    // Convert both to strings for comparison when profileId is a non-numeric string
+    if (typeof profileId === 'string' && !/^\d+$/.test(profileId)) {
+      // Handle non-numeric string IDs (like goatedId)
+      return this.currentUser.goatedId === profileId;
+    }
+    
+    // For numeric IDs (both number type and numeric strings)
+    const numericProfileId = typeof profileId === 'string' ? parseInt(profileId, 10) : profileId;
+    return this.currentUser.id === numericProfileId;
   }
 
   /**
    * Fetch a user profile by ID
+   * Handles both string and number IDs appropriately
    */
   async getProfile(userId: string | number): Promise<Profile> {
+    if (!userId) {
+      throw new ProfileError('No user ID provided');
+    }
+    
     // Check cache first
     const cacheKey = String(userId);
     const cachedProfile = this.profileCache.get(cacheKey);
@@ -111,25 +126,41 @@ class ProfileService {
       return cachedProfile.data;
     }
 
-    // Fetch from API
-    const response = await fetch(`/api/users/${userId}`);
+    // Fetch from API - pass the ID as-is to the server
+    // The server will determine if it's a numeric ID or GoatedID
+    try {
+      const response = await fetch(`/api/users/${userId}`);
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch profile: ${response.statusText}`);
+      if (!response.ok) {
+        // Add more detailed error messages
+        if (response.status === 404) {
+          throw new ProfileError(`User profile not found for ID: ${userId}`);
+        }
+        throw new Error(`Failed to fetch profile: ${response.statusText}`);
+      }
+
+      const profileData = await response.json();
+
+      // Validate with schema
+      const validatedProfile = ProfileSchema.parse(profileData);
+
+      // Update cache
+      this.profileCache.set(cacheKey, {
+        data: validatedProfile,
+        timestamp: Date.now(),
+      });
+
+      return validatedProfile;
+    } catch (error) {
+      console.error(`Error fetching profile for ID ${userId}:`, error);
+      if (error instanceof ProfileError) {
+        throw error;
+      } else if (error instanceof Error) {
+        throw new ProfileError(error.message);
+      } else {
+        throw new ProfileError(`Failed to fetch profile for ID: ${userId}`);
+      }
     }
-
-    const profileData = await response.json();
-
-    // Validate with schema
-    const validatedProfile = ProfileSchema.parse(profileData);
-
-    // Update cache
-    this.profileCache.set(cacheKey, {
-      data: validatedProfile,
-      timestamp: Date.now(),
-    });
-
-    return validatedProfile;
   }
 
   /**
@@ -218,6 +249,49 @@ class ProfileService {
    */
   invalidateProfileCache(userId: string) {
     this.profileCache.delete(String(userId));
+  }
+  
+  /**
+   * Prefetch multiple profiles and store them in cache
+   * Useful for lists where you know you'll need multiple profiles
+   * 
+   * @param userIds - Array of user IDs to prefetch
+   * @returns Promise<Map<string, Profile>> - Map of user IDs to profiles
+   */
+  async prefetchProfiles(userIds: (string | number)[]): Promise<Map<string, Profile>> {
+    if (!userIds.length) return new Map();
+    
+    const uniqueIds = [...new Set(userIds.map(id => String(id)))];
+    const result = new Map<string, Profile>();
+    const fetchPromises: Promise<void>[] = [];
+    
+    for (const userId of uniqueIds) {
+      // Check if we already have a valid cached entry
+      const cacheKey = String(userId);
+      const cachedProfile = this.profileCache.get(cacheKey);
+      
+      if (cachedProfile && Date.now() - cachedProfile.timestamp < CACHE_TIME.PROFILE) {
+        result.set(cacheKey, cachedProfile.data);
+        continue;
+      }
+      
+      // Otherwise queue a fetch operation
+      const fetchPromise = (async () => {
+        try {
+          const profile = await this.getProfile(userId);
+          result.set(cacheKey, profile);
+        } catch (error) {
+          console.error(`Failed to prefetch profile ${userId}:`, error);
+          // Don't fail the entire batch for a single profile error
+        }
+      })();
+      
+      fetchPromises.push(fetchPromise);
+    }
+    
+    // Wait for all fetches to complete
+    await Promise.all(fetchPromises);
+    return result;
   }
 }
 
