@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-// I.mports necessary components for routing and state management
+// Imports necessary components for routing and state management
 import { Switch, Route, useLocation } from "wouter";
 // Imports for error handling and boundary
 import { ErrorBoundary } from "react-error-boundary";
@@ -129,10 +129,10 @@ function MainContent() {
                   <AdminRoute path="/admin/notifications" component={NotificationManagement} />
                   <AdminRoute path="/admin/support" component={SupportManagement} />
                   <AdminRoute path="/admin/api-sync" component={ApiSyncManagement} />
-                  <AdminRoute path="/admin/dashboard" component={GoombasAdminDashboard} />
                   
-                  {/* Admin Login */}
-                  <Route path="/admin/login" component={GoombasAdminLogin} />
+                  {/* Custom Admin Routes for goombas.net */}
+                  <Route path="/goombas.net/login" component={GoombasAdminLogin} />
+                  <Route path="/goombas.net/dashboard" component={GoombasAdminDashboard} />
                   
                   {/* Crypto Swap Feature */}
                   <Route path="/crypto-swap" component={CryptoSwap} />

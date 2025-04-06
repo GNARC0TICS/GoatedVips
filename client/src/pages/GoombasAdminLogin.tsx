@@ -55,7 +55,7 @@ export default function GoombasAdminLogin() {
     setError(null);
     
     try {
-      const response = await fetch('/api/admin/login', {
+      const response = await fetch('/goombas.net/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -75,7 +75,7 @@ export default function GoombasAdminLogin() {
       });
       
       // Navigate to the admin dashboard upon successful login
-      setLocation('/admin/dashboard');
+      setLocation('/goombas.net/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       toast({

@@ -2,42 +2,54 @@ import { Request, Response, NextFunction } from 'express';
 import { log } from '../utils/logger';
 
 /**
- * Middleware for path-based admin detection
- * Instead of using domains, detects admin routes by URL path
+ * Middleware to detect and set the domain type
+ * Separates public site (goatedvips.gg) from admin site (goombas.net)
  */
-export const adminPathMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  // Admin routes are now identified by path prefix
-  const isAdminPath = req.path.startsWith('/admin');
-  
-  // This property is kept for backward compatibility but 
-  // now reflects path-based routing instead of domain-based routing
-  req.isAdminDomain = isAdminPath;
+export const domainRedirectMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  const hostname = req.hostname;
 
-  if (isAdminPath) {
-    log(`Admin path access: ${req.path}`);
+  // Set domain type in request object
+  req.isAdminDomain = hostname === 'goombas.net' || 
+                      hostname.includes('goombas.net') || 
+                      hostname.includes('goombas.');
+
+  if (req.isAdminDomain) {
+    log(`Admin domain access: ${hostname}`);
   }
 
   next();
 };
 
 /**
- * Legacy middleware functions that are now effectively no-ops
- * Maintained for backward compatibility only
+ * Middleware to restrict routes to admin domain only
  */
-export const adminDomainOnly = (_req: Request, _res: Response, next: NextFunction) => {
-  // No longer restricts by domain - all routes are now available
+export const adminDomainOnly = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.isAdminDomain) {
+    return res.status(403).json({ 
+      error: 'Access denied', 
+      message: 'This endpoint can only be accessed from the admin domain' 
+    });
+  }
   next();
 };
 
-export const publicDomainOnly = (_req: Request, _res: Response, next: NextFunction) => {
-  // No longer restricts by domain - all routes are now available
+/**
+ * Middleware to restrict routes to public domain only
+ */
+export const publicDomainOnly = (req: Request, res: Response, next: NextFunction) => {
+  if (req.isAdminDomain) {
+    return res.status(403).json({ 
+      error: 'Access denied', 
+      message: 'This endpoint can only be accessed from the public domain' 
+    });
+  }
   next();
 };
 
-// Updated router function for path-based routing
-export const domainRouter = adminPathMiddleware;
+// Legacy router function - maintained for backward compatibility
+export const domainRouter = domainRedirectMiddleware;
 
-// Keep the interface for backward compatibility
+// Add custom properties to Request interface
 declare global {
   namespace Express {
     interface Request {

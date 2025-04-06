@@ -17,10 +17,6 @@ export const BOT_PORT = parseInt(process.env.BOT_PORT || '5001', 10);
 export const VITE_PORT = parseInt(process.env.VITE_PORT || '5173', 10);
 export const HOST = process.env.HOST || '0.0.0.0';
 
-// Application URLs (now uses environment variables instead of hardcoded values)
-export const APP_URL = process.env.APP_URL || (IS_DEVELOPMENT ? 'http://localhost:5000' : 'https://goatedvips.replit.app');
-export const ADMIN_URL_PREFIX = '/admin'; // Admin routes now use a path prefix instead of separate domain
-
 // Security settings
 export const SESSION_SECRET = process.env.SESSION_SECRET || 'your-secret-key';
 export const COOKIE_SECURE = IS_PRODUCTION;
@@ -46,8 +42,6 @@ export const ENV = {
   BOT_PORT,
   VITE_PORT,
   HOST,
-  APP_URL,
-  ADMIN_URL_PREFIX,
   SESSION_SECRET,
   COOKIE_SECURE,
   COOKIE_MAX_AGE,

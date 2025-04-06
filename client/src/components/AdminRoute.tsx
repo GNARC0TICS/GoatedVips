@@ -2,6 +2,7 @@
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2 } from 'lucide-react';
 import { Redirect, Route } from 'wouter';
+import { isAdminDomain } from '@/lib/domain-utils';
 import { useEffect } from 'react';
 
 /**
@@ -9,12 +10,11 @@ import { useEffect } from 'react';
  * 
  * A specialized protected route component that:
  * 1. Enforces admin privileges
- * 2. Only renders admin components for users with admin access
+ * 2. Ensures the request is on the correct admin domain
+ * 3. Redirects to the admin domain if accessed from public domain
  * 
  * This adds an additional layer of protection beyond the ProtectedRoute
  * component by checking for admin privileges.
- * 
- * Updated to work with the unified interface, no longer needs domain-specific checks
  * 
  * @param path The route path to protect
  * @param component The component to render if authenticated and admin
@@ -27,6 +27,16 @@ export function AdminRoute({
   component: React.ComponentType<any>;
 }) {
   const { user, loading, isAdmin } = useAuth();
+
+  // Check if we're on the correct domain for admin routes
+  useEffect(() => {
+    const adminCheck = isAdminDomain();
+    // If we're not on admin domain, redirect to the admin domain
+    if (!adminCheck) {
+      const adminUrl = `https://goombas.net${window.location.pathname}`;
+      window.location.href = adminUrl;
+    }
+  }, []);
 
   // Show loading spinner while auth state is being determined
   if (loading) {
@@ -43,7 +53,7 @@ export function AdminRoute({
   if (!user || !isAdmin) {
     return (
       <Route path={path}>
-        <Redirect to="/auth?redirect=/admin" />
+        <Redirect to="/" />
       </Route>
     );
   }
