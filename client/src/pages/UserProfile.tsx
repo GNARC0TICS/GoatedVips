@@ -41,7 +41,7 @@ export function UserProfile() {
   }, [userId, toast]);
   
   // Check if the current user is the profile owner
-  const isOwner = user ? profileService.isProfileOwner(userId) : false;
+  const isOwner = user ? user.id === parseInt(userId) : false;
   
   // Handle loading state
   if (isLoading) {

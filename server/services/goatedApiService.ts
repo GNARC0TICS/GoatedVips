@@ -49,7 +49,7 @@ class GoatedApiService {
    * @param options - Additional fetch options
    * @returns Response from the API
    */
-  async fetchFromExternalApi(endpoint: string, options: RequestInit = {}): Promise<any> {
+  async fetchFromExternalApi(endpoint: string, options: RequestInit = {}, retries = 2): Promise<any> {
     if (!this.hasApiToken()) {
       throw new Error('API token not configured');
     }
@@ -58,6 +58,9 @@ class GoatedApiService {
     console.log(`Fetching data from external API: ${url}`);
     
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.request.timeout || 10000);
+      
       const response = await fetch(url, {
         ...options,
         headers: {
@@ -65,8 +68,10 @@ class GoatedApiService {
           'Content-Type': 'application/json',
           ...options.headers,
         },
-        signal: AbortSignal.timeout(API_CONFIG.request.timeout || 10000),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status}`);
@@ -75,6 +80,15 @@ class GoatedApiService {
       return await response.json();
     } catch (error) {
       console.error(`Error fetching from external API (${endpoint}):`, error);
+      
+      // Implement retry logic for network errors or timeouts
+      if (retries > 0 && (error instanceof TypeError || error.name === 'AbortError')) {
+        console.log(`Retrying API call to ${endpoint}, ${retries} attempts remaining...`);
+        // Exponential backoff: wait longer between retries
+        await new Promise(resolve => setTimeout(resolve, (3 - retries) * 1000));
+        return this.fetchFromExternalApi(endpoint, options, retries - 1);
+      }
+      
       throw error;
     }
   }
