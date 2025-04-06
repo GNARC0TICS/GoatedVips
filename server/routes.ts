@@ -1057,8 +1057,65 @@ function setupRESTRoutes(app: Express) {
           });
         }
 
-        // Return enhanced user profile data
-        res.json({
+        // Try to get total wager from API for accurate tier calculation
+        let totalWager = 0; 
+        
+        if (user.goatedId) {
+          try {
+            // Fetch the latest stats for this user
+            const token = process.env.API_TOKEN || API_CONFIG.token;
+            const leaderboardUrl = `https://api.goated.com/user2/affiliate/referral-leaderboard/2RW440E`;
+            
+            console.log(`Fetching wager data for user ${user.goatedId} from API`);
+            
+            const response = await fetch(leaderboardUrl, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              signal: AbortSignal.timeout(10000),
+            });
+            
+            if (response.ok) {
+              const leaderboardData = await response.json();
+              console.log(`Raw API response for ${user.goatedId}:`, JSON.stringify({
+                hasData: !!leaderboardData?.data,
+                timeframes: leaderboardData?.data ? Object.keys(leaderboardData.data) : [],
+                userFound: false // Will be updated below if found
+              }));
+              
+              const timeframes = ['all_time', 'monthly', 'weekly', 'today'];
+              
+              // Search all timeframes to find this user
+              for (const timeframe of timeframes) {
+                const users = leaderboardData?.data?.[timeframe]?.data || [];
+                const foundUser = users.find((u: any) => u.uid === user.goatedId);
+                
+                if (foundUser) {
+                  console.log(`Found user in ${timeframe} data:`, JSON.stringify({
+                    name: foundUser.name,
+                    uid: foundUser.uid,
+                    hasWagered: !!foundUser.wagered,
+                    wageredKeys: foundUser.wagered ? Object.keys(foundUser.wagered) : []
+                  }));
+                  
+                  if (foundUser.wagered && typeof foundUser.wagered.all_time === 'number') {
+                    totalWager = foundUser.wagered.all_time;
+                    console.log(`Found all_time wager for user ${user.goatedId}: ${totalWager}`);
+                    break;
+                  }
+                }
+              }
+            } else {
+              console.error(`Failed to fetch leaderboard data: ${response.status} ${response.statusText}`);
+            }
+          } catch (statsError) {
+            console.error(`Error fetching wager stats for user ${userId}:`, statsError);
+          }
+        }
+        
+        // Return enhanced user profile data with totalWager for tier calculation
+        const responseData = {
           id: user.id,
           username: user.username,
           bio: user.bio || "",
@@ -1070,8 +1127,12 @@ function setupRESTRoutes(app: Express) {
           profileType: user.isPermanent ? 'permanent' : 
                       user.isTemporary ? 'temporary' : 
                       user.isCustom ? 'custom' : 'standard',
-          isNewlyCreated: user.isNewlyCreated || false
-        });
+          isNewlyCreated: user.isNewlyCreated || false,
+          totalWager: totalWager // Add the totalWager for tier calculations
+        };
+        
+        console.log(`Returning profile data with totalWager: ${totalWager}`);
+        res.json(responseData);
       } catch (error) {
         console.error("Error fetching user profile:", error);
         res.status(500).json({ 

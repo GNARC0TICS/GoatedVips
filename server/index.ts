@@ -140,9 +140,18 @@ export async function ensureUserProfile(userId: string): Promise<any> {
     
     // First check if user already exists in our database
     try {
-      // Try to find by direct ID match first
+      // Try to find by direct ID match first with full profile data
       const results = await db.execute(sql`
-        SELECT id, username, goated_id as "goatedId", goated_username as "goatedUsername"
+        SELECT 
+          id, 
+          username, 
+          bio,
+          email,
+          profile_color as "profileColor",
+          created_at as "createdAt",
+          goated_id as "goatedId", 
+          goated_username as "goatedUsername",
+          goated_account_linked as "goatedAccountLinked"
         FROM users WHERE id::text = ${userId} LIMIT 1
       `);
       
@@ -163,7 +172,16 @@ export async function ensureUserProfile(userId: string): Promise<any> {
     // If not found by direct ID, check if it's a goatedId
     try {
       const results = await db.execute(sql`
-        SELECT id, username, goated_id as "goatedId", goated_username as "goatedUsername"
+        SELECT 
+          id, 
+          username, 
+          bio,
+          email,
+          profile_color as "profileColor",
+          created_at as "createdAt",
+          goated_id as "goatedId", 
+          goated_username as "goatedUsername",
+          goated_account_linked as "goatedAccountLinked"
         FROM users WHERE goated_id = ${userId} LIMIT 1
       `);
       
@@ -249,7 +267,8 @@ export async function ensureUserProfile(userId: string): Promise<any> {
             ) VALUES (
               ${newUserId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', 
               'Official Goated.com player profile', false, ${userId}, ${username}, true
-            ) RETURNING id, username, goated_id as "goatedId", goated_username as "goatedUsername"
+            ) RETURNING id, username, bio, profile_color as "profileColor", created_at as "createdAt", 
+              goated_id as "goatedId", goated_username as "goatedUsername", goated_account_linked as "goatedAccountLinked"
           `);
           
           if (result && result.rows && result.rows.length > 0) {
@@ -279,7 +298,8 @@ export async function ensureUserProfile(userId: string): Promise<any> {
             ) VALUES (
               ${newUserId}, ${tempUsername}, ${email}, '', ${new Date()}, '#D7FF00', 
               'Temporary profile - this player has not been verified with Goated.com yet', false, ${userId}, false
-            ) RETURNING id, username, goated_id as "goatedId", goated_username as "goatedUsername"
+            ) RETURNING id, username, bio, profile_color as "profileColor", created_at as "createdAt", 
+              goated_id as "goatedId", goated_username as "goatedUsername", goated_account_linked as "goatedAccountLinked"
           `);
           
           if (result && result.rows && result.rows.length > 0) {
@@ -310,7 +330,8 @@ export async function ensureUserProfile(userId: string): Promise<any> {
           ) VALUES (
             ${newUserId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', 
             'Custom profile - not linked to Goated.com', false, ${userId}, false
-          ) RETURNING id, username, goated_id as "goatedId", goated_username as "goatedUsername"
+          ) RETURNING id, username, bio, profile_color as "profileColor", created_at as "createdAt", 
+            goated_id as "goatedId", goated_username as "goatedUsername", goated_account_linked as "goatedAccountLinked"
         `);
         
         if (result && result.rows && result.rows.length > 0) {

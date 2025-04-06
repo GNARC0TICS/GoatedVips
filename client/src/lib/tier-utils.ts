@@ -163,8 +163,30 @@ export function getTierInfo(tier: TierLevel): TierInfo {
  * @param tier - Tier level
  * @returns Icon component
  */
-export function getTierIcon(tier: TierLevel) {
+export function getTierIconComponent(tier: TierLevel) {
   return TIERS[tier].icon;
+}
+
+/**
+ * Get the tier icon image path for a specific tier
+ * This matches the original implementation expected in MVPCards
+ * 
+ * @param tier - Tier level
+ * @returns Image path
+ */
+export function getTierIcon(tier: TierLevel): string {
+  // Map tier levels to image paths
+  const tierIcons: Record<TierLevel, string> = {
+    bronze: "/images/Goated Emblems/bronze.e6ea941b.svg",
+    silver: "/images/Goated Emblems/silver.8e3ec67f.svg",
+    gold: "/images/Goated Emblems/gold.1c810178.svg",
+    platinum: "/images/Goated Emblems/platinum.d258f583.svg",
+    diamond: "/images/Goated Emblems/diamond.svg",
+    master: "/images/Goated Emblems/pearl.1815809f.svg", // Using pearl as master
+    legend: "/images/Goated Emblems/legend.svg"
+  };
+  
+  return tierIcons[tier];
 }
 
 /**

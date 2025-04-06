@@ -92,7 +92,8 @@ class ProfileService {
     }
     
     try {
-      const response = await fetch(`${this.baseUrl}/profiles/${profileId}`);
+      // Use the correct API endpoint path for user profiles
+      const response = await fetch(`${this.baseUrl}/users/${profileId}`);
       
       if (!response.ok) {
         throw new Error(
@@ -177,7 +178,7 @@ class ProfileService {
    */
   async searchProfiles(query: string): Promise<Profile[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/profiles/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`${this.baseUrl}/users/search?q=${encodeURIComponent(query)}`);
       
       if (!response.ok) {
         throw new Error(
