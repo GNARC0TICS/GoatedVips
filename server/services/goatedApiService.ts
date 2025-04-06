@@ -108,16 +108,23 @@ class GoatedApiService {
       
       console.log("Syncing user profiles from external leaderboard API...");
       
-      // Fetch leaderboard data from external API
-      const leaderboardData = await this.fetchFromExternalApi(API_CONFIG.endpoints.leaderboard);
-      
-      // Process all_time data to get unique users
-      const allTimeData = leaderboardData?.data?.all_time?.data || [];
-      let created = 0;
-      let existing = 0;
-      let updated = 0;
-      
-      console.log(`Processing ${allTimeData.length} users from leaderboard`);
+      try {
+        // Fetch leaderboard data from external API with timeout protection
+        const leaderboardData = await this.fetchFromExternalApi(API_CONFIG.endpoints.leaderboard);
+        
+        // Process all_time data to get unique users
+        const allTimeData = leaderboardData?.data?.all_time?.data || [];
+        let created = 0;
+        let existing = 0;
+        let updated = 0;
+        
+        console.log(`Processing ${allTimeData.length} users from leaderboard`);
+      } catch (apiError) {
+        console.error("Error fetching leaderboard data:", apiError);
+        console.log("Using fallback empty data structure to prevent application crash");
+        // Return zeros but don't crash the application
+        return { created: 0, updated: 0, existing: 0 };
+      }
       
       // Process each user from the leaderboard
       for (const player of allTimeData) {
