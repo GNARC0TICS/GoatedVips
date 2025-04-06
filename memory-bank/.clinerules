@@ -88,3 +88,36 @@
 - Document complex business logic with comments
 - Maintain up-to-date README for project setup
 - Document environment variables and configuration options
+
+## Replit Environment Protection
+
+### Critical Configuration Files
+- Never modify these files without explicit owner approval:
+  - `.replit` - Contains critical Replit-specific configuration for server startup
+  - `replit.nix` - Defines the Nix dependencies for the Replit environment
+  - `vite.config.ts` - Contains Replit-specific server settings that enable proper hosting
+  - `server/middleware/domain-handler.ts` - Implements path-based routing that works in Replit
+  - `server/index.ts` - Contains critical server initialization and static file serving logic
+  - `drizzle.config.ts` - Database configuration that ensures proper connections in Replit
+
+### Environment-Specific Code
+- Server configuration settings must maintain Replit compatibility:
+  - Keep `server: { allowedHosts: true, host: true }` in Vite config
+  - Preserve `wait_for_port = 5000` in workflow tasks
+  - Maintain path-based routing approach instead of hostname-based routing
+  - Ensure proper static file serving logic for Replit's file structure
+
+### Dependency Management
+- Never modify these dependencies without testing in Replit first:
+  - Core packages: Express, Drizzle ORM, PostgreSQL clients
+  - Build tools: Vite, esbuild, TypeScript
+  - Authentication libraries: Passport, JWT, session management
+- Always test dependency updates incrementally in a controlled environment
+
+### Integration Strategy
+- When integrating code from other branches:
+  - Make incremental changes with testing after each step
+  - Begin with non-critical components before touching core infrastructure
+  - Prioritize preserving working authentication and routing logic
+  - Document all changes with clear rationale for future reference
+  - Create backup points before major infrastructure changes
