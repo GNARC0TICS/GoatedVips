@@ -3,7 +3,7 @@
 ## Current Focus
 The current development focus is on improving the integration with the Goated.com API, particularly addressing token management and ensuring secure, reliable API communication between GoatedVips and Goated.com.
 
-## Recent Changes
+## Recent Changes <>
 
 ### API Token Management Improvement
 - Implemented a fallback token mechanism in the `api-token.ts` utility
