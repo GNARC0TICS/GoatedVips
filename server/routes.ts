@@ -185,13 +185,24 @@ router.get("/api/wager-races/current",
   cacheMiddleware(CACHE_TIMES.SHORT),
   async (_req: Request, res: Response) => {
     try {
+      // Log token status (without revealing the token)
+      const hasEnvToken = !!process.env.API_TOKEN;
+      const hasConfigToken = !!API_CONFIG.token;
+      log(`Wager race API token status: Environment=${hasEnvToken}, Config=${hasConfigToken}`);
+      
+      const apiToken = process.env.API_TOKEN || API_CONFIG.token;
+      if (!apiToken) {
+        throw new Error("API token is not configured for wager race data");
+      }
+      
       const response = await fetch(
         `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`,
         {
           headers: {
-            Authorization: `Bearer ${process.env.API_TOKEN || API_CONFIG.token}`,
+            Authorization: `Bearer ${apiToken}`,
             "Content-Type": "application/json",
           },
+          signal: AbortSignal.timeout(60000), // 60 seconds timeout
         }
       );
 
@@ -296,21 +307,44 @@ function formatRaceData(stats: any) {
   const month = 2; // March (0-indexed)
   const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
   const monthlyData = stats?.data?.monthly?.data ?? [];
+  
+  // Log the monthly data to help debug
+  log(`Race data: Found ${monthlyData.length} participants for ${month + 1}/${year} race`);
+  if (monthlyData.length > 0) {
+    log(`Sample participant: ${JSON.stringify(monthlyData[0])}`);
+  }
 
+  // Process the participant data, ensuring we include wagered info
+  const participants = monthlyData
+    .map((participant: any, index: number) => {
+      // Make sure we extract the wager amount correctly
+      const wageredAmount = participant?.wagered?.this_month != null 
+        ? Number(participant.wagered.this_month) 
+        : 0;
+      
+      return {
+        uid: participant?.uid ?? "",
+        name: participant?.name ?? "Unknown",
+        wagered: wageredAmount,
+        // Include the full wagered object for the frontend
+        wagered_full: {
+          today: Number(participant?.wagered?.today ?? 0),
+          this_week: Number(participant?.wagered?.this_week ?? 0), 
+          this_month: wageredAmount,
+          all_time: Number(participant?.wagered?.all_time ?? 0)
+        },
+        position: index + 1
+      };
+    })
+    .slice(0, 10);
+    
   return {
     id: `${year}${(month + 1).toString().padStart(2, '0')}`, // 202503 for March 2025
     status: 'live',
     startDate: new Date(year, month, 1).toISOString(),
     endDate: endOfMonth.toISOString(),
     prizePool: 500,
-    participants: monthlyData
-      .map((participant: any, index: number) => ({
-        uid: participant?.uid ?? "",
-        name: participant?.name ?? "Unknown",
-        wagered: Number(participant?.wagered?.this_month ?? 0),
-        position: index + 1
-      }))
-      .slice(0, 10)
+    participants: participants
   };
 }
 
@@ -434,9 +468,19 @@ function setupAPIRoutes(app: Express) {
 
         log('Fetching affiliate stats from:', url);
 
+        // Log the API token status (without revealing the actual token)
+        const hasEnvToken = !!process.env.API_TOKEN;
+        const hasConfigToken = !!API_CONFIG.token;
+        log(`API Token status: Environment=${hasEnvToken}, Config=${hasConfigToken}`);
+        
+        const apiToken = process.env.API_TOKEN || API_CONFIG.token;
+        if (!apiToken) {
+          throw new ApiError("API token is not configured", { status: 500 });
+        }
+        
         const response = await fetch(url, {
           headers: {
-            Authorization: `Bearer ${process.env.API_TOKEN || API_CONFIG.token}`,
+            Authorization: `Bearer ${apiToken}`,
             "Content-Type": "application/json",
           },
           // Use a longer timeout for better reliability

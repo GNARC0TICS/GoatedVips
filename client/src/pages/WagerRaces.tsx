@@ -50,7 +50,23 @@ export default function WagerRaces() {
   const [raceType] = useState<"weekly" | "monthly" | "weekend">("monthly");
   const [showCompletedRace, setShowCompletedRace] = useState(false);
   const ws = useRef<WebSocket | null>(null);
-  const { data: leaderboardData, isLoading } = useLeaderboard("monthly");
+  
+  // Extended metadata type with status field
+  type ExtendedMetadata = {
+    totalUsers: number;
+    lastUpdated: string;
+    status?: 'live' | 'completed' | 'transition';
+  };
+  
+  const { 
+    data: leaderboardData, 
+    isLoading, 
+    metadata 
+  } = useLeaderboard("monthly") as { 
+    data: LeaderboardEntry[], 
+    isLoading: boolean, 
+    metadata?: ExtendedMetadata 
+  };
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -194,8 +210,21 @@ const getTrophyIcon = (rank: number) => {
     );
   }
 
+  // Process participants for display with proper wager data
+  const raceStatus = showCompletedRace ? 'completed' : 'live';
+  
   const top10Players = showCompletedRace 
-    ? (previousRace?.data?.participants || [])
+    ? (previousRace?.participants || []).map((p: any) => ({
+        uid: p.uid || '',
+        name: p.name || 'Unknown',
+        wagered: {
+          today: 0,
+          this_week: 0,
+          this_month: p.wagered || 0,
+          all_time: p.wagered_full?.all_time || p.allTimeWagered || 0
+        },
+        lastUpdate: p.lastUpdate || new Date().toISOString()
+      }))
     : (leaderboardData || []).slice(0, 10);
   const currentLeader = top10Players[0];
 
@@ -272,7 +301,7 @@ const getTrophyIcon = (rank: number) => {
                         Winners will receive their prizes directly to their Goated account within 24 hours of race completion
                       </div>
                     </div>
-                  ) : leaderboardData?.status === 'transition' ? (
+                  ) : showCompletedRace || false ? (
                     <div className="bg-orange-500/10 text-orange-500 px-6 py-2 rounded-full border border-orange-500 backdrop-blur-sm">
                       In Transition Period
                     </div>
@@ -293,7 +322,7 @@ const getTrophyIcon = (rank: number) => {
                   )}
 
                   {/* Next Race Countdown */}
-                  {(showCompletedRace || leaderboardData?.status === 'transition') && (
+                  {(showCompletedRace) && (
                     <div className="text-center">
                       <div className="text-[#8A8B91] mb-2">Next Race Starts In</div>
                       <div className="bg-[#1A1B21]/80 backdrop-blur-sm px-6 py-4 rounded-lg">
@@ -519,7 +548,7 @@ const getTrophyIcon = (rank: number) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(showCompletedRace ? (previousRace?.data?.participants || []).slice(0, 10) : top10Players).map((player: LeaderboardEntry, index: number) => (
+                {top10Players.map((player: LeaderboardEntry, index: number) => (
                   <TableRow
                     key={player.uid}
                     className="bg-[#1A1B21]/50 backdrop-blur-sm hover:bg-[#1A1B21]"

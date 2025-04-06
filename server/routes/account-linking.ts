@@ -1,67 +1,11 @@
-import { Router } from "express";
-import { UserService } from "../services/user.service";
-import { GoatedApiService } from "../services/goated-api.service";
-import { db } from "@db";
-import { users } from "@db/schema";
-import { eq, sql } from "drizzle-orm";
+import { Router } from 'express';
+import { db } from '../db';
+import { users } from '@db/schema';
+import { eq } from 'drizzle-orm';
+import userService from '../services/userService';
+import goatedApiService from '../services/goatedApiService';
 
 const router = Router();
-const userService = new UserService();
-const goatedApiService = new GoatedApiService();
-
-/**
- * Route to check if a Goated ID exists and is available for linking
- * GET /api/account/check-goated-id/:goatedId
- */
-router.get("/check-goated-id/:goatedId", async (req, res) => {
-  try {
-    const { goatedId } = req.params;
-    
-    // Validate that the user is authenticated
-    if (!req.user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: "Authentication required" 
-      });
-    }
-    
-    // Check if the Goated ID exists in the API
-    const apiUser = await goatedApiService.findUserByGoatedId(goatedId);
-    
-    if (!apiUser) {
-      return res.status(404).json({
-        success: false,
-        message: "This Goated ID was not found in our system"
-      });
-    }
-    
-    // Check if this Goated ID is already linked to an account
-    const existingLinked = await userService.findUserByGoatedId(goatedId);
-    
-    if (existingLinked && existingLinked.id !== req.user.id) {
-      // It's already linked to another account
-      // All accounts are considered permanent in this implementation
-      return res.json({
-        success: true,
-        canLink: false,
-        reason: "This Goated ID is already linked to another account"
-      });
-    }
-    
-    // Available for linking
-    return res.json({
-      success: true,
-      canLink: true,
-      goatedUsername: apiUser.name
-    });
-  } catch (error) {
-    console.error("Error checking Goated ID:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to check Goated ID"
-    });
-  }
-});
 
 /**
  * Route to initiate account linking
@@ -136,6 +80,60 @@ router.post("/unlink-account", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to unlink account"
+    });
+  }
+});
+
+/**
+ * Route to check if a Goated ID exists and is available for linking
+ * GET /api/account/check-goated-id/:goatedId
+ */
+router.get("/check-goated-id/:goatedId", async (req, res) => {
+  try {
+    const { goatedId } = req.params;
+    
+    // Validate that the user is authenticated
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required" 
+      });
+    }
+    
+    // Check if the Goated ID exists in the API
+    const apiUser = await goatedApiService.findUserByGoatedId(goatedId);
+    
+    if (!apiUser) {
+      return res.status(404).json({
+        success: false,
+        message: "This Goated ID was not found in our system"
+      });
+    }
+    
+    // Check if this Goated ID is already linked to an account
+    const existingLinked = await userService.findUserByGoatedId(goatedId);
+    
+    if (existingLinked && existingLinked.id !== req.user.id) {
+      // It's already linked to another account
+      // All accounts are considered permanent in this implementation
+      return res.json({
+        success: true,
+        canLink: false,
+        reason: "This Goated ID is already linked to another account"
+      });
+    }
+    
+    // Available for linking
+    return res.json({
+      success: true,
+      canLink: true,
+      goatedUsername: apiUser.name
+    });
+  } catch (error) {
+    console.error("Error checking Goated ID:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to check Goated ID"
     });
   }
 });

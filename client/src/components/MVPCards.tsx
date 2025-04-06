@@ -314,11 +314,25 @@ export function MVPCards() {
   const [openCard, setOpenCard] = useState<string | null>(null);
   const dialogTimeoutRef = React.useRef<NodeJS.Timeout>();
 
-  // Enhanced data fetching with refresh interval
-  const { data: leaderboardData, isLoading } = useQuery<any>({
+  // Enhanced data fetching with refresh interval and error handling
+  const { data: leaderboardData, isLoading, error, isError } = useQuery<any>({
     queryKey: ["/api/affiliate/stats"],
+    queryFn: async () => {
+      const response = await fetch('/api/affiliate/stats', {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return response.json();
+    },
     staleTime: 30000, // 30 seconds cache
     refetchInterval: 60000, // 1 minute refresh interval
+    retry: 3
   });
 
   // Extract and normalize MVP data with robust error handling
@@ -389,10 +403,17 @@ export function MVPCards() {
     };
   }, []);
 
-  // More engaging loading state with staggered animation
-  if (isLoading) {
+  // Display loading state or errors
+  if (isLoading || isError) {
     return (
       <div className="grid md:grid-cols-3 gap-4 max-w-5xl mx-auto">
+        {isError && (
+          <div className="col-span-3 text-center p-4 bg-red-900/20 border border-red-900/30 rounded-lg">
+            <p className="text-red-400 mb-2">Error loading MVP data</p>
+            <p className="text-sm text-white/60">{error instanceof Error ? error.message : "Unknown error"}</p>
+          </div>
+        )}
+        
         {timeframes.map((timeframe, index) => (
           <motion.div
             key={timeframe.period}
@@ -415,6 +436,9 @@ export function MVPCards() {
       </div>
     );
   }
+  
+  // Debug the data we're receiving from the API
+  console.log("Leaderboard Data:", leaderboardData);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-0 max-w-5xl mx-auto perspective-1000 px-0">
