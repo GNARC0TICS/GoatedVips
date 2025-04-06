@@ -49,15 +49,18 @@ export function initializeDataSyncTasks() {
   scheduleUserProfileSync();
   scheduleWagerDataUpdate();
   
-  // Run an initial sync on startup
+  // Run an initial sync on startup with increased delay and better error handling
   setTimeout(async () => {
     try {
       log('info', 'Running initial data sync on startup');
-      await goatedApiService.syncUserProfiles();
+      const result = await goatedApiService.syncUserProfiles();
+      log('info', `Initial sync completed: Created ${result.created}, Updated ${result.updated}, Already existed ${result.existing}`);
     } catch (error) {
       log('error', `Error in initial data sync: ${error instanceof Error ? error.message : String(error)}`);
+      // Log the full error for debugging
+      console.error('Full error details:', error);
     }
-  }, 5000); // Wait 5 seconds after server start
+  }, 10000); // Wait 10 seconds after server start to ensure all systems are ready
   
   log('info', 'Data sync tasks initialized');
 }

@@ -31,7 +31,8 @@ class GoatedApiService {
   private baseUrl: string;
   
   constructor() {
-    this.apiToken = process.env.API_TOKEN || API_CONFIG.token;
+    // Use the newer token that appears to be working
+    this.apiToken = process.env.API_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJNZ2xjTU9DNEl6cWpVbzVhTXFBVyIsInNlc3Npb24iOiJUWlNlWlJVWkFZbzEiLCJpYXQiOjE3NDM5MTM3NzYsImV4cCI6MTc0NDAwMDE3Nn0.8JHA2VNfP1FyS4HXIONlKBuDNjS98o8Waxnl6WOXCus";
     this.baseUrl = API_CONFIG.baseUrl;
   }
   
@@ -49,7 +50,7 @@ class GoatedApiService {
    * @param options - Additional fetch options
    * @returns Response from the API
    */
-  async fetchFromExternalApi(endpoint: string, options: RequestInit = {}, retries = 2): Promise<any> {
+  async fetchFromExternalApi(endpoint: string, options: RequestInit = {}, retries = 3): Promise<any> {
     if (!this.hasApiToken()) {
       throw new Error('API token not configured');
     }
@@ -59,7 +60,8 @@ class GoatedApiService {
     
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.request.timeout || 10000);
+      // Increase the timeout to 30 seconds (30000ms) to prevent AbortErrors
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       
       const response = await fetch(url, {
         ...options,
