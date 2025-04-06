@@ -1,9 +1,9 @@
-import React, { ReactNode } from "react";
+import React, { ReactNode, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { profileService } from "@/services/profileService";
 import { useToast } from "@/hooks/use-toast";
 import { QuickProfileCard } from "./profile/QuickProfileCard";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
 interface QuickProfileProps {
   userId: string | number;
@@ -27,27 +27,35 @@ export function QuickProfile({
   children,
   username
 }: QuickProfileProps) {
-  // If children are provided, render as a popover
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const handleClose = () => {
+    setIsOpen(false);
+    if (onClose) onClose();
+  };
+  
+  // If children are provided, render as a dialog (modal)
   if (children) {
     return (
-      <Popover>
-        <PopoverTrigger asChild>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
           <button 
             className="cursor-pointer inline-block text-inherit bg-transparent border-0 p-0 m-0" 
             style={{ font: 'inherit' }}
+            onClick={() => setIsOpen(true)}
           >
             {children}
           </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-80 p-0">
+        </DialogTrigger>
+        <DialogContent className="p-0 border-none bg-transparent shadow-none max-w-md mx-auto">
           <QuickProfileCard
             profileId={userId}
-            onClose={onClose}
-            size={size}
+            onClose={handleClose}
+            size={size === "sm" ? "md" : "lg"}  // Make cards bigger in dialog mode
             className={className}
           />
-        </PopoverContent>
-      </Popover>
+        </DialogContent>
+      </Dialog>
     );
   }
   

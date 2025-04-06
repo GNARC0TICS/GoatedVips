@@ -8,11 +8,11 @@
  * Contains all necessary parameters for communicating with the Goated API
  */
 export const API_CONFIG = {
-  baseUrl: "https://api.goated.com/user2",
+  baseUrl: "https://api.goated.com/user2/affiliate/referral-leaderboard/2RW440E",
   token: process.env.API_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJNZ2xjTU9DNEl6cWpVbzVhTXFBVyIsInNlc3Npb24iOiJUWlNlWlJVWkFZbzEiLCJpYXQiOjE3NDM5MTM3NzYsImV4cCI6MTc0NDAwMDE3Nn0.8JHA2VNfP1FyS4HXIONlKBuDNjS98o8Waxnl6WOXCus",
   endpoints: {
-    leaderboard: "/affiliate/referral-leaderboard/2RW440E",
-    health: "/health"
+    leaderboard: "",  // Empty string as we're using the full URL as baseUrl
+    health: ""  // Empty string for consistency
     // Removed invalid endpoints
   },
   fallbackData: {

@@ -5,8 +5,11 @@ async function fetchLeaderboard() {
   const ENDPOINT = 'https://api.goated.com/user2/affiliate/referral-leaderboard/2RW440E';
   const TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJNZ2xjTU9DNEl6cWpVbzVhTXFBVyIsInNlc3Npb24iOiJUWlNlWlJVWkFZbzEiLCJpYXQiOjE3NDM5MTM3NzYsImV4cCI6MTc0NDAwMDE3Nn0.8JHA2VNfP1FyS4HXIONlKBuDNjS98o8Waxnl6WOXCus';
 
-  console.log(`Fetching data from: ${ENDPOINT}`);
+  console.log(`Using full URL: ${ENDPOINT}`);
   console.log(`Using token: ${TOKEN.substring(0, 10)}...`);
+  console.log(`Token expiry check: ${new Date(1744000176 * 1000).toISOString()} (should be in the future)`);
+  const now = Math.floor(Date.now() / 1000);
+  console.log(`Current time: ${now}, Token expires: 1744000176, Valid: ${now < 1744000176}`);
 
   try {
     // Add timeout of 10 seconds

@@ -84,7 +84,8 @@ class GoatedApiService {
       console.error(`Error fetching from external API (${endpoint}):`, error);
       
       // Implement retry logic for network errors or timeouts
-      if (retries > 0 && (error instanceof TypeError || error.name === 'AbortError')) {
+      const err = error as any; // Type assertion to handle unknown error type
+      if (retries > 0 && (error instanceof TypeError || (err && err.name === 'AbortError'))) {
         console.log(`Retrying API call to ${endpoint}, ${retries} attempts remaining...`);
         // Exponential backoff: wait longer between retries
         await new Promise(resolve => setTimeout(resolve, (3 - retries) * 1000));
@@ -108,15 +109,18 @@ class GoatedApiService {
       
       console.log("Syncing user profiles from external leaderboard API...");
       
+      // Declare variables at the function level for proper scope
+      let allTimeData: any[] = [];
+      let created = 0;
+      let existing = 0;
+      let updated = 0;
+      
       try {
-        // Fetch leaderboard data from external API with timeout protection
-        const leaderboardData = await this.fetchFromExternalApi(API_CONFIG.endpoints.leaderboard);
+        // Fetch leaderboard data directly from the base URL (no endpoint needed)
+        const leaderboardData = await this.fetchFromExternalApi("");
         
         // Process all_time data to get unique users
-        const allTimeData = leaderboardData?.data?.all_time?.data || [];
-        let created = 0;
-        let existing = 0;
-        let updated = 0;
+        allTimeData = leaderboardData?.data?.all_time?.data || [];
         
         console.log(`Processing ${allTimeData.length} users from leaderboard`);
       } catch (apiError) {
@@ -238,8 +242,8 @@ class GoatedApiService {
       
       console.log("Updating wager data from external API...");
       
-      // Fetch leaderboard data with recent wager info
-      const leaderboardData = await this.fetchFromExternalApi(API_CONFIG.endpoints.leaderboard);
+      // Fetch leaderboard data directly from the base URL (no endpoint needed)
+      const leaderboardData = await this.fetchFromExternalApi("");
       
       const userData = [
         ...(leaderboardData?.data?.all_time?.data || []),

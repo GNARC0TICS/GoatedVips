@@ -7,6 +7,16 @@
 
 import { z } from "zod";
 
+/**
+ * Custom error class for profile-related errors
+ */
+export class ProfileError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ProfileError';
+  }
+}
+
 // Profile schema
 export const ProfileSchema = z.object({
   id: z.number(),
@@ -21,6 +31,9 @@ export const ProfileSchema = z.object({
   createdAt: z.string().optional(),
   lastActive: z.string().nullable().optional(),
   isAdmin: z.boolean().optional(),
+  isVerified: z.boolean().optional(),
+  goatedLinkRequested: z.boolean().optional(),
+  goatedUsernameRequested: z.string().nullable().optional(),
   totalWager: z.string().nullable().optional(),
   tier: z.string().nullable().optional(),
 });
@@ -43,6 +56,7 @@ export const ProfileWithStatsSchema = ProfileSchema.extend({
 
 // Export types
 export type Profile = z.infer<typeof ProfileSchema>;
+export type UserProfile = Profile; // Alias for backward compatibility
 export type ProfileWithStats = z.infer<typeof ProfileWithStatsSchema>;
 
 // Cache time constants
@@ -88,7 +102,7 @@ class ProfileService {
   /**
    * Fetch a user profile by ID
    */
-  async getProfile(userId: string): Promise<Profile> {
+  async getProfile(userId: string | number): Promise<Profile> {
     // Check cache first
     const cacheKey = String(userId);
     const cachedProfile = this.profileCache.get(cacheKey);
@@ -121,7 +135,7 @@ class ProfileService {
   /**
    * Get profile with additional stats
    */
-  async getProfileWithStats(userId: string): Promise<ProfileWithStats> {
+  async getProfileWithStats(userId: string | number): Promise<ProfileWithStats> {
     // Get base profile
     const profile = await this.getProfile(userId);
 

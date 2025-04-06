@@ -45,7 +45,9 @@ export function QuickProfileCard({
       
       try {
         setIsLoading(true);
-        const profileData = await profileService.getProfile(profileId);
+        // Convert string IDs to numbers to fix the "Expected number, received string" error
+        const id = typeof profileId === 'string' ? parseInt(profileId, 10) : profileId;
+        const profileData = await profileService.getProfile(id);
         
         if (isMounted) {
           setProfile(profileData);
