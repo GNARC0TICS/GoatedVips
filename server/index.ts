@@ -32,6 +32,7 @@ import compression from "compression";
 import { log } from "./utils/logger";
 import { registerRoutes } from "./routes";
 import { domainRedirectMiddleware } from "./middleware/domain-handler";
+import { errorHandler, notFoundHandler } from "./middleware/error-handler";
 import { db } from "../db";
 import { setupAuth } from "./auth";
 import { API_CONFIG } from "./config/api";
@@ -452,6 +453,12 @@ async function initializeServer() {
     setupAuth(app);
     registerRoutes(app);
 
+    // Add error handling after routes are registered
+    // 404 handler for unmatched routes
+    app.use(notFoundHandler);
+    // Global error handler as the last middleware
+    app.use(errorHandler);
+
     // Admin routes are set up through the middleware and routes system
     log("info", "Admin routes initialized");
 
@@ -466,13 +473,7 @@ async function initializeServer() {
       serveStatic(app);
     }
 
-    // Global error handler
-    app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-      console.error("Server error:", err);
-      res.status(500).json({
-        error: IS_PRODUCTION ? 'Internal Server Error' : err.message
-      });
-    });
+    // Global error handler already registered previously
 
     // Start server and handle graceful shutdown
     return new Promise((resolve, reject) => {
@@ -587,12 +588,9 @@ function setupMiddleware(app: express.Application) {
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
   app.use(cookieParser());
   app.use(requestLogger);
-
-  // Error handling middleware
-  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error(err.stack);
-    res.status(500).send('Something broke!');
-  });
+  
+  // Response compression
+  app.use(compression());
 }
 
 /**
