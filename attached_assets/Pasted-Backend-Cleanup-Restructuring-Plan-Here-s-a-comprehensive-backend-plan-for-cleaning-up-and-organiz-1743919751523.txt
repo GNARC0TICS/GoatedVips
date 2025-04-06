@@ -1,0 +1,599 @@
+Backend Cleanup & Restructuring Plan
+Here's a comprehensive backend plan for cleaning up and organizing the user creation and account linking system while ensuring compatibility with your current setup:
+
+1. Create Dedicated User Service Module
+1.1 New File Structure
+server/
+  services/
+    user.service.ts       # Core user operations
+    goated-api.service.ts # API integration
+    auth.service.ts       # Authentication operations
+  types/
+    user.types.ts         # Shared user-related type definitions
+1.2 User Service Implementation
+// server/services/user.service.ts
+import { db } from '@db';
+import { users } from '@db/schema';
+import { sql } from 'drizzle-orm';
+import { GoatedApiService } from './goated-api.service';
+
+enum UserSourceType {
+  DIRECT_REGISTRATION = 'direct',
+  GOATED_API = 'goated_api',
+  TEMPORARY = 'temporary'
+}
+
+enum UserLinkStatus {
+  NOT_LINKED = 'not_linked',
+  PENDING_VERIFICATION = 'pending',
+  VERIFIED = 'verified'
+}
+
+export class UserService {
+  private goatedApiService: GoatedApiService;
+  
+  constructor() {
+    this.goatedApiService = new GoatedApiService();
+  }
+  
+  /**
+   * Find a user by internal ID, Goated ID, or username
+   * Single function replaces multiple similar lookups
+   */
+  async findUser({ id, goatedId, username }: { 
+    id?: string | number;
+    goatedId?: string;
+    username?: string;
+  }) {
+    try {
+      if (!id && !goatedId && !username) {
+        return null;
+      }
+      
+      let query = sql`
+        SELECT 
+          id, username, email, bio, profile_color AS "profileColor",
+          goated_id AS "goatedId", goated_username AS "goatedUsername",
+          goated_account_linked AS "goatedAccountLinked", created_at AS "createdAt"
+        FROM users
+        WHERE 1=0
+      `;
+      
+      if (id) {
+        query = sql`
+          ${query} OR id::text = ${id.toString()}
+        `;
+      }
+      
+      if (goatedId) {
+        query = sql`
+          ${query} OR goated_id = ${goatedId}
+        `;
+      }
+      
+      if (username) {
+        query = sql`
+          ${query} OR username = ${username}
+        `;
+      }
+      
+      query = sql`${query} LIMIT 1`;
+      const result = await db.execute(query);
+      
+      return result.rows && result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      console.error('Error finding user:', error);
+      return null;
+    }
+  }
+  
+  /**
+   * Create or retrieve a user profile based on Goated ID
+   * Replaces the scattered ensureUserProfile functionality
+   */
+  async ensureUserProfile(goatedId: string, options: {
+    createIfNotFound?: boolean;
+    fetchFromApi?: boolean;
+  } = { createIfNotFound: true, fetchFromApi: true }) {
+    try {
+      // First check if user already exists
+      const existingUser = await this.findUser({ goatedId });
+      
+      if (existingUser) {
+        return {
+          ...existingUser,
+          isNewlyCreated: false
+        };
+      }
+      
+      if (!options.createIfNotFound) {
+        return null;
+      }
+      
+      // If not found and allowed to create, try to fetch from API
+      if (options.fetchFromApi) {
+        const apiUser = await this.goatedApiService.findUserByGoatedId(goatedId);
+        
+        if (apiUser) {
+          // Create verified API user
+          return this.createApiSourcedUser(goatedId, apiUser.name, UserLinkStatus.VERIFIED);
+        }
+      }
+      
+      // Create temporary user if API data not found
+      return this.createTemporaryUser(goatedId);
+    } catch (error) {
+      console.error(`Error ensuring profile for ID ${goatedId}:`, error);
+      return null;
+    }
+  }
+  
+  /**
+   * Create a user from API data
+   */
+  private async createApiSourcedUser(goatedId: string, username: string, linkStatus: UserLinkStatus) {
+    const newUserId = Math.floor(1000 + Math.random() * 9000);
+    const email = `${username.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
+    
+    const result = await db.execute(sql`
+      INSERT INTO users (
+        id, username, email, password, created_at, profile_color, 
+        bio, is_admin, goated_id, goated_username, goated_account_linked,
+        source_type, link_status
+      ) VALUES (
+        ${newUserId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', 
+        'Official Goated.com player profile', false, ${goatedId}, ${username}, 
+        ${linkStatus === UserLinkStatus.VERIFIED}, 
+        ${UserSourceType.GOATED_API}, ${linkStatus}
+      ) RETURNING id, username, goated_id as "goatedId", goated_username as "goatedUsername",
+        goated_account_linked as "goatedAccountLinked", source_type as "sourceType", 
+        link_status as "linkStatus"
+    `);
+    
+    if (result && result.rows && result.rows.length > 0) {
+      return {
+        ...result.rows[0],
+        isNewlyCreated: true,
+        isApiSourced: true
+      };
+    }
+    
+    throw new Error('Failed to create API-sourced user');
+  }
+  
+  /**
+   * Create a temporary user profile
+   */
+  private async createTemporaryUser(goatedId: string) {
+    const newUserId = Math.floor(1000 + Math.random() * 9000);
+    const tempUsername = `Goated User ${goatedId.substring(0, 5)}`;
+    const email = `user_${goatedId}@goated.placeholder.com`;
+    
+    const result = await db.execute(sql`
+      INSERT INTO users (
+        id, username, email, password, created_at, profile_color, 
+        bio, is_admin, goated_id, goated_account_linked,
+        source_type, link_status
+      ) VALUES (
+        ${newUserId}, ${tempUsername}, ${email}, '', ${new Date()}, '#D7FF00', 
+        'Temporary profile - this player has not been verified with Goated.com yet', 
+        false, ${goatedId}, false,
+        ${UserSourceType.TEMPORARY}, ${UserLinkStatus.NOT_LINKED}
+      ) RETURNING id, username, goated_id as "goatedId", goated_username as "goatedUsername",
+        goated_account_linked as "goatedAccountLinked", source_type as "sourceType", 
+        link_status as "linkStatus"
+    `);
+    
+    if (result && result.rows && result.rows.length > 0) {
+      return {
+        ...result.rows[0],
+        isNewlyCreated: true,
+        isTemporary: true
+      };
+    }
+    
+    throw new Error('Failed to create temporary user');
+  }
+  
+  /**
+   * Link a local user account with a Goated.com account
+   */
+  async linkGoatedAccount(userId: number, goatedId: string, verificationMethod: 'id_verification' | 'admin') {
+    try {
+      // Find the existing user
+      const user = await this.findUser({ id: userId });
+      if (!user) {
+        throw new Error('User not found');
+      }
+      
+      // Check if this Goated ID is already linked to another account
+      const existingLinked = await this.findUser({ goatedId });
+      if (existingLinked && existingLinked.id !== userId) {
+        // If it's a temporary account, we can transfer ownership
+        if (existingLinked.sourceType === UserSourceType.TEMPORARY) {
+          // Delete the temporary account or mark it as merged
+          await db.execute(sql`
+            UPDATE users 
+            SET is_deleted = true, merged_to = ${userId}
+            WHERE id = ${existingLinked.id}
+          `);
+        } else {
+          throw new Error('This Goated ID is already linked to another account');
+        }
+      }
+      
+      // Get Goated API data to verify and get username
+      const apiUser = await this.goatedApiService.findUserByGoatedId(goatedId);
+      
+      if (!apiUser && verificationMethod === 'id_verification') {
+        throw new Error('Could not verify this Goated ID in the API');
+      }
+      
+      // Update the user record
+      await db.execute(sql`
+        UPDATE users
+        SET goated_id = ${goatedId},
+            goated_username = ${apiUser?.name || null},
+            goated_account_linked = true,
+            link_status = ${UserLinkStatus.VERIFIED},
+            updated_at = ${new Date()}
+        WHERE id = ${userId}
+      `);
+      
+      return {
+        success: true,
+        message: 'Account linked successfully'
+      };
+    } catch (error) {
+      console.error('Error linking account:', error);
+      throw error;
+    }
+  }
+  
+  // Additional methods for user management...
+}
+1.3 Goated API Service
+// server/services/goated-api.service.ts
+import { getApiHeaders } from '../utils/api-token';
+import { API_CONFIG } from '../config/api';
+
+export class GoatedApiService {
+  /**
+   * Fetches leaderboard data from the Goated.com API
+   */
+  async fetchLeaderboardData() {
+    try {
+      const response = await fetch(
+        `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`,
+        { headers: getApiHeaders() }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching leaderboard data:", error);
+      throw new Error(`Failed to fetch leaderboard data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+  
+  /**
+   * Searches for a user by their Goated ID in the leaderboard data
+   */
+  async findUserByGoatedId(goatedId: string) {
+    try {
+      const leaderboardData = await this.fetchLeaderboardData();
+      
+      // Search for the user in different time periods
+      const timeframes = ['today', 'weekly', 'monthly', 'all_time'];
+      
+      for (const timeframe of timeframes) {
+        const users = leaderboardData?.data?.[timeframe]?.data || [];
+        
+        // Find the user with the matching UID
+        const foundUser = users.find((user: any) => user.uid === goatedId);
+        
+        if (foundUser) {
+          return foundUser;
+        }
+      }
+      
+      return null; // User not found in any timeframe
+    } catch (error) {
+      console.error(`Error finding user by Goated ID ${goatedId}:`, error);
+      return null;
+    }
+  }
+  
+  /**
+   * Bulk synchronize user profiles from leaderboard data
+   */
+  async syncUserProfiles(userService: any) {
+    try {
+      console.log("Syncing user profiles from leaderboard...");
+      
+      // Fetch leaderboard data to get all users
+      const leaderboardData = await this.fetchLeaderboardData();
+      
+      // Process all_time data to get unique users
+      const allTimeData = leaderboardData?.data?.all_time?.data || [];
+      let createdCount = 0;
+      let existingCount = 0;
+      let updatedCount = 0;
+      
+      console.log(`Processing ${allTimeData.length} users from leaderboard`);
+      
+      // Process each user from the leaderboard
+      for (const player of allTimeData) {
+        try {
+          // Skip entries without uid or name
+          if (!player.uid || !player.name) continue;
+          
+          // Check if user already exists and create/update as needed
+          const result = await userService.ensureUserProfile(player.uid);
+          
+          if (result.isNewlyCreated) {
+            createdCount++;
+          } else {
+            existingCount++;
+            // Update if needed
+            if (!result.goatedUsername && player.name) {
+              // Update the username
+              await userService.updateGoatedUsername(player.uid, player.name);
+              updatedCount++;
+            }
+          }
+        } catch (error) {
+          console.error(`Error processing user ${player?.name}:`, error);
+        }
+      }
+      
+      return {
+        created: createdCount,
+        existing: existingCount,
+        updated: updatedCount
+      };
+    } catch (error) {
+      console.error("Error syncing profiles from leaderboard:", error);
+      throw error;
+    }
+  }
+}
+2. Database Schema Updates
+2.1 Add New Fields to Users Table
+-- Update users table
+ALTER TABLE users 
+  ADD COLUMN IF NOT EXISTS source_type VARCHAR DEFAULT 'direct',
+  ADD COLUMN IF NOT EXISTS link_status VARCHAR DEFAULT 'not_linked',
+  ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS merged_to INTEGER REFERENCES users(id),
+  ADD COLUMN IF NOT EXISTS verification_token VARCHAR,
+  ADD COLUMN IF NOT EXISTS verification_token_expires_at TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS last_goated_verification TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+-- Add indexes for performance
+CREATE INDEX IF NOT EXISTS idx_users_goated_id ON users(goated_id) WHERE goated_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_source_type ON users(source_type);
+CREATE INDEX IF NOT EXISTS idx_users_link_status ON users(link_status);
+2.2 Update Schema Type Definitions
+// db/schema/users.ts
+import { pgTable, text, timestamp, integer, boolean, jsonb } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+
+export const users = pgTable('users', {
+  // Existing fields...
+  
+  // New fields
+  sourceType: text('source_type').default('direct').notNull(),
+  linkStatus: text('link_status').default('not_linked').notNull(),
+  isDeleted: boolean('is_deleted').default(false).notNull(),
+  mergedTo: integer('merged_to').references(() => users.id),
+  verificationToken: text('verification_token'),
+  verificationTokenExpiresAt: timestamp('verification_token_expires_at'),
+  lastGoatedVerification: timestamp('last_goated_verification'),
+  updatedAt: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`),
+});
+3. New API Routes for Account Management
+3.1 Account Linking Routes
+// server/routes/account-linking.ts
+import { Router } from "express";
+import { UserService } from "../services/user.service";
+import { GoatedApiService } from "../services/goated-api.service";
+
+const router = Router();
+const userService = new UserService();
+const goatedApiService = new GoatedApiService();
+
+// Route to check if a Goated ID exists and is available for linking
+router.get("/check-goated-id/:goatedId", async (req, res) => {
+  try {
+    const { goatedId } = req.params;
+    
+    // Validate that the user is authenticated
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required" 
+      });
+    }
+    
+    // Check if the Goated ID exists in the API
+    const apiUser = await goatedApiService.findUserByGoatedId(goatedId);
+    
+    if (!apiUser) {
+      return res.status(404).json({
+        success: false,
+        message: "This Goated ID was not found in our system"
+      });
+    }
+    
+    // Check if this Goated ID is already linked to an account
+    const existingLinked = await userService.findUser({ goatedId });
+    
+    if (existingLinked && existingLinked.id !== req.user.id) {
+      // It's already linked to another account
+      if (existingLinked.sourceType === 'temporary') {
+        // Temporary accounts can be claimed
+        return res.json({
+          success: true,
+          canLink: true,
+          willReplace: true,
+          goatedUsername: apiUser.name
+        });
+      } else {
+        // Permanent accounts can't be claimed
+        return res.json({
+          success: true,
+          canLink: false,
+          reason: "This Goated ID is already linked to another account"
+        });
+      }
+    }
+    
+    // Available for linking
+    return res.json({
+      success: true,
+      canLink: true,
+      goatedUsername: apiUser.name
+    });
+  } catch (error) {
+    console.error("Error checking Goated ID:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to check Goated ID"
+    });
+  }
+});
+
+// Route to initiate account linking
+router.post("/link-account", async (req, res) => {
+  try {
+    const { goatedId } = req.body;
+    
+    // Validate that the user is authenticated
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required" 
+      });
+    }
+    
+    // Link the account
+    await userService.linkGoatedAccount(req.user.id, goatedId, 'id_verification');
+    
+    return res.json({
+      success: true,
+      message: "Account linked successfully"
+    });
+  } catch (error) {
+    console.error("Error linking account:", error);
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to link account"
+    });
+  }
+});
+
+// Route to unlink an account
+router.post("/unlink-account", async (req, res) => {
+  try {
+    // Validate that the user is authenticated
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required" 
+      });
+    }
+    
+    // Check if user has a linked account
+    if (!req.user.goatedId) {
+      return res.status(400).json({
+        success: false,
+        message: "No linked account to unlink"
+      });
+    }
+    
+    // Unlink the account
+    await db.execute(sql`
+      UPDATE users
+      SET goated_id = NULL,
+          goated_username = NULL,
+          goated_account_linked = false,
+          link_status = 'not_linked',
+          updated_at = ${new Date()}
+      WHERE id = ${req.user.id}
+    `);
+    
+    return res.json({
+      success: true,
+      message: "Account unlinked successfully"
+    });
+  } catch (error) {
+    console.error("Error unlinking account:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to unlink account"
+    });
+  }
+});
+
+export default router;
+3.2 Add Routes to Main Router
+// server/routes.ts
+import { Router } from "express";
+import userRoutes from "./routes/users";
+import accountLinkingRoutes from "./routes/account-linking";
+// Other imports...
+
+export function registerRoutes(app: any) {
+  // Existing routes...
+  app.use("/api/users", userRoutes);
+  app.use("/api/account", accountLinkingRoutes);
+  // Other routes...
+}
+4. Refactor Server Initialization
+4.1 Clean Up server/index.ts
+// server/index.ts
+// Move the ensureUserProfile function to UserService
+// Replace with this simplified version that uses the service
+
+import { UserService } from "./services/user.service";
+import { GoatedApiService } from "./services/goated-api.service";
+
+const userService = new UserService();
+const goatedApiService = new GoatedApiService();
+
+// Simplified version that delegates to the service
+export async function ensureUserProfile(userId: string): Promise<any> {
+  return userService.ensureUserProfile(userId);
+}
+
+async function syncUserProfiles() {
+  try {
+    const result = await goatedApiService.syncUserProfiles(userService);
+    console.log(`Profile sync completed. Created ${result.created} new profiles, updated ${result.updated}, ${result.existing} already existed.`);
+  } catch (error) {
+    console.error("Error syncing profiles from leaderboard:", error);
+  }
+}
+
+// Keep the rest of the file the same...
+5. Frontend Integration Points
+While focusing primarily on the backend, here are the key UI integration points we should prepare for:
+
+5.1 Account Linking UI Components
+Account Status Card - Shows current account status (linked/unlinked)
+Goated ID Input Form - For entering Goated ID to link
+Verification Success/Error Messages - Clear feedback UI
+Profile Management Section - For viewing/managing linked accounts
+5.2 API Routes for Frontend
+// Endpoints the frontend will need to implement account linking
+{
+  checkGoatedId: '/api/account/check-goated-id/:goatedId', // GET - Check if ID exists and is available
+  linkAccount: '/api/account/link-account',                // POST - Link account with Goated ID
+  unlinkAccount: '/api/account/unlink-account',           // POST - Unlink current account
+  getAccountStatus: '/api/users/me/account-status'         // GET - Get current linking status
+}

@@ -1,0 +1,254 @@
+Profile Ownership Distinction Fix
+Step 1: Create a Type-Safe Utility Function
+// client/src/services/profileService.ts - Add this function
+
+/**
+ * Determines if the current user is the owner of a profile
+ * 
+ * @param currentUserId The ID of the currently logged-in user
+ * @param profileUserId The ID of the profile being viewed
+ * @returns Boolean indicating if the current user owns the profile
+ */
+export function isProfileOwner(currentUserId?: number | null, profileUserId?: string | number | null): boolean {
+  if (!currentUserId || !profileUserId) return false;
+  
+  // Handle string vs number ID comparison
+  const profileId = typeof profileUserId === 'string' ? parseInt(profileUserId, 10) : profileUserId;
+  return !isNaN(profileId) && currentUserId === profileId;
+}
+Step 2: Update UserProfile Component
+// In client/src/pages/UserProfile.tsx
+
+// Import the auth hook
+import { useAuth } from '@/hooks/use-auth';
+import { isProfileOwner } from '@/services/profileService';
+
+// Inside the component
+export default function UserProfile({ params }: { params: { id: string } }) {
+  const { user: currentUser } = useAuth();
+  const userId = params.id;
+  
+  // Determine if viewer owns this profile
+  const isOwner = isProfileOwner(currentUser?.id, userId);
+  
+  // ...existing code...
+  
+  // Then modify the EditProfileDialog section
+  {isOwner ? (
+    <div className="mt-4">
+      <EditProfileDialog user={user} onUpdate={refetch} />
+    </div>
+  ) : null}
+  
+  // ...rest of component...
+}
+Step 3: Update QuickProfileCard Component
+// In client/src/components/QuickProfileCard.tsx
+
+import { useAuth } from '@/hooks/use-auth';
+import { isProfileOwner } from '@/services/profileService';
+
+// Inside component
+export function QuickProfileCard({ userId, username, children }: QuickProfileCardProps) {
+  const { user: currentUser } = useAuth();
+  const isOwner = isProfileOwner(currentUser?.id, userId);
+  
+  // ...existing code...
+  
+  // Add owner-specific actions
+  const renderProfileActions = () => {
+    if (isOwner) {
+      return (
+        <div className="flex gap-2 mt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleEditProfile}
+            className="border-[#3A3B41] hover:bg-[#2A2B31]"
+          >
+            Edit Profile
+          </Button>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="flex gap-2 mt-2">
+        {/* Visitor-only actions could go here */}
+      </div>
+    );
+  };
+  
+  // ...existing code...
+}
+2. Authentication Route Protection Enhancement
+Step 1: Improve Protected Route Types
+// In client/src/lib/protected-route.tsx
+
+/**
+ * Props for the ProtectedRoute component
+ */
+interface ProtectedRouteProps {
+  /** The route path to protect */
+  path: string;
+  /** The component to render if authenticated */
+  component: React.ComponentType<any>;
+  /** Optional admin-only access requirement */
+  adminOnly?: boolean;
+}
+
+/**
+ * Protected Route Component
+ * 
+ * Enhanced version that handles both standard and admin-only routes
+ */
+export function ProtectedRoute({
+  path,
+  component: Component,
+  adminOnly = false,
+}: ProtectedRouteProps) {
+  const { user, loading, isAdmin } = useAuth();
+
+  // Handle loading state
+  if (loading) {
+    return (
+      <Route path={path}>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-border" />
+        </div>
+      </Route>
+    );
+  }
+
+  // Handle unauthenticated state
+  if (!user) {
+    return (
+      <Route path={path}>
+        <Redirect to={{
+          pathname: "/auth",
+          search: `?redirect=${encodeURIComponent(path)}`
+        }} />
+      </Route>
+    );
+  }
+
+  // Handle admin-only routes
+  if (adminOnly && !isAdmin) {
+    return (
+      <Route path={path}>
+        <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
+          <Shield className="h-12 w-12 text-red-500 mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Admin Access Required</h1>
+          <p className="text-gray-400 mb-4">You don't have permission to access this page.</p>
+          <Button onClick={() => window.history.back()}>Go Back</Button>
+        </div>
+      </Route>
+    );
+  }
+
+  // Render the protected component
+  return <Route path={path} component={Component} />;
+}
+Step 2: Consolidate Auth Checking Logic
+// client/src/services/authService.ts - Add these functions
+
+/**
+ * Check if a user has admin privileges
+ * 
+ * @param user User object to check
+ * @returns boolean indicating if user has admin privileges
+ */
+export function isAdminUser(user: SelectUser | null): boolean {
+  return !!user?.isAdmin;
+}
+
+/**
+ * Check if a token is about to expire and needs refreshing
+ * 
+ * @param expiryTime Token expiry timestamp in seconds
+ * @param refreshThreshold Seconds before expiry to trigger refresh
+ * @returns boolean indicating if token should be refreshed
+ */
+export function shouldRefreshToken(
+  expiryTime: number, 
+  refreshThreshold: number = 300
+): boolean {
+  const currentTime = Math.floor(Date.now() / 1000);
+  return currentTime + refreshThreshold >= expiryTime;
+}
+3. Token Refresh Implementation
+Step 1: Add Token Refresh Endpoint (Phase 2 - Replit)
+This will be fully implemented in Phase 2, but we'll prepare the client-side functions now:
+
+// client/src/services/authService.ts - Add these functions
+
+/**
+ * Request a new access token using a refresh token
+ * Note: Will be fully implemented in Phase 2
+ * 
+ * @returns Promise resolving to success status
+ */
+export async function refreshAuthToken(): Promise<boolean> {
+  try {
+    const response = await fetch('/api/refresh-token', {
+      method: 'POST',
+      credentials: 'include', // Important for cookies
+    });
+    
+    return response.ok;
+  } catch (error) {
+    console.error('Token refresh failed:', error);
+    return false;
+  }
+}
+
+// TODO: Replit Phase 2
+// Server-side implementation of /api/refresh-token endpoint
+4. Auth Hook Improvement
+// client/src/hooks/use-auth.tsx - Enhance with these additions
+
+/**
+ * Enhanced auth hook with additional functionality
+ */
+export function useAuth() {
+  // ... existing code ...
+  
+  /**
+   * Attempt to refresh the auth token
+   * Will be fully implemented in Phase 2
+   */
+  const refreshToken = async (): Promise<boolean> => {
+    try {
+      const refreshed = await refreshAuthToken();
+      if (refreshed) {
+        // Re-fetch user data after successful refresh
+        const userData = await checkAuthStatus();
+        setUser(userData);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      return false;
+    }
+  };
+  
+  // Return enhanced object with new features
+  return {
+    user,
+    loading,
+    error,
+    login,
+    register,
+    logout,
+    refreshToken,
+    isAuthenticated: !!user,
+    isAdmin: isAdminUser(user),
+  };
+}
+Implementation Steps
+To implement these authentication fixes, we should toggle to Act Mode and proceed in this order:
+
+Enhance the profileService.ts with the isProfileOwner utility
+Update UserProfile.tsx with the profile ownership check
+Improve the Protected Route component for better type safety
