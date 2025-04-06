@@ -8,59 +8,35 @@
  * Contains all necessary parameters for communicating with the Goated API
  */
 export const API_CONFIG = {
-  // Base URL for all API requests
-  baseUrl: process.env.API_BASE_URL || 'https://api.goated.com',
-  
-  // API token used for authentication with the external service
-  // Retrieved from environment variables
-  token: process.env.API_TOKEN || '',
-  
-  // Endpoints organized by function
+  baseUrl: "https://api.goated.com/user2",
+  token: process.env.API_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJNZ2xjTU9DNEl6cWpVbzVhTXFBVyIsInNlc3Npb24iOiJwaVJKVGs4NHp4SVIiLCJpYXQiOjE3NDMyOTY4NDksImV4cCI6MTc0MzM4MzI0OX0.KiIq4FHDL0ZIrbRTdJQMO3as0dRFjalpJLiPbC2ka0U",
   endpoints: {
-    // User-related endpoints
-    users: '/user2/users',
-    profile: '/user2/profile',
-    
-    // Leaderboard/stats endpoints
-    leaderboard: '/user2/affiliate/referral-leaderboard/2RW440E',
-    statistics: '/user2/statistics',
-    
-    // Game data endpoints
-    games: '/user2/games',
-    outcomes: '/user2/outcomes',
-    wagers: '/user2/wagers',
-    
-    // Bonus/promotion endpoints
-    bonuses: '/user2/bonuses',
-    promotions: '/user2/promotions',
+    leaderboard: "/affiliate/referral-leaderboard/2RW440E",
+    health: "/health"
+    // Removed invalid endpoints
   },
-  
-  // Request configuration
+  fallbackData: {
+    // Fallback data structure when API is unavailable
+    leaderboard: {
+      status: "success",
+      metadata: {
+        totalUsers: 0,
+        lastUpdated: new Date().toISOString()
+      },
+      data: {
+        today: { data: [] },
+        weekly: { data: [] },
+        monthly: { data: [] },
+        all_time: { data: [] }
+      }
+    }
+  },
   request: {
     // Default timeout in milliseconds
     timeout: 10000,
-    
+
     // Default number of retries for failed requests
-    retries: 3,
-    
-    // Cache TTL in seconds for different endpoint types
-    cacheTtl: {
-      leaderboard: 300, // 5 minutes
-      users: 600,       // 10 minutes
-      statistics: 900,  // 15 minutes
-      games: 1800,      // 30 minutes
-    }
-  },
-  
-  // Response mappings
-  // Maps API response fields to our application's field names
-  fieldMappings: {
-    userId: 'uid',
-    username: 'name',
-    totalWagered: 'total_wagered',
-    totalWon: 'total_won',
-    gamesPlayed: 'games_played',
-    winRate: 'win_rate'
+    retries: 3
   }
 };
 
@@ -76,7 +52,7 @@ export const INTERNAL_API_CONFIG = {
     standardHeaders: true,
     legacyHeaders: false,
   },
-  
+
   // Response defaults
   response: {
     // Default pagination settings
