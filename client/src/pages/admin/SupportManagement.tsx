@@ -27,7 +27,8 @@ export default function SupportManagement() {
   });
 
   useEffect(() => {
-    const websocket = new WebSocket(`ws://${window.location.hostname}:5000/ws/chat`);
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const websocket = new WebSocket(`${protocol}//${window.location.host}/ws/chat`);
     
     websocket.onmessage = (event) => {
       const newMessage = JSON.parse(event.data);

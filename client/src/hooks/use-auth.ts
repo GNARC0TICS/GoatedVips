@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
 export interface User {
   id: number;
@@ -13,13 +13,46 @@ export interface User {
   lastActive?: string;
 }
 
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: Error | null;
+  login: (username: string, password: string) => Promise<User>;
+  logout: () => Promise<void>;
+  register: (userData: { username: string; email: string; password: string }) => Promise<User>;
+}
+
+// Create the authentication context
+const AuthContext = createContext<AuthContextType | null>(null);
+
+// AuthProvider component
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const auth = useAuthProvider();
+  
+  return React.createElement(
+    AuthContext.Provider,
+    { value: auth },
+    children
+  );
+}
+
+// Hook to use the auth context
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+}
+
 /**
  * Custom hook for authentication state management
  * Provides user data and authentication status
  * 
  * @returns Authentication state and utility functions
  */
-export function useAuth() {
+function useAuthProvider() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);

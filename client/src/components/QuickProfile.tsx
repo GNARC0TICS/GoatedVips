@@ -1,14 +1,17 @@
-import React from "react";
+import React, { ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { profileService } from "@/services/profileService";
 import { useToast } from "@/hooks/use-toast";
 import { QuickProfileCard } from "./profile/QuickProfileCard";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 interface QuickProfileProps {
   userId: string | number;
   onClose?: () => void;
   size?: "sm" | "md";
   className?: string;
+  children?: ReactNode;
+  username?: string;
 }
 
 /**
@@ -21,7 +24,31 @@ export function QuickProfile({
   onClose,
   size = "md",
   className,
+  children,
+  username
 }: QuickProfileProps) {
+  // If children are provided, render as a popover
+  if (children) {
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <div className="cursor-pointer">
+            {children}
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-0">
+          <QuickProfileCard
+            profileId={userId}
+            onClose={onClose}
+            size={size}
+            className={className}
+          />
+        </PopoverContent>
+      </Popover>
+    );
+  }
+  
+  // Otherwise, render directly
   return (
     <QuickProfileCard
       profileId={userId}

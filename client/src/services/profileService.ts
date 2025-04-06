@@ -65,11 +65,16 @@ class ProfileService {
   isProfileOwner(profileId: string | number): boolean {
     if (!this.currentUser) return false;
     
-    // Check if the IDs match (either numeric ID or goatedId)
-    return (
-      this.currentUser.id.toString() === profileId.toString() ||
-      (this.currentUser.goatedId && this.currentUser.goatedId === profileId.toString())
-    );
+    // Check if the primary ID matches
+    const idMatch = this.currentUser.id.toString() === profileId.toString();
+    
+    // Check if the goatedId matches, if it exists
+    let goatedIdMatch = false;
+    if (typeof this.currentUser.goatedId === 'string') {
+      goatedIdMatch = this.currentUser.goatedId === profileId.toString();
+    }
+    
+    return idMatch || goatedIdMatch;
   }
 
   /**

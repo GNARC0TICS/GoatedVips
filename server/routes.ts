@@ -19,6 +19,7 @@ import { RateLimiterMemory, type RateLimiterRes } from 'rate-limiter-flexible';
 import bonusChallengesRouter from "./routes/bonus-challenges";
 import usersRouter from "./routes/users";
 import goombasAdminRouter from "./routes/goombas-admin";
+import accountLinkingRouter from "./routes/account-linking";
 import { requireAdmin } from "./middleware/admin";
 import { wagerRaces, users, transformationLogs, wagerRaceParticipants } from "@db/schema";
 import { ensureUserProfile } from "./index";
@@ -320,6 +321,7 @@ function setupAPIRoutes(app: Express) {
   app.use("/api/bonus", bonusChallengesRouter);
   app.use("/api/users", usersRouter); // For backward compatibility
   app.use("/users", usersRouter);     // New public profile routes
+  app.use("/api/account", accountLinkingRouter); // Account linking routes
   app.use("/api", router); //Added this line
   
   // Mount our custom admin routes at the non-obvious URL path
@@ -763,6 +765,34 @@ function setupWebSocket(httpServer: Server) {
   // Create WebSocket server for transformation logs
   createWebSocketServer(httpServer, '/ws/transformation-logs', (ws, _req) => {
     handleTransformationLogsConnection(ws);
+  });
+  
+  // Create WebSocket server for support chat
+  createWebSocketServer(httpServer, '/ws/chat', (ws, _req) => {
+    log("info", "New support chat WebSocket connection established");
+    
+    ws.on('message', (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        if (data.type === 'chat_message') {
+          // Echo the message back to the client for now
+          // In a real implementation, this would store the message and broadcast to other clients
+          ws.send(JSON.stringify({
+            id: Date.now(),
+            userId: 1, // Mock user ID
+            message: data.message,
+            createdAt: new Date().toISOString(),
+            isStaffReply: data.isStaffReply || false
+          }));
+        }
+      } catch (err) {
+        log("error", `Error parsing chat message: ${err}`);
+      }
+    });
+    
+    ws.on('error', (error) => {
+      log("error", `Chat WebSocket error: ${error.message}`);
+    });
   });
 }
 

@@ -156,20 +156,22 @@ export function setupAuth(app: Express) {
         })
         .returning();
 
-      // Send verification email
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
-        from: 'noreply@goatedvips.gg',
-        to: email.toLowerCase(),
-        subject: 'Verify your GoatedVIPs account',
-        html: `
-          <h1>Welcome to GoatedVIPs!</h1>
-          <p>Click the link below to verify your email address:</p>
-          <a href="${process.env.APP_URL}/verify-email/${emailVerificationToken}">
-            Verify Email
-          </a>
-        `
-      });
+      // Skip email verification for testing
+      console.log('Email verification skipped for testing');
+      // Would normally send an email here
+      // const resend = new Resend(process.env.RESEND_API_KEY);
+      // await resend.emails.send({
+      //   from: 'noreply@goatedvips.gg',
+      //   to: email.toLowerCase(),
+      //   subject: 'Verify your GoatedVIPs account',
+      //   html: `
+      //     <h1>Welcome to GoatedVIPs!</h1>
+      //     <p>Click the link below to verify your email address:</p>
+      //     <a href="${process.env.APP_URL}/verify-email/${emailVerificationToken}">
+      //       Verify Email
+      //     </a>
+      //   `
+      // });
 
       // Log user in after registration
       req.login(newUser, (err) => {

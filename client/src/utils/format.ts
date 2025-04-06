@@ -1,198 +1,176 @@
 /**
- * Formats a number as currency
- * @param value - The numeric value to format
- * @param options - Formatting options
+ * Utility functions for formatting data in consistent ways across the application
+ */
+
+/**
+ * Format a number as currency (USD by default)
+ * @param value The value to format
+ * @param locale The locale to use for formatting
+ * @param currency The currency code to use
  * @returns Formatted currency string
  */
 export function formatCurrency(
   value: number,
-  options: {
-    currency?: string;
-    locale?: string;
-    maximumFractionDigits?: number;
-    minimumFractionDigits?: number;
-  } = {}
+  locale = 'en-US',
+  currency = 'USD'
 ): string {
-  const {
-    currency = 'USD',
-    locale = 'en-US',
-    maximumFractionDigits = 2,
-    minimumFractionDigits = 2,
-  } = options;
-
+  if (!value && value !== 0) return '$0.00';
+  
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
-    maximumFractionDigits,
-    minimumFractionDigits,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   }).format(value);
 }
 
 /**
- * Formats a number with commas for thousands
- * @param value - The numeric value to format
- * @param options - Formatting options
+ * Format a number with thousands separators
+ * @param value The value to format
+ * @param locale The locale to use for formatting
  * @returns Formatted number string
  */
 export function formatNumber(
   value: number,
-  options: {
-    locale?: string;
-    maximumFractionDigits?: number;
-    minimumFractionDigits?: number;
-  } = {}
+  locale = 'en-US'
 ): string {
-  const {
-    locale = 'en-US',
-    maximumFractionDigits = 2,
-    minimumFractionDigits = 0,
-  } = options;
-
+  if (!value && value !== 0) return '0';
+  
   return new Intl.NumberFormat(locale, {
-    maximumFractionDigits,
-    minimumFractionDigits,
+    maximumFractionDigits: 0
   }).format(value);
 }
 
 /**
- * Formats a percentage value
- * @param value - The numeric value to format (0-1)
- * @param options - Formatting options
+ * Format a number as a percentage
+ * @param value The value to format (0-1)
+ * @param locale The locale to use for formatting
+ * @param digits Number of decimal places
  * @returns Formatted percentage string
  */
 export function formatPercentage(
   value: number,
-  options: {
-    locale?: string;
-    maximumFractionDigits?: number;
-    minimumFractionDigits?: number;
-  } = {}
+  locale = 'en-US',
+  digits = 1
 ): string {
-  const {
-    locale = 'en-US',
-    maximumFractionDigits = 1,
-    minimumFractionDigits = 0,
-  } = options;
-
+  if (!value && value !== 0) return '0%';
+  
+  // Convert decimal (0-1) to percentage (0-100)
+  const percentage = value <= 1 ? value * 100 : value;
+  
   return new Intl.NumberFormat(locale, {
     style: 'percent',
-    maximumFractionDigits,
-    minimumFractionDigits,
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
+  }).format(percentage / 100);
+}
+
+/**
+ * Format a number as a compact representation (e.g., 1.2K, 5.3M)
+ * @param value The value to format
+ * @param locale The locale to use for formatting
+ * @returns Formatted compact string
+ */
+export function formatCompact(
+  value: number,
+  locale = 'en-US'
+): string {
+  if (!value && value !== 0) return '0';
+  
+  return new Intl.NumberFormat(locale, {
+    notation: 'compact',
+    compactDisplay: 'short',
+    maximumFractionDigits: 1
   }).format(value);
 }
 
 /**
- * Formats a date for display
- * @param date - Date to format
- * @param options - Intl.DateTimeFormat options
+ * Format a date to a readable string
+ * @param date The date to format (Date object or ISO string)
+ * @param locale The locale to use for formatting
  * @returns Formatted date string
  */
 export function formatDate(
-  date: Date | string | number,
-  options: Intl.DateTimeFormatOptions = {
+  date: Date | string,
+  locale = 'en-US'
+): string {
+  if (!date) return '';
+  
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  }).format(dateObj);
+}
+
+/**
+ * Format a date to include time
+ * @param date The date to format (Date object or ISO string)
+ * @param locale The locale to use for formatting
+ * @returns Formatted date and time string
+ */
+export function formatDateTime(
+  date: Date | string,
+  locale = 'en-US'
+): string {
+  if (!date) return '';
+  
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
-  }
-): string {
-  const dateObj = date instanceof Date ? date : new Date(date);
-  
-  return new Intl.DateTimeFormat('en-US', options).format(dateObj);
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(dateObj);
 }
 
 /**
- * Formats a relative time (e.g., "2 days ago")
- * @param date - Date to format
- * @returns Formatted relative time string
+ * Format a duration in milliseconds to a readable string
+ * @param milliseconds Duration in milliseconds
+ * @returns Formatted duration string
  */
-export function formatRelativeTime(date: Date | string | number): string {
-  const dateObj = date instanceof Date ? date : new Date(date);
-  const now = new Date();
-  const diffMs = now.getTime() - dateObj.getTime();
+export function formatDuration(milliseconds: number): string {
+  if (!milliseconds) return '0s';
   
-  // Convert to seconds
-  const diffSec = Math.floor(diffMs / 1000);
+  const seconds = Math.floor(milliseconds / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
   
-  if (diffSec < 60) {
-    return diffSec <= 5 ? 'just now' : `${diffSec} seconds ago`;
+  if (days > 0) {
+    return `${days}d ${hours % 24}h`;
+  } else if (hours > 0) {
+    return `${hours}h ${minutes % 60}m`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds % 60}s`;
+  } else {
+    return `${seconds}s`;
   }
-  
-  // Convert to minutes
-  const diffMin = Math.floor(diffSec / 60);
-  
-  if (diffMin < 60) {
-    return `${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
-  }
-  
-  // Convert to hours
-  const diffHour = Math.floor(diffMin / 60);
-  
-  if (diffHour < 24) {
-    return `${diffHour} hour${diffHour === 1 ? '' : 's'} ago`;
-  }
-  
-  // Convert to days
-  const diffDay = Math.floor(diffHour / 24);
-  
-  if (diffDay < 30) {
-    return `${diffDay} day${diffDay === 1 ? '' : 's'} ago`;
-  }
-  
-  // Convert to months
-  const diffMonth = Math.floor(diffDay / 30);
-  
-  if (diffMonth < 12) {
-    return `${diffMonth} month${diffMonth === 1 ? '' : 's'} ago`;
-  }
-  
-  // Convert to years
-  const diffYear = Math.floor(diffMonth / 12);
-  
-  return `${diffYear} year${diffYear === 1 ? '' : 's'} ago`;
 }
 
 /**
- * Truncates text to a specified length and adds ellipsis
- * @param text - Text to truncate
- * @param length - Maximum length
- * @returns Truncated text
- */
-export function truncateText(text: string, length: number): string {
-  if (text.length <= length) {
-    return text;
-  }
-  
-  return `${text.substring(0, length)}...`;
-}
-
-/**
- * Converts a camelCase string to Title Case
- * @param camelCaseText - Text in camelCase
- * @returns Text in Title Case
- */
-export function camelCaseToTitleCase(camelCaseText: string): string {
-  // Add a space before each uppercase letter and then capitalize the first letter
-  const result = camelCaseText
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, (str) => str.toUpperCase());
-  
-  return result;
-}
-
-/**
- * Formats a file size in bytes to human-readable format
- * @param bytes - Size in bytes
- * @param decimals - Number of decimal places
+ * Format a number as a file size (e.g., 1.5 KB, 3.2 MB)
+ * @param bytes The file size in bytes
+ * @param locale The locale to use for formatting
  * @returns Formatted file size string
  */
-export function formatFileSize(bytes: number, decimals = 2): string {
-  if (bytes === 0) return '0 Bytes';
+export function formatFileSize(bytes: number, locale = 'en-US'): string {
+  if (!bytes && bytes !== 0) return '0 B';
   
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let unitIndex = 0;
   
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
   
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  return `${new Intl.NumberFormat(locale, {
+    maximumFractionDigits: unitIndex === 0 ? 0 : 1
+  }).format(value)} ${units[unitIndex]}`;
 }

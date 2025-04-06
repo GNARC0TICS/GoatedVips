@@ -53,7 +53,16 @@ export default function WagerRaces() {
   const { data: leaderboardData, isLoading } = useLeaderboard("monthly");
 
   useEffect(() => {
-    ws.current = new WebSocket(`wss://${window.location.hostname}/ws`);
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    ws.current = new WebSocket(`${protocol}//${window.location.host}/ws/leaderboard`);
+    
+    ws.current.onopen = () => {
+      console.log('WagerRaces WebSocket connection established');
+    };
+    
+    ws.current.onerror = (error) => {
+      console.error('WagerRaces WebSocket error:', error);
+    };
 
     return () => {
       if (ws.current) {
