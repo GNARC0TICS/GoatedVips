@@ -108,22 +108,12 @@ export async function transformLeaderboardData(apiData: any): Promise<Leaderboar
         }
       };
       
-      // Add to each period's data if they have wagered for that period
-      if ((transformedUser.wagered.today || 0) > 0) {
-        byPeriod.today.push(transformedUser);
-      }
-      
-      if ((transformedUser.wagered.this_week || 0) > 0) {
-        byPeriod.weekly.push(transformedUser);
-      }
-      
-      if ((transformedUser.wagered.this_month || 0) > 0) {
-        byPeriod.monthly.push(transformedUser);
-      }
-      
-      if ((transformedUser.wagered.all_time || 0) > 0) {
-        byPeriod.all_time.push(transformedUser);
-      }
+      // Add to each period's data regardless of wager amount
+      // This ensures users with zero wager are included too
+      byPeriod.today.push(transformedUser);
+      byPeriod.weekly.push(transformedUser);
+      byPeriod.monthly.push(transformedUser);
+      byPeriod.all_time.push(transformedUser);
     }
     
     // Sort each period by appropriate wagered amount

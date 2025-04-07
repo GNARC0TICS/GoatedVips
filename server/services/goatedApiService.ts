@@ -26,6 +26,16 @@ export interface GoatedUser {
   [key: string]: any;
 }
 
+// Define the structure for our transformed data
+interface TransformedData {
+  data: {
+    today: { data: any[] };
+    weekly: { data: any[] };
+    monthly: { data: any[] };
+    all_time: { data: any[] };
+  }
+}
+
 class GoatedApiService {
   private apiToken: string;
   private baseUrl: string;
@@ -118,18 +128,55 @@ class GoatedApiService {
         // Fetch leaderboard data directly from the base URL (no endpoint needed)
         const leaderboardData = await this.fetchFromExternalApi("");
         
+        // Log the full structure of the leaderboard data
+        console.log("Raw API response structure:", JSON.stringify({
+          hasData: !!leaderboardData,
+          dataTypes: {
+            success: typeof leaderboardData?.success,
+            data: typeof leaderboardData?.data
+          },
+          keys: Object.keys(leaderboardData || {})
+        }));
+        
+        // Make sure we handle the response structure correctly
+        const transformedData: TransformedData = {
+          data: {
+            today: { data: [] },
+            weekly: { data: [] },
+            monthly: { data: [] },
+            all_time: { data: [] }
+          }
+        };
+        
+        if (leaderboardData && leaderboardData.data) {
+          // Map API data structure to our format
+          if (leaderboardData.data.today) {
+            transformedData.data.today.data = leaderboardData.data.today;
+          }
+          if (leaderboardData.data.this_week) {
+            transformedData.data.weekly.data = leaderboardData.data.this_week;
+          }
+          if (leaderboardData.data.this_month) {
+            transformedData.data.monthly.data = leaderboardData.data.this_month;
+          }
+          if (leaderboardData.data.all_time) {
+            transformedData.data.all_time.data = leaderboardData.data.all_time;
+          }
+        }
+        
         // Create a map to deduplicate users from all timeframes
         const userMap = new Map();
         
-        // Process all timeframes (today, weekly, monthly, all_time) to get ALL unique users
-        const timeframes = ["today", "this_week", "monthly", "all_time"];
+        // Process all timeframes
+        const timeframes = ["today", "weekly", "monthly", "all_time"] as const;
+        type TimeframeName = typeof timeframes[number];
         
         // Count total users before deduplication for logging
         let totalUsersRaw = 0;
         
         // Add users from each timeframe to the map with UID as key
         for (const timeframe of timeframes) {
-          const timeframeData = leaderboardData?.data?.[timeframe]?.data || [];
+          const timeframeData = transformedData.data[timeframe as keyof typeof transformedData.data].data || [];
           totalUsersRaw += timeframeData.length;
           
           for (const user of timeframeData) {
@@ -186,21 +233,22 @@ class GoatedApiService {
                 if (existingWagerData) {
                   await db.execute(sql`
                     UPDATE mock_wager_data
-                    SET wagered_all_time = ${player.wager_amount},
+                    SET username = ${player.name},
+                        wagered_all_time = ${player.wager_amount},
                         wagered_this_month = ${player.wager_amount_monthly || 0}, 
                         wagered_this_week = ${player.wager_amount_weekly || 0}, 
                         wagered_today = ${player.wager_amount_daily || 0},
-                        last_updated = ${new Date()}
+                        updated_at = ${new Date()}
                     WHERE user_id = ${existingUser[0].id}
                   `);
                 } else {
                   // Create new wager data entry
                   await db.execute(sql`
                     INSERT INTO mock_wager_data (
-                      user_id, wagered_all_time, wagered_this_month, 
-                      wagered_this_week, wagered_today, last_updated
+                      user_id, username, wagered_all_time, wagered_this_month, 
+                      wagered_this_week, wagered_today, created_at
                     ) VALUES (
-                      ${existingUser[0].id}, ${player.wager_amount}, 
+                      ${existingUser[0].id}, ${player.name}, ${player.wager_amount}, 
                       ${player.wager_amount_monthly || 0}, 
                       ${player.wager_amount_weekly || 0}, 
                       ${player.wager_amount_daily || 0},
@@ -232,10 +280,10 @@ class GoatedApiService {
             if (player.wager_amount) {
               await db.execute(sql`
                 INSERT INTO mock_wager_data (
-                  user_id, wagered_all_time, wagered_this_month, 
-                  wagered_this_week, wagered_today, last_updated
+                  user_id, username, wagered_all_time, wagered_this_month, 
+                  wagered_this_week, wagered_today, created_at
                 ) VALUES (
-                  ${newUserId}, ${player.wager_amount}, 
+                  ${newUserId}, ${player.name}, ${player.wager_amount}, 
                   ${player.wager_amount_monthly || 0}, 
                   ${player.wager_amount_weekly || 0}, 
                   ${player.wager_amount_daily || 0},
@@ -280,16 +328,52 @@ class GoatedApiService {
       // Fetch leaderboard data directly from the base URL (no endpoint needed)
       const leaderboardData = await this.fetchFromExternalApi("");
       
+      // Log the full structure of the leaderboard data
+      console.log("Raw API response structure (in updateAllWagerData):", JSON.stringify({
+        hasData: !!leaderboardData,
+        dataTypes: {
+          success: typeof leaderboardData?.success,
+          data: typeof leaderboardData?.data
+        },
+        keys: Object.keys(leaderboardData || {})
+      }));
+      
+      // Use the same TransformedData interface from above
+      const transformedData: TransformedData = {
+        data: {
+          today: { data: [] },
+          weekly: { data: [] },
+          monthly: { data: [] },
+          all_time: { data: [] }
+        }
+      };
+      
+      if (leaderboardData && leaderboardData.data) {
+        // Map API data structure to our format
+        if (leaderboardData.data.today) {
+          transformedData.data.today.data = leaderboardData.data.today;
+        }
+        if (leaderboardData.data.this_week) {
+          transformedData.data.weekly.data = leaderboardData.data.this_week;
+        }
+        if (leaderboardData.data.this_month) {
+          transformedData.data.monthly.data = leaderboardData.data.this_month;
+        }
+        if (leaderboardData.data.all_time) {
+          transformedData.data.all_time.data = leaderboardData.data.all_time;
+        }
+      }
+      
       // Create a map to deduplicate users from all timeframes
       const userMap = new Map();
       
-      // Process all timeframes to get ALL unique users
-      const timeframes = ["today", "this_week", "monthly", "all_time"];
+      // Process all timeframes
+      const timeframes = ["today", "weekly", "monthly", "all_time"] as const;
       let totalUsersRaw = 0;
       
       // Add users from each timeframe to the map with UID as key
       for (const timeframe of timeframes) {
-        const timeframeData = leaderboardData?.data?.[timeframe]?.data || [];
+        const timeframeData = transformedData.data[timeframe as keyof typeof transformedData.data].data || [];
         totalUsersRaw += timeframeData.length;
         
         for (const user of timeframeData) {
@@ -336,21 +420,22 @@ class GoatedApiService {
                 // Update existing wager data
                 await db.execute(sql`
                   UPDATE mock_wager_data
-                  SET wagered_all_time = ${player.wager_amount || 0},
+                  SET username = ${player.name},
+                      wagered_all_time = ${player.wager_amount || 0},
                       wagered_this_month = ${player.wager_amount_monthly || 0}, 
                       wagered_this_week = ${player.wager_amount_weekly || 0}, 
                       wagered_today = ${player.wager_amount_daily || 0},
-                      last_updated = ${new Date()}
+                      updated_at = ${new Date()}
                   WHERE user_id = ${existingUser[0].id}
                 `);
               } else {
                 // Create new wager data entry
                 await db.execute(sql`
                   INSERT INTO mock_wager_data (
-                    user_id, wagered_all_time, wagered_this_month, 
-                    wagered_this_week, wagered_today, last_updated
+                    user_id, username, wagered_all_time, wagered_this_month, 
+                    wagered_this_week, wagered_today, created_at
                   ) VALUES (
-                    ${existingUser[0].id}, ${player.wager_amount || 0}, 
+                    ${existingUser[0].id}, ${player.name}, ${player.wager_amount || 0}, 
                     ${player.wager_amount_monthly || 0}, 
                     ${player.wager_amount_weekly || 0}, 
                     ${player.wager_amount_daily || 0},
@@ -380,10 +465,10 @@ class GoatedApiService {
             if (player.wager_amount !== undefined) {
               await db.execute(sql`
                 INSERT INTO mock_wager_data (
-                  user_id, wagered_all_time, wagered_this_month, 
-                  wagered_this_week, wagered_today, last_updated
+                  user_id, username, wagered_all_time, wagered_this_month, 
+                  wagered_this_week, wagered_today, created_at
                 ) VALUES (
-                  ${newUserId}, ${player.wager_amount || 0}, 
+                  ${newUserId}, ${player.name}, ${player.wager_amount || 0}, 
                   ${player.wager_amount_monthly || 0}, 
                   ${player.wager_amount_weekly || 0}, 
                   ${player.wager_amount_daily || 0},
