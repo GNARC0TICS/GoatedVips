@@ -61,8 +61,8 @@ export function RaceTimer() {
   const [isExpanded] = useState(true);
   const [showPrevious, setShowPrevious] = useState(false);
   const [timeLeft, setTimeLeft] = useState("");
-  const [isVisible] = useState(true);
-  const [isContentVisible, setIsContentVisible] = useState(false);
+  const [isVisible] = useState(true); // Always visible
+  const [isContentVisible, setIsContentVisible] = useState(true); // Start with content visible
   const [isAnimationReady, setIsAnimationReady] = useState(false);
   const { toast } = useToast();
 
@@ -137,7 +137,8 @@ export function RaceTimer() {
     return () => clearInterval(interval);
   }, [currentRaceData?.endDate]);
 
-  if (error || isLoading || (!raceData && !isVisible)) return null;
+  // Don't completely hide the component on error or loading states
+  if (!isVisible) return null;
 
   return (
     <div className="fixed top-1/2 right-0 transform -translate-y-1/2 z-50">

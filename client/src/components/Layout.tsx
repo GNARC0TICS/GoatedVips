@@ -43,6 +43,7 @@ import { UtilityPanelButton } from "./UtilityPanel";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import giftIcon from '/images/GIFT.png';
+import { RaceTimer } from "./RaceTimer"; // Added import for RaceTimer
 
 // --- Static Styles (Memoized as constants) ---
 const headerClasses = {
@@ -783,8 +784,13 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      {children}
+      <main className="flex-1">
+        {children}
+      </main>
+      <RaceTimer /> {/* Added RaceTimer component */}
+      <FloatingSupport />
       <ScrollToTop />
+      <Toaster />
       <footer ref={footerRef} className={footerClasses.wrapper}>
         <div className="absolute inset-0 bg-gradient-to-b from-[#D7FF00]/20 to-transparent pointer-events-none" />
         <div className={footerClasses.container}>
