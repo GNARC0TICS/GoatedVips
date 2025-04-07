@@ -148,19 +148,56 @@ class GoatedApiService {
           }
         };
         
-        if (leaderboardData && leaderboardData.data) {
-          // Map API data structure to our format
-          if (leaderboardData.data.today) {
-            transformedData.data.today.data = leaderboardData.data.today;
-          }
-          if (leaderboardData.data.this_week) {
-            transformedData.data.weekly.data = leaderboardData.data.this_week;
-          }
-          if (leaderboardData.data.this_month) {
-            transformedData.data.monthly.data = leaderboardData.data.this_month;
-          }
-          if (leaderboardData.data.all_time) {
-            transformedData.data.all_time.data = leaderboardData.data.all_time;
+        console.log("Full leaderboard data structure:", JSON.stringify(leaderboardData).substring(0, 1000) + "...");
+        
+        // Try to extract users from the response
+        if (leaderboardData) {
+          // Check if data is in the expected format
+          if (leaderboardData.data) {
+            // Try standard keys first
+            if (leaderboardData.data.today) {
+              transformedData.data.today.data = leaderboardData.data.today;
+            }
+            if (leaderboardData.data.this_week) {
+              transformedData.data.weekly.data = leaderboardData.data.this_week;
+            }
+            if (leaderboardData.data.this_month) {
+              transformedData.data.monthly.data = leaderboardData.data.this_month;
+            }
+            if (leaderboardData.data.all_time) {
+              transformedData.data.all_time.data = leaderboardData.data.all_time;
+            }
+            
+            // If no data found with standard keys, try alternative formats
+            if (transformedData.data.all_time.data.length === 0) {
+              // Check if data is directly in the response
+              if (Array.isArray(leaderboardData.data)) {
+                transformedData.data.all_time.data = leaderboardData.data;
+              } else {
+                // Try to extract data from numeric keys (as seen in logs)
+                const userEntries = [];
+                for (const key in leaderboardData.data) {
+                  if (!isNaN(Number(key)) && leaderboardData.data[key]) {
+                    userEntries.push(leaderboardData.data[key]);
+                  }
+                }
+                
+                if (userEntries.length > 0) {
+                  console.log(`Found ${userEntries.length} entries using numeric keys`);
+                  // Add these entries to all timeframes for now
+                  transformedData.data.all_time.data = userEntries;
+                  transformedData.data.monthly.data = userEntries;
+                  transformedData.data.weekly.data = userEntries;
+                  transformedData.data.today.data = userEntries;
+                }
+              }
+            }
+          } else if (Array.isArray(leaderboardData)) {
+            // If the response is directly an array
+            transformedData.data.all_time.data = leaderboardData;
+            transformedData.data.monthly.data = leaderboardData;
+            transformedData.data.weekly.data = leaderboardData;
+            transformedData.data.today.data = leaderboardData;
           }
         }
         
@@ -348,19 +385,54 @@ class GoatedApiService {
         }
       };
       
-      if (leaderboardData && leaderboardData.data) {
-        // Map API data structure to our format
-        if (leaderboardData.data.today) {
-          transformedData.data.today.data = leaderboardData.data.today;
-        }
-        if (leaderboardData.data.this_week) {
-          transformedData.data.weekly.data = leaderboardData.data.this_week;
-        }
-        if (leaderboardData.data.this_month) {
-          transformedData.data.monthly.data = leaderboardData.data.this_month;
-        }
-        if (leaderboardData.data.all_time) {
-          transformedData.data.all_time.data = leaderboardData.data.all_time;
+      // Same improved parsing logic as in syncUserProfiles
+      if (leaderboardData) {
+        // Check if data is in the expected format
+        if (leaderboardData.data) {
+          // Try standard keys first
+          if (leaderboardData.data.today) {
+            transformedData.data.today.data = leaderboardData.data.today;
+          }
+          if (leaderboardData.data.this_week) {
+            transformedData.data.weekly.data = leaderboardData.data.this_week;
+          }
+          if (leaderboardData.data.this_month) {
+            transformedData.data.monthly.data = leaderboardData.data.this_month;
+          }
+          if (leaderboardData.data.all_time) {
+            transformedData.data.all_time.data = leaderboardData.data.all_time;
+          }
+          
+          // If no data found with standard keys, try alternative formats
+          if (transformedData.data.all_time.data.length === 0) {
+            // Check if data is directly in the response
+            if (Array.isArray(leaderboardData.data)) {
+              transformedData.data.all_time.data = leaderboardData.data;
+            } else {
+              // Try to extract data from numeric keys (as seen in logs)
+              const userEntries = [];
+              for (const key in leaderboardData.data) {
+                if (!isNaN(Number(key)) && leaderboardData.data[key]) {
+                  userEntries.push(leaderboardData.data[key]);
+                }
+              }
+              
+              if (userEntries.length > 0) {
+                console.log(`Found ${userEntries.length} entries using numeric keys in wager data update`);
+                // Add these entries to all timeframes for now
+                transformedData.data.all_time.data = userEntries;
+                transformedData.data.monthly.data = userEntries;
+                transformedData.data.weekly.data = userEntries;
+                transformedData.data.today.data = userEntries;
+              }
+            }
+          }
+        } else if (Array.isArray(leaderboardData)) {
+          // If the response is directly an array
+          transformedData.data.all_time.data = leaderboardData;
+          transformedData.data.monthly.data = leaderboardData;
+          transformedData.data.weekly.data = leaderboardData;
+          transformedData.data.today.data = leaderboardData;
         }
       }
       
