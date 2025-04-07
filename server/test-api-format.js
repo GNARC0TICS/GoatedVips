@@ -6,7 +6,7 @@
  * detailed structure of the response to help debug format issues.
  */
 
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 
 async function testApiFormat() {
   try {
