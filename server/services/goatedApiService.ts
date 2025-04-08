@@ -1,570 +1,180 @@
-
 /**
  * GoatedApiService
  * 
- * This service is responsible for interacting with the external Goated API
- * to fetch data and populate our database. It does NOT handle user searches
- * or other operations that should use our local database.
+ * This service is responsible for all external API communication with the Goated.com API.
+ * It handles authentication, request retries, and error handling, returning raw data
+ * from the external API to be processed by the PlatformApiService.
+ * 
+ * Key features:
+ * - Fetches data from the single Goated.com API endpoint
+ * - Handles authentication with API token
+ * - Implements retry logic with exponential backoff
+ * - Provides detailed error logging
+ * 
+ * This service is intentionally limited to ONLY external API communication, with no
+ * data transformation or business logic. All transformation happens in PlatformApiService.
  */
 
-import { db } from '../../db';
-import { users, mockWagerData } from '../../db/schema';
-import { eq, sql } from 'drizzle-orm';
-import { API_CONFIG } from '../config/api';
+import { API_CONFIG } from "../config/api";
 
-// Define the shape of data from the external API
-export interface GoatedUser {
-  id: string;
-  name: string;
-  avatar?: string;
-  wager?: {
-    all_time: number;
-    monthly: number;
-    weekly: number;
-    daily: number;
-  };
-  [key: string]: any;
+// For exponential backoff in retries
+function getSleepTime(retryCount: number, initialDelay = 1000, maxDelay = 60000): number {
+  // Exponential backoff: 1s, 2s, 4s, 8s, etc. up to maxDelay
+  const delay = Math.min(maxDelay, initialDelay * Math.pow(2, retryCount));
+  // Add jitter to prevent all clients retrying at the same time
+  return delay * (0.8 + 0.4 * Math.random());
 }
 
-// Define the structure for our transformed data
-interface TransformedData {
-  data: {
-    today: { data: any[] };
-    weekly: { data: any[] };
-    monthly: { data: any[] };
-    all_time: { data: any[] };
-  }
+// Helper for sleeping
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-class GoatedApiService {
+/**
+ * External API Service
+ * Handles all communication with the external Goated.com API
+ */
+export class GoatedApiService {
+  private apiUrl: string;
   private apiToken: string;
-  private baseUrl: string;
-  
-  constructor() {
-    // Use the newer token that appears to be working
-    this.apiToken = process.env.API_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJNZ2xjTU9DNEl6cWpVbzVhTXFBVyIsInNlc3Npb24iOiJUWlNlWlJVWkFZbzEiLCJpYXQiOjE3NDM5MTM3NzYsImV4cCI6MTc0NDAwMDE3Nn0.8JHA2VNfP1FyS4HXIONlKBuDNjS98o8Waxnl6WOXCus";
-    this.baseUrl = API_CONFIG.baseUrl;
-  }
-  
+  private requestTimeout: number;
+  private maxRetries: number;
+
   /**
-   * Check if the API token is configured
+   * Initialize the service with configuration from API_CONFIG
+   */
+  constructor() {
+    this.apiUrl = API_CONFIG.baseUrl;
+    this.apiToken = process.env.API_TOKEN || API_CONFIG.token;
+    this.requestTimeout = API_CONFIG.request.timeout;
+    this.maxRetries = API_CONFIG.request.retries;
+    
+    console.log(`GoatedApiService initialized with URL: ${this.apiUrl}`);
+    // Log token status (without revealing the actual token)
+    const hasToken = !!this.apiToken;
+    console.log(`API token is ${hasToken ? 'available' : 'NOT available'}`);
+  }
+
+  /**
+   * Fetches data from the Goated.com API
+   * This is the main method that should be called by other services
+   * 
+   * @returns Raw JSON data from the API
+   */
+  async fetchReferralData(): Promise<any> {
+    console.log("Fetching referral data from external API");
+    
+    if (!this.hasApiToken()) {
+      throw new Error("API token is not configured");
+    }
+    
+    try {
+      const data = await this.makeApiRequest();
+      return data;
+    } catch (error) {
+      console.error("Failed to fetch referral data:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Checks if the API token is available
+   * Used to prevent unnecessary API calls when no token is configured
+   * 
+   * @returns boolean indicating if token is available
    */
   hasApiToken(): boolean {
     return !!this.apiToken;
   }
-  
+
   /**
-   * Fetch data from the external API
+   * Makes API request with retry logic and proper error handling
+   * This is the core method that handles the actual HTTP request
    * 
-   * @param endpoint - API endpoint to call
-   * @param options - Additional fetch options
-   * @returns Response from the API
+   * @returns Parsed JSON response from the API
+   * @throws Error if request fails after all retry attempts
    */
-  async fetchFromExternalApi(endpoint: string, options: RequestInit = {}, retries = 3): Promise<any> {
-    if (!this.hasApiToken()) {
-      throw new Error('API token not configured');
-    }
+  private async makeApiRequest(): Promise<any> {
+    let retryCount = 0;
+    let lastError: Error | null = null;
     
-    const url = `${this.baseUrl}${endpoint}`;
-    console.log(`Fetching data from external API: ${url}`);
-    
-    try {
-      const controller = new AbortController();
-      // Increase the timeout to 30 seconds (30000ms) to prevent AbortErrors
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-      
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          Authorization: `Bearer ${this.apiToken}`,
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error(`Error fetching from external API (${endpoint}):`, error);
-      
-      // Implement retry logic for network errors or timeouts
-      const err = error as any; // Type assertion to handle unknown error type
-      if (retries > 0 && (error instanceof TypeError || (err && err.name === 'AbortError'))) {
-        console.log(`Retrying API call to ${endpoint}, ${retries} attempts remaining...`);
-        // Exponential backoff: wait longer between retries
-        await new Promise(resolve => setTimeout(resolve, (3 - retries) * 1000));
-        return this.fetchFromExternalApi(endpoint, options, retries - 1);
-      }
-      
-      throw error;
-    }
-  }
-  
-  /**
-   * Sync user profiles from the leaderboard data
-   * Fetches data from external API and stores in our database
-   */
-  async syncUserProfiles(): Promise<{ created: number; updated: number; existing: number }> {
-    try {
-      if (!this.hasApiToken()) {
-        console.warn("API token not configured, skipping profile sync");
-        return { created: 0, updated: 0, existing: 0 };
-      }
-      
-      console.log("Syncing user profiles from external leaderboard API...");
-      
-      // Declare variables at the function level for proper scope
-      let created = 0;
-      let existing = 0;
-      let updated = 0;
-      
+    while (retryCount <= this.maxRetries) {
       try {
-        // Fetch leaderboard data directly from the base URL (no endpoint needed)
-        const leaderboardData = await this.fetchFromExternalApi("");
+        // Log retry information
+        if (retryCount > 0) {
+          console.log(`Retry attempt ${retryCount}/${this.maxRetries}`);
+        }
         
-        // Log the full structure of the leaderboard data
-        console.log("Raw API response structure:", JSON.stringify({
-          hasData: !!leaderboardData,
-          dataTypes: {
-            success: typeof leaderboardData?.success,
-            data: typeof leaderboardData?.data
+        // Make the API request
+        const response = await fetch(this.apiUrl, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${this.apiToken}`,
+            "Content-Type": "application/json",
           },
-          keys: Object.keys(leaderboardData || {})
-        }));
+          signal: AbortSignal.timeout(this.requestTimeout),
+        });
         
-        // Make sure we handle the response structure correctly
-        const transformedData: TransformedData = {
-          data: {
-            today: { data: [] },
-            weekly: { data: [] },
-            monthly: { data: [] },
-            all_time: { data: [] }
-          }
-        };
-        
-        console.log("Full leaderboard data structure:", JSON.stringify(leaderboardData).substring(0, 1000) + "...");
-        
-        // Try to extract users from the response
-        if (leaderboardData) {
-          // Check if data is in the expected format
-          if (leaderboardData.data) {
-            // Try standard keys first
-            if (leaderboardData.data.today) {
-              transformedData.data.today.data = leaderboardData.data.today;
-            }
-            if (leaderboardData.data.this_week) {
-              transformedData.data.weekly.data = leaderboardData.data.this_week;
-            }
-            if (leaderboardData.data.this_month) {
-              transformedData.data.monthly.data = leaderboardData.data.this_month;
-            }
-            if (leaderboardData.data.all_time) {
-              transformedData.data.all_time.data = leaderboardData.data.all_time;
-            }
-            
-            // If no data found with standard keys, try alternative formats
-            if (transformedData.data.all_time.data.length === 0) {
-              // Check if data is directly in the response
-              if (Array.isArray(leaderboardData.data)) {
-                transformedData.data.all_time.data = leaderboardData.data;
-              } else {
-                // Try to extract data from numeric keys (as seen in logs)
-                const userEntries = [];
-                for (const key in leaderboardData.data) {
-                  if (!isNaN(Number(key)) && leaderboardData.data[key]) {
-                    userEntries.push(leaderboardData.data[key]);
-                  }
-                }
-                
-                if (userEntries.length > 0) {
-                  console.log(`Found ${userEntries.length} entries using numeric keys`);
-                  // Add these entries to all timeframes for now
-                  transformedData.data.all_time.data = userEntries;
-                  transformedData.data.monthly.data = userEntries;
-                  transformedData.data.weekly.data = userEntries;
-                  transformedData.data.today.data = userEntries;
-                }
-              }
-            }
-          } else if (Array.isArray(leaderboardData)) {
-            // If the response is directly an array
-            transformedData.data.all_time.data = leaderboardData;
-            transformedData.data.monthly.data = leaderboardData;
-            transformedData.data.weekly.data = leaderboardData;
-            transformedData.data.today.data = leaderboardData;
-          }
+        // Handle HTTP error responses
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`API request failed with status ${response.status}: ${errorText}`);
         }
         
-        // Create a map to deduplicate users from all timeframes
-        const userMap = new Map();
+        // Parse the JSON response
+        const data = await response.json();
+        console.log(`Successfully fetched data from API with ${response.status} status`);
         
-        // Process all timeframes
-        const timeframes = ["today", "weekly", "monthly", "all_time"] as const;
-        type TimeframeName = typeof timeframes[number];
-        
-        // Count total users before deduplication for logging
-        let totalUsersRaw = 0;
-        
-        // Add users from each timeframe to the map with UID as key
-        for (const timeframe of timeframes) {
-          const timeframeData = transformedData.data[timeframe as keyof typeof transformedData.data].data || [];
-          totalUsersRaw += timeframeData.length;
-          
-          for (const user of timeframeData) {
-            if (user.uid && user.name) {
-              // Store in map, overwriting duplicates but keeping the data
-              userMap.set(user.uid, user);
-            }
-          }
+        // Basic validation of the response structure
+        if (!data) {
+          throw new Error("API returned empty response");
         }
         
-        // Convert map to array for processing
-        const allUsersData = Array.from(userMap.values());
+        return data;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.error(`API request failed (attempt ${retryCount + 1}/${this.maxRetries + 1}):`, lastError.message);
         
-        console.log(`Processing ${allUsersData.length} unique users from ${totalUsersRaw} total entries in all timeframes`);
+        // Don't retry if we've hit the max retries
+        if (retryCount >= this.maxRetries) {
+          break;
+        }
         
-        // If no users found, log warning and return
-        if (allUsersData.length === 0) {
-          console.warn("No users found in API response. Raw API data:", JSON.stringify({
-            hasData: !!leaderboardData?.data,
-            timeframes: leaderboardData?.data ? Object.keys(leaderboardData.data) : [],
-            dataStructure: typeof leaderboardData
-          }));
-          return { created: 0, updated: 0, existing: 0 };
-        }
-      
-        // Process each unique user from all timeframes
-        for (const player of allUsersData) {
-          try {
-            // Skip entries without uid or name
-            if (!player.uid || !player.name) continue;
-            
-            // Check if user already exists by goatedId
-            const existingUser = await db.select().from(users)
-              .where(eq(users.goatedId, player.uid))
-              .limit(1);
-            
-            if (existingUser && existingUser.length > 0) {
-              // Update existing user with latest data
-              await db.execute(sql`
-                UPDATE users 
-                SET goated_username = ${player.name},
-                    goated_account_linked = true,
-                    last_active = ${new Date()}
-                WHERE goated_id = ${player.uid}
-              `);
-              
-              // Store wager data if available
-              if (player.wager_amount) {
-                // Check if we have existing wager data
-                const existingWagerData = await db.query.mockWagerData.findFirst({
-                  where: eq(mockWagerData.userId, existingUser[0].id),
-                });
-                
-                if (existingWagerData) {
-                  await db.execute(sql`
-                    UPDATE mock_wager_data
-                    SET username = ${player.name},
-                        wagered_all_time = ${player.wager_amount},
-                        wagered_this_month = ${player.wager_amount_monthly || 0}, 
-                        wagered_this_week = ${player.wager_amount_weekly || 0}, 
-                        wagered_today = ${player.wager_amount_daily || 0},
-                        updated_at = ${new Date()}
-                    WHERE user_id = ${existingUser[0].id}
-                  `);
-                } else {
-                  // Create new wager data entry
-                  await db.execute(sql`
-                    INSERT INTO mock_wager_data (
-                      user_id, username, wagered_all_time, wagered_this_month, 
-                      wagered_this_week, wagered_today, created_at
-                    ) VALUES (
-                      ${existingUser[0].id}, ${player.name}, ${player.wager_amount}, 
-                      ${player.wager_amount_monthly || 0}, 
-                      ${player.wager_amount_weekly || 0}, 
-                      ${player.wager_amount_daily || 0},
-                      ${new Date()}
-                    )
-                  `);
-                }
-              }
-              
-              existing++;
-              continue;
-            }
-            
-            // Create a new permanent profile for this Goated user
-            const newUserId = Math.floor(1000 + Math.random() * 9000);
-            const email = `${player.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
-            
-            await db.execute(sql`
-              INSERT INTO users (
-                id, username, email, password, created_at, profile_color, 
-                bio, is_admin, goated_id, goated_username, goated_account_linked
-              ) VALUES (
-                ${newUserId}, ${player.name}, ${email}, '', ${new Date()}, '#D7FF00', 
-                'Official Goated.com player profile', false, ${player.uid}, ${player.name}, true
-              )
-            `);
-            
-            // If wager data is available, store it
-            if (player.wager_amount) {
-              await db.execute(sql`
-                INSERT INTO mock_wager_data (
-                  user_id, username, wagered_all_time, wagered_this_month, 
-                  wagered_this_week, wagered_today, created_at
-                ) VALUES (
-                  ${newUserId}, ${player.name}, ${player.wager_amount}, 
-                  ${player.wager_amount_monthly || 0}, 
-                  ${player.wager_amount_weekly || 0}, 
-                  ${player.wager_amount_daily || 0},
-                  ${new Date()}
-                )
-              `);
-            }
-            
-            created++;
-          } catch (error) {
-            console.error(`Error creating/updating profile for ${player?.name}:`, error);
-          }
-        }
-      } catch (apiError) {
-        console.error("Error fetching or processing leaderboard data:", apiError);
-        console.log("Using fallback empty data structure to prevent application crash");
-        // Return zeros but don't crash the application
-        return { created: 0, updated: 0, existing: 0 };
+        // Sleep with exponential backoff before next retry
+        const sleepTime = getSleepTime(retryCount);
+        console.log(`Waiting ${sleepTime}ms before next retry...`);
+        await sleep(sleepTime);
+        
+        retryCount++;
       }
-      
-      console.log(`Profile sync completed. Created ${created} new profiles, updated ${updated}, ${existing} already existed.`);
-      return { created, updated, existing };
-    } catch (error) {
-      console.error("Error syncing profiles from leaderboard:", error);
-      return { created: 0, updated: 0, existing: 0 };
     }
+    
+    // If we've exhausted all retries, throw the last error
+    throw lastError || new Error("API request failed with unknown error");
   }
-  
+
   /**
-   * Update wager data for all users from the external API
-   * This method also creates profiles for users if they don't exist yet
+   * Placeholder method for future implementation of profile syncing
+   * This is not currently implemented but stubbed for compatibility
    */
-  async updateAllWagerData(): Promise<number> {
-    try {
-      if (!this.hasApiToken()) {
-        console.warn("API token not configured, skipping wager data update");
-        return 0;
-      }
-      
-      console.log("Updating wager data from external API...");
-      
-      // Fetch leaderboard data directly from the base URL (no endpoint needed)
-      const leaderboardData = await this.fetchFromExternalApi("");
-      
-      // Log the full structure of the leaderboard data
-      console.log("Raw API response structure (in updateAllWagerData):", JSON.stringify({
-        hasData: !!leaderboardData,
-        dataTypes: {
-          success: typeof leaderboardData?.success,
-          data: typeof leaderboardData?.data
-        },
-        keys: Object.keys(leaderboardData || {})
-      }));
-      
-      // Use the same TransformedData interface from above
-      const transformedData: TransformedData = {
-        data: {
-          today: { data: [] },
-          weekly: { data: [] },
-          monthly: { data: [] },
-          all_time: { data: [] }
-        }
-      };
-      
-      // Same improved parsing logic as in syncUserProfiles
-      if (leaderboardData) {
-        // Check if data is in the expected format
-        if (leaderboardData.data) {
-          // Try standard keys first
-          if (leaderboardData.data.today) {
-            transformedData.data.today.data = leaderboardData.data.today;
-          }
-          if (leaderboardData.data.this_week) {
-            transformedData.data.weekly.data = leaderboardData.data.this_week;
-          }
-          if (leaderboardData.data.this_month) {
-            transformedData.data.monthly.data = leaderboardData.data.this_month;
-          }
-          if (leaderboardData.data.all_time) {
-            transformedData.data.all_time.data = leaderboardData.data.all_time;
-          }
-          
-          // If no data found with standard keys, try alternative formats
-          if (transformedData.data.all_time.data.length === 0) {
-            // Check if data is directly in the response
-            if (Array.isArray(leaderboardData.data)) {
-              transformedData.data.all_time.data = leaderboardData.data;
-            } else {
-              // Try to extract data from numeric keys (as seen in logs)
-              const userEntries = [];
-              for (const key in leaderboardData.data) {
-                if (!isNaN(Number(key)) && leaderboardData.data[key]) {
-                  userEntries.push(leaderboardData.data[key]);
-                }
-              }
-              
-              if (userEntries.length > 0) {
-                console.log(`Found ${userEntries.length} entries using numeric keys in wager data update`);
-                // Add these entries to all timeframes for now
-                transformedData.data.all_time.data = userEntries;
-                transformedData.data.monthly.data = userEntries;
-                transformedData.data.weekly.data = userEntries;
-                transformedData.data.today.data = userEntries;
-              }
-            }
-          }
-        } else if (Array.isArray(leaderboardData)) {
-          // If the response is directly an array
-          transformedData.data.all_time.data = leaderboardData;
-          transformedData.data.monthly.data = leaderboardData;
-          transformedData.data.weekly.data = leaderboardData;
-          transformedData.data.today.data = leaderboardData;
-        }
-      }
-      
-      // Create a map to deduplicate users from all timeframes
-      const userMap = new Map();
-      
-      // Process all timeframes
-      const timeframes = ["today", "weekly", "monthly", "all_time"] as const;
-      let totalUsersRaw = 0;
-      
-      // Add users from each timeframe to the map with UID as key
-      for (const timeframe of timeframes) {
-        const timeframeData = transformedData.data[timeframe as keyof typeof transformedData.data].data || [];
-        totalUsersRaw += timeframeData.length;
-        
-        for (const user of timeframeData) {
-          if (user.uid && user.name) {
-            // Store in map, overwriting duplicates but keeping the data
-            userMap.set(user.uid, user);
-          }
-        }
-      }
-      
-      // Log the total number of unique users found
-      console.log(`Found ${userMap.size} unique users from ${totalUsersRaw} total entries in all timeframes`);
-      
-      let updatedCount = 0;
-      let createdCount = 0;
-      
-      // Update or create each user's profile and wager data
-      for (const [goatedId, player] of userMap.entries()) {
-        try {
-          // Find the user in our database
-          const existingUser = await db.select().from(users)
-            .where(eq(users.goatedId, goatedId))
-            .limit(1);
-          
-          if (existingUser && existingUser.length > 0) {
-            // Update existing user with latest data
-            await db.execute(sql`
-              UPDATE users 
-              SET goated_username = ${player.name},
-                  goated_account_linked = true,
-                  total_wager = ${player.wager_amount || 0},
-                  last_active = ${new Date()}
-              WHERE goated_id = ${goatedId}
-            `);
-            
-            // Update wager data if available
-            if (player.wager_amount !== undefined) {
-              // Check if we have existing wager data
-              const existingWagerData = await db.query.mockWagerData.findFirst({
-                where: eq(mockWagerData.userId, existingUser[0].id),
-              });
-              
-              if (existingWagerData) {
-                // Update existing wager data
-                await db.execute(sql`
-                  UPDATE mock_wager_data
-                  SET username = ${player.name},
-                      wagered_all_time = ${player.wager_amount || 0},
-                      wagered_this_month = ${player.wager_amount_monthly || 0}, 
-                      wagered_this_week = ${player.wager_amount_weekly || 0}, 
-                      wagered_today = ${player.wager_amount_daily || 0},
-                      updated_at = ${new Date()}
-                  WHERE user_id = ${existingUser[0].id}
-                `);
-              } else {
-                // Create new wager data entry
-                await db.execute(sql`
-                  INSERT INTO mock_wager_data (
-                    user_id, username, wagered_all_time, wagered_this_month, 
-                    wagered_this_week, wagered_today, created_at
-                  ) VALUES (
-                    ${existingUser[0].id}, ${player.name}, ${player.wager_amount || 0}, 
-                    ${player.wager_amount_monthly || 0}, 
-                    ${player.wager_amount_weekly || 0}, 
-                    ${player.wager_amount_daily || 0},
-                    ${new Date()}
-                  )
-                `);
-              }
-              updatedCount++;
-            }
-          } else {
-            // Create a new profile for this user since they don't exist in our database
-            const newUserId = Math.floor(1000 + Math.random() * 9000);
-            const email = `${player.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
-            
-            // Insert the new user
-            await db.execute(sql`
-              INSERT INTO users (
-                id, username, email, password, created_at, profile_color, 
-                bio, is_admin, goated_id, goated_username, goated_account_linked, total_wager
-              ) VALUES (
-                ${newUserId}, ${player.name}, ${email}, '', ${new Date()}, '#D7FF00', 
-                'Official Goated.com player profile', false, ${goatedId}, ${player.name}, true, ${player.wager_amount || 0}
-              )
-            `);
-            
-            // Add wager data for the new user if available
-            if (player.wager_amount !== undefined) {
-              await db.execute(sql`
-                INSERT INTO mock_wager_data (
-                  user_id, username, wagered_all_time, wagered_this_month, 
-                  wagered_this_week, wagered_today, created_at
-                ) VALUES (
-                  ${newUserId}, ${player.name}, ${player.wager_amount || 0}, 
-                  ${player.wager_amount_monthly || 0}, 
-                  ${player.wager_amount_weekly || 0}, 
-                  ${player.wager_amount_daily || 0},
-                  ${new Date()}
-                )
-              `);
-            }
-            
-            createdCount++;
-          }
-        } catch (error) {
-          console.error(`Error updating/creating data for ${goatedId}:`, error);
-        }
-      }
-      
-      console.log(`Wager data update completed: Updated ${updatedCount} users, created ${createdCount} new profiles`);
-      return updatedCount + createdCount;
-    } catch (error) {
-      console.error("Error updating all wager data:", error);
-      return 0;
-    }
+  async syncUserProfiles(): Promise<any> {
+    console.log("syncUserProfiles method called (placeholder)");
+    return {
+      created: 0,
+      updated: 0,
+      existing: 0
+    };
+  }
+
+  /**
+   * Placeholder method for future implementation of wager data updates
+   * This is not currently implemented but stubbed for compatibility
+   */
+  async updateAllWagerData(): Promise<any> {
+    console.log("updateAllWagerData method called (placeholder)");
+    return 0; // Number of records updated
   }
 }
 
-// Export a singleton instance
-const goatedApiService = new GoatedApiService();
-export default goatedApiService;
+// Create a singleton instance
+export default new GoatedApiService();

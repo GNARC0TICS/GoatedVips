@@ -20,6 +20,7 @@ import bonusChallengesRouter from "./routes/bonus-challenges";
 import usersRouter from "./routes/users";
 import goombasAdminRouter from "./routes/goombas-admin";
 import accountLinkingRouter from "./routes/account-linking";
+import apiRoutes from "./routes/apiRoutes";
 import { requireAdmin } from "./middleware/admin";
 import { wagerRaces, users, transformationLogs, wagerRaceParticipants } from "@db/schema";
 import { ensureUserProfile } from "./index";
@@ -183,7 +184,7 @@ router.get("/health", async (_req: Request, res: Response) => {
 router.get("/sync-profiles", requireAdmin, async (_req: Request, res: Response) => {
   try {
     // Import the goatedApiService dynamically to avoid circular dependencies
-    const { default: goatedApiService } = await import('./services/goatedApiService');
+    const goatedApiService = await import('./services/goatedApiService').then(module => module.default);
     
     console.log("Manually triggered profile sync started");
     
@@ -401,15 +402,15 @@ function setupAPIRoutes(app: Express) {
   });
 
   // Mount all API routes under /api prefix
+  app.use("/api", apiRoutes); // Main API routes with affiliate/stats, wager-races, etc.
   app.use("/api/bonus", bonusChallengesRouter);
   app.use("/api/users", usersRouter); // For backward compatibility
   app.use("/users", usersRouter);     // New public profile routes
   app.use("/api/account", accountLinkingRouter); // Account linking routes
-  app.use("/api", router); //Added this line
+  app.use("/api", router); // Added this line
   
   // Mount our custom admin routes at the non-obvious URL path
   app.use("/goombas.net", goombasAdminRouter);
-
 
   // Add other API routes here, ensuring they're all prefixed with /api
   app.get("/api/health", (_req, res) => {

@@ -8,29 +8,19 @@
  * Contains all necessary parameters for communicating with the Goated API
  */
 export const API_CONFIG = {
+  // The full URL to the external API endpoint
   baseUrl: "https://api.goated.com/user2/affiliate/referral-leaderboard/2RW440E",
+  
+  // API token for authentication - prefer environment variable
   token: process.env.API_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJNZ2xjTU9DNEl6cWpVbzVhTXFBVyIsInNlc3Npb24iOiJUWlNlWlJVWkFZbzEiLCJpYXQiOjE3NDM5MTM3NzYsImV4cCI6MTc0NDAwMDE3Nn0.8JHA2VNfP1FyS4HXIONlKBuDNjS98o8Waxnl6WOXCus",
+  
+  // Empty endpoints object as we're using the full URL as baseUrl
   endpoints: {
     leaderboard: "",  // Empty string as we're using the full URL as baseUrl
     health: ""  // Empty string for consistency
-    // Removed invalid endpoints
   },
-  fallbackData: {
-    // Fallback data structure when API is unavailable
-    leaderboard: {
-      status: "success",
-      metadata: {
-        totalUsers: 0,
-        lastUpdated: new Date().toISOString()
-      },
-      data: {
-        today: { data: [] },
-        weekly: { data: [] },
-        monthly: { data: [] },
-        all_time: { data: [] }
-      }
-    }
-  },
+  
+  // Request configuration
   request: {
     // Default timeout in milliseconds
     timeout: 10000,
