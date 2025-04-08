@@ -237,98 +237,10 @@ export class PlatformApiService {
     }
   }
   
-  /**
-   * Sync user profiles from external API to our database
-   * Used by scheduled job and manual sync endpoint
-   * 
-   * @returns Statistics about the sync operation
+  /* 
+   * NOTE: The syncUserProfiles method has been moved to line 543
+   * to resolve duplication issues.
    */
-  async syncUserProfiles(): Promise<SyncStats> {
-    const startTime = Date.now();
-    console.log("Starting user profile synchronization");
-    
-    try {
-      // Fetch raw data from external API
-      const rawData = await goatedApiService.fetchReferralData();
-      
-      // Transform to our format
-      const leaderboardData = this.transformToLeaderboard(rawData);
-      
-      // Extract all-time data for users
-      const allTimeData = leaderboardData.data.all_time.data || [];
-      console.log(`Processing ${allTimeData.length} users from leaderboard`);
-      
-      // Stats tracking
-      let created = 0;
-      let updated = 0;
-      let existing = 0;
-      
-      // Process each user 
-      for (const user of allTimeData) {
-        try {
-          if (!user.uid || !user.name) continue;
-          
-          // Update affiliate stats
-          try {
-            await db.insert(affiliateStats).values({
-              totalWager: String(user.wagered.all_time),
-              commission: String(user.wagered.all_time / 100), // 1% commission as an example
-              timestamp: new Date()
-            });
-            created++;
-          } catch (err) {
-            // Likely already exists, just log and continue
-            console.log(`Could not create affiliate stats for ${user.name}: ${err}`);
-          }
-          
-          // Update user if they exist in our system
-          const existingUser = await db.query.users.findFirst({
-            where: eq(users.goatedId, user.uid)
-          });
-          
-          if (existingUser) {
-            await db.update(users)
-              .set({
-                goatedUsername: user.name,
-                totalWager: String(user.wagered.all_time),
-                lastActive: new Date()
-              })
-              .where(eq(users.id, existingUser.id));
-            existing++;
-          }
-        } catch (error) {
-          console.error(`Error processing user ${user.name}:`, error);
-        }
-      }
-      
-      // Record sync statistics
-      const duration = Date.now() - startTime;
-      
-      // Log the successful synchronization
-      await this.logTransformation('user-sync', 'success', 
-        `Synchronized ${allTimeData.length} users. Created: ${created}, Updated: ${updated}, Existing: ${existing}`, 
-        duration);
-      
-      console.log(`Sync completed in ${duration}ms. Created: ${created}, Updated: ${updated}, Existing: ${existing}`);
-      
-      return { 
-        created, 
-        updated, 
-        existing, 
-        totalProcessed: allTimeData.length, 
-        duration 
-      };
-    } catch (error) {
-      // Log the failed synchronization
-      await this.logTransformation('user-sync', 'error', 
-        `Failed to synchronize users: ${error instanceof Error ? error.message : String(error)}`, 
-        Date.now() - startTime, 
-        error instanceof Error ? error.message : String(error));
-      
-      console.error("Error in syncUserProfiles:", error);
-      throw error;
-    }
-  }
 
   /**
    * Transforms raw API data into our standardized leaderboard format
@@ -436,12 +348,72 @@ export class PlatformApiService {
 
   /**
    * Extracts data array from API response
-   * Handles various possible response formats from the API
+   * Handles various possible response formats from the API including raw text
    * 
    * @param apiData Raw API response
    * @returns Array of user data
    */
   private extractDataArray(apiData: any): any[] {
+    console.log("Extracting data array from API response");
+    
+    // Special handling for raw text responses
+    if (apiData && apiData.rawText && apiData.parseError) {
+      // This is a raw text response that couldn't be parsed as JSON
+      console.log("Processing raw text response");
+      
+      try {
+        // Try to extract data from HTML or text content
+        // Look for JSON-like content in the response
+        const rawText = apiData.rawText;
+        
+        // Look for JSON data between curly braces
+        const jsonMatch = rawText.match(/\{.*\}/s);
+        if (jsonMatch) {
+          try {
+            const extractedJson = JSON.parse(jsonMatch[0]);
+            console.log("Successfully extracted JSON from raw text");
+            // Now process the extracted JSON normally
+            return this.processExtractedJson(extractedJson);
+          } catch (err) {
+            console.error("Failed to parse extracted JSON", err);
+          }
+        }
+        
+        // Try to find arrays in square brackets
+        const arrayMatch = rawText.match(/\[.*\]/s);
+        if (arrayMatch) {
+          try {
+            const extractedArray = JSON.parse(arrayMatch[0]);
+            if (Array.isArray(extractedArray) && extractedArray.length > 0) {
+              console.log(`Found array with ${extractedArray.length} items in raw text`);
+              return extractedArray;
+            }
+          } catch (err) {
+            console.error("Failed to parse extracted array", err);
+          }
+        }
+        
+        // If we couldn't extract proper JSON, log the raw text for inspection
+        console.warn("Could not extract proper data from raw text. First 200 chars:", 
+          rawText.substring(0, 200));
+        return [];
+      } catch (error) {
+        console.error("Error processing raw text response:", error);
+        return [];
+      }
+    }
+    
+    // Normal JSON processing for properly formatted responses
+    return this.processExtractedJson(apiData);
+  }
+  
+  /**
+   * Process extracted JSON data to find arrays of user data
+   * 
+   * @param apiData JSON data to process
+   * @returns Array of user data
+   */
+  private processExtractedJson(apiData: any): any[] {
     // Handle various response formats
     
     // 1. If the response is directly an array
@@ -496,6 +468,19 @@ export class PlatformApiService {
       return largestArray;
     }
     
+    // 6. If it's an object with properties that look like user data, convert to array
+    if (typeof apiData === 'object' && apiData !== null) {
+      const possibleUsers = Object.values(apiData).filter(
+        (value: any) => typeof value === 'object' && value !== null && 
+        (value.uid || value.name || value.wagered)
+      );
+      
+      if (possibleUsers.length > 0) {
+        console.log(`Found ${possibleUsers.length} possible user objects`);
+        return possibleUsers;
+      }
+    }
+    
     // If nothing works, log the error and return empty array
     console.error("Could not extract data array from API response", 
       typeof apiData === 'object' ? Object.keys(apiData || {}) : typeof apiData);
@@ -533,6 +518,143 @@ export class PlatformApiService {
       console.error("Failed to log transformation:", error);
     }
   }
+  
+  /**
+   * Synchronize profiles from external API
+   * This method is used for compatibility with tasks that expect the syncUserProfiles name
+   * 
+   * @returns Result object with counts of created and updated profiles
+   */
+  async syncUserProfiles(): Promise<SyncStats> {
+    console.log("PlatformApiService: syncUserProfiles called (enhanced method)");
+    
+    const startTime = Date.now();
+    
+    try {
+      // Use the GoatedApiService to fetch raw data
+      const rawData = await goatedApiService.fetchReferralData();
+      
+      // Track created and updated counts
+      let created = 0;
+      let updated = 0;
+      
+      // If no data is available, return early
+      if (!rawData || !rawData.data) {
+        await this.logTransformation(
+          'profile-sync',
+          'warning',
+          'No data available from external API',
+          Date.now() - startTime
+        );
+        return { created, updated, existing: 0, totalProcessed: 0, duration: Date.now() - startTime };
+      }
+      
+      // Process and transform the data
+      console.log("Processing profile data for sync");
+      
+      // Transform the data to our format first
+      const leaderboardData = this.transformToLeaderboard(rawData);
+      
+      // Extract the all_time data
+      const profiles = leaderboardData.data.all_time.data || [];
+      
+      // If no profiles found, log and return
+      if (!profiles.length) {
+        await this.logTransformation(
+          'profile-sync',
+          'warning',
+          'No profiles found in API response',
+          Date.now() - startTime
+        );
+        return { created, updated, existing: 0, totalProcessed: 0, duration: Date.now() - startTime };
+      }
+      
+      console.log(`Found ${profiles.length} profiles to process`);
+      
+      // Loop through each profile and process it
+      for (const profile of profiles) {
+        try {
+          // Extract required fields
+          const { uid, name, wagered } = profile;
+          
+          // Skip invalid profiles
+          if (!uid || !name) continue;
+          
+          // Check if this user already exists in our database
+          const existingUser = await db.query.users.findFirst({
+            where: eq(users.goatedId, uid)
+          });
+          
+          if (existingUser) {
+            // Update existing user
+            await db.update(users)
+              .set({
+                goatedUsername: name,
+                totalWager: String(wagered?.all_time || 0),
+                // Update the last active timestamp
+                lastActive: new Date()
+              })
+              .where(eq(users.goatedId, uid));
+            
+            updated++;
+          } else {
+            // Create new user profile - note we need to provide required fields
+            await db.insert(users).values({
+              username: name,
+              password: '', // Required field but we'll set it empty for API-created users
+              email: `${uid}@goated.placeholder`, // Required field with placeholder
+              goatedId: uid,
+              goatedUsername: name,
+              goatedAccountLinked: true,
+              totalWager: String(wagered?.all_time || 0),
+              createdAt: new Date(),
+              profileColor: '#D7FF00',
+              bio: 'Goated.com player'
+            });
+            
+            created++;
+          }
+        } catch (error) {
+          console.error(`Error processing profile ${profile?.name}:`, error);
+          // Continue processing other profiles even if one fails
+        }
+      }
+      
+      // Log the transformation after successful processing
+      const duration = Date.now() - startTime;
+      await this.logTransformation(
+        'profile-sync',
+        'success',
+        `Synced ${created + updated} profiles (${created} created, ${updated} updated)`,
+        duration
+      );
+      
+      return { 
+        created, 
+        updated, 
+        existing: 0, 
+        totalProcessed: profiles.length, 
+        duration 
+      };
+    } catch (error) {
+      // Log the error
+      const duration = Date.now() - startTime;
+      await this.logTransformation(
+        'profile-sync',
+        'error',
+        'Failed to sync profiles',
+        duration,
+        error instanceof Error ? error.message : String(error)
+      );
+      
+      // Rethrow the error
+      throw error;
+    }
+  }
+  
+  /**
+   * The core profile management functionality of the service
+   */
 }
 
 // Export singleton instance for use in routes

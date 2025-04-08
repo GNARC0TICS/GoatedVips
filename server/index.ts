@@ -402,9 +402,10 @@ async function initializeServer() {
       log("info", "Starting immediate data sync...");
       
       // Set a timeout to ensure server startup isn't blocked
+      // Use a longer timeout to match our API timeout settings
       const syncPromise = Promise.race([
         syncUserProfiles(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Initial sync timeout - continuing with server startup")), 5000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Initial sync timeout - continuing with server startup")), 15000))
       ]);
       
       try {

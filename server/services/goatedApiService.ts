@@ -10,6 +10,7 @@
  * - Handles authentication with API token
  * - Implements retry logic with exponential backoff
  * - Provides detailed error logging
+ * - Handles API timeouts gracefully
  * 
  * This service is intentionally limited to ONLY external API communication, with no
  * data transformation or business logic. All transformation happens in PlatformApiService.
@@ -39,6 +40,8 @@ export class GoatedApiService {
   private apiToken: string;
   private requestTimeout: number;
   private maxRetries: number;
+  private lastSuccessfulResponse: any = null;
+  private lastFetchTime: number = 0;
 
   /**
    * Initialize the service with configuration from API_CONFIG
@@ -59,9 +62,10 @@ export class GoatedApiService {
    * Fetches data from the Goated.com API
    * This is the main method that should be called by other services
    * 
+   * @param forceFresh If true, forces a fresh API request even if recently cached
    * @returns Raw JSON data from the API
    */
-  async fetchReferralData(): Promise<any> {
+  async fetchReferralData(forceFresh = false): Promise<any> {
     console.log("Fetching referral data from external API");
     
     if (!this.hasApiToken()) {
@@ -69,7 +73,7 @@ export class GoatedApiService {
     }
     
     try {
-      const data = await this.makeApiRequest();
+      const data = await this.makeApiRequest(forceFresh);
       return data;
     } catch (error) {
       console.error("Failed to fetch referral data:", error);
@@ -91,10 +95,20 @@ export class GoatedApiService {
    * Makes API request with retry logic and proper error handling
    * This is the core method that handles the actual HTTP request
    * 
+   * @param forceFresh If true, forces a fresh API request even if recently cached
    * @returns Parsed JSON response from the API
    * @throws Error if request fails after all retry attempts
    */
-  private async makeApiRequest(): Promise<any> {
+  private async makeApiRequest(forceFresh = false): Promise<any> {
+    // Only try directly calling the API if forced or no previous success
+    const now = Date.now();
+    const cacheMaxAge = 15 * 60 * 1000; // 15 minutes
+    
+    if (!forceFresh && this.lastSuccessfulResponse && (now - this.lastFetchTime < cacheMaxAge)) {
+      console.log(`Using cached API response from ${Math.round((now - this.lastFetchTime) / 1000)} seconds ago`);
+      return this.lastSuccessfulResponse;
+    }
+    
     let retryCount = 0;
     let lastError: Error | null = null;
     
@@ -105,18 +119,30 @@ export class GoatedApiService {
           console.log(`Retry attempt ${retryCount}/${this.maxRetries}`);
         } else {
           console.log(`Attempting API request to: ${this.apiUrl}`);
-          console.log(`Using authorization: Bearer ${this.apiToken.substring(0, 3)}...${this.apiToken.length > 6 ? this.apiToken.substring(this.apiToken.length - 3) : ''}`);
+          // Log token info without revealing full token
+          const tokenPreview = this.apiToken.length > 10 
+            ? `${this.apiToken.substring(0, 5)}...${this.apiToken.substring(this.apiToken.length - 5)}`
+            : this.apiToken.substring(0, 3) + '...';
+          console.log(`Using authorization: Bearer ${tokenPreview}`);
         }
         
-        // Make the API request
+        // Use a longer timeout and store the fetch Promise
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.requestTimeout);
+        
+        // First, try to fetch the raw response text
         const response = await fetch(this.apiUrl, {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${this.apiToken}`,
-            "Content-Type": "application/json",
+            "Authorization": `Bearer ${this.apiToken}`,
+            "Accept": "*/*", // Accept any content type
+            "Content-Type": "application/x-www-form-urlencoded"
           },
-          signal: AbortSignal.timeout(this.requestTimeout),
+          signal: controller.signal,
         });
+        
+        // Clear the timeout since we got a response
+        clearTimeout(timeoutId);
         
         // Handle HTTP error responses
         if (!response.ok) {
@@ -124,22 +150,46 @@ export class GoatedApiService {
           throw new Error(`API request failed with status ${response.status}: ${errorText}`);
         }
         
-        // Parse the JSON response
-        const data = await response.json();
-        console.log(`Successfully fetched data from API with ${response.status} status`);
+        // Get the raw text response first
+        const rawText = await response.text();
+        console.log(`Received raw API response (length: ${rawText.length} chars)`);
         
-        // Basic validation of the response structure
-        if (!data) {
+        // If empty response, throw error
+        if (!rawText || rawText.trim() === '') {
           throw new Error("API returned empty response");
         }
+        
+        // Try to parse it as JSON
+        let data;
+        try {
+          data = JSON.parse(rawText);
+          console.log(`Successfully parsed JSON response with ${response.status} status`);
+        } catch (jsonError) {
+          console.warn("Failed to parse response as JSON, using raw text:", rawText.substring(0, 100) + "...");
+          // Return raw text as a fallback
+          data = { rawText, parseError: true };
+        }
+        
+        // Update cache with successful response
+        this.lastSuccessfulResponse = data;
+        this.lastFetchTime = now;
         
         return data;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        console.error(`API request failed (attempt ${retryCount + 1}/${this.maxRetries + 1}):`, lastError.message);
+        const isTimeoutError = lastError.name === 'AbortError' || 
+                              lastError.message.includes('timeout') || 
+                              lastError.message.includes('abort');
+                              
+        console.error(`API request failed (attempt ${retryCount + 1}/${this.maxRetries + 1}):`, 
+          isTimeoutError ? 'The operation was aborted due to timeout' : lastError.message);
         
         // Don't retry if we've hit the max retries
         if (retryCount >= this.maxRetries) {
+          // Mark as timed out in console to help with debugging
+          if (isTimeoutError) {
+            console.warn("API request timed out after all retry attempts");
+          }
           break;
         }
         
@@ -150,6 +200,12 @@ export class GoatedApiService {
         
         retryCount++;
       }
+    }
+    
+    // If we have a cached response, return it even though the fresh request failed
+    if (this.lastSuccessfulResponse) {
+      console.warn("Returning stale cached data because fresh API request failed");
+      return this.lastSuccessfulResponse;
     }
     
     // If we've exhausted all retries, throw the last error
