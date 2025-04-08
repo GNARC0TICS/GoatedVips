@@ -44,6 +44,7 @@ import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import giftIcon from '/images/GIFT.png';
 import { RaceTimer } from "./RaceTimer"; // Added import for RaceTimer
+import { FloatingSupport } from "./FloatingSupport"; // Import for FloatingSupport
 
 // --- Static Styles (Memoized as constants) ---
 const headerClasses = {
