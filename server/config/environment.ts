@@ -29,6 +29,7 @@ export const CORS_ORIGINS = IS_DEVELOPMENT
 
 // API configuration
 export const API_TOKEN = process.env.API_TOKEN;
+export const GOATED_API_TOKEN = process.env.GOATED_API_TOKEN;
 
 // Database configuration
 export const DATABASE_URL = process.env.DATABASE_URL;
@@ -47,5 +48,6 @@ export const ENV = {
   COOKIE_MAX_AGE,
   CORS_ORIGINS,
   API_TOKEN,
+  GOATED_API_TOKEN,
   DATABASE_URL,
 };

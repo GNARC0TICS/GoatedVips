@@ -11,8 +11,8 @@ export const API_CONFIG = {
   // The full URL to the external API endpoint
   baseUrl: "https://api.goated.com/user2/affiliate/referral-leaderboard/2RW440E",
   
-  // API token for authentication - prefer environment variable
-  token: process.env.API_TOKEN || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJNZ2xjTU9DNEl6cWpVbzVhTXFBVyIsInNlc3Npb24iOiJUWlNlWlJVWkFZbzEiLCJpYXQiOjE3NDM5MTM3NzYsImV4cCI6MTc0NDAwMDE3Nn0.8JHA2VNfP1FyS4HXIONlKBuDNjS98o8Waxnl6WOXCus",
+  // API token for authentication - only use environment variable
+  token: process.env.GOATED_API_TOKEN || process.env.API_TOKEN || "",
   
   // Empty endpoints object as we're using the full URL as baseUrl
   endpoints: {
@@ -22,11 +22,11 @@ export const API_CONFIG = {
   
   // Request configuration
   request: {
-    // Default timeout in milliseconds
-    timeout: 10000,
+    // Default timeout in milliseconds (reduced to avoid long waits)
+    timeout: 5000,
 
-    // Default number of retries for failed requests
-    retries: 3
+    // Default number of retries for failed requests (reduced)
+    retries: 2
   }
 };
 

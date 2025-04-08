@@ -45,7 +45,7 @@ export class GoatedApiService {
    */
   constructor() {
     this.apiUrl = API_CONFIG.baseUrl;
-    this.apiToken = process.env.API_TOKEN || API_CONFIG.token;
+    this.apiToken = process.env.GOATED_API_TOKEN || process.env.API_TOKEN || API_CONFIG.token;
     this.requestTimeout = API_CONFIG.request.timeout;
     this.maxRetries = API_CONFIG.request.retries;
     
@@ -103,6 +103,9 @@ export class GoatedApiService {
         // Log retry information
         if (retryCount > 0) {
           console.log(`Retry attempt ${retryCount}/${this.maxRetries}`);
+        } else {
+          console.log(`Attempting API request to: ${this.apiUrl}`);
+          console.log(`Using authorization: Bearer ${this.apiToken.substring(0, 3)}...${this.apiToken.length > 6 ? this.apiToken.substring(this.apiToken.length - 3) : ''}`);
         }
         
         // Make the API request

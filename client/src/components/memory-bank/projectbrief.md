@@ -8,6 +8,7 @@ GoatedVIPs is an independent platform created by an established Goated.com affil
 2. **Profile System Refinement** - Improve user profile management, verification flow, and data presentation
 3. **Admin System Security** - Enhance admin authentication, implement audit logging, and secure domain-specific routes
 4. **Code Cleanup & Organization** - Remove redundancies, standardize patterns, and improve maintainability
+5. **API System Architecture** - Implement two-service architecture for external API integration with improved resilience
 
 ## Key Components
 - **Dual Domain Architecture**
@@ -25,6 +26,11 @@ GoatedVIPs is an independent platform created by an established Goated.com affil
   - User management interface
   - System analytics
   - API sync monitoring
+- **API Architecture**
+  - GoatedApiService for external API communication
+  - PlatformApiService for internal endpoints
+  - Scheduled data synchronization
+  - Advanced error handling and retry logic
 
 ## Technical Stack
 - **Frontend**: React, TypeScript, TailwindCSS
@@ -43,3 +49,4 @@ The development is structured in two phases:
 - Secure authentication and authorization flows
 - Efficient profile and admin systems
 - Optimized performance for core operations
+- Resilient API integration with proper error handling

@@ -1,4 +1,4 @@
-can  you # GoatedVIPs System Patterns
+# GoatedVIPs System Patterns
 
 ## Architecture Overview
 
@@ -13,7 +13,32 @@ flowchart TD
     Server --> |Domain Routing| DR[Domain Router]
     DR --> |Admin Routes| Admin[Admin API]
     DR --> |Public Routes| Public[Public API]
+    Server --> |External API| PlatformAPI[Platform API Service]
+    PlatformAPI --> GoatedAPI[Goated API Service]
+    GoatedAPI --> |External Requests| ExternalAPI[External Goated.com API]
 ```
+
+## API Service Architecture Pattern
+
+The platform implements a two-service architecture pattern for handling API communication:
+
+```mermaid
+flowchart LR
+    Client[Client Application] --> PlatformAPI[Platform API Service]
+    PlatformAPI --> |Transformed Data| Client
+    PlatformAPI --> GoatedAPI[Goated API Service]
+    GoatedAPI --> |Raw Data| ExternalAPI[External Goated.com API]
+    ExternalAPI --> |Response| GoatedAPI
+    GoatedAPI --> |Processed Data| PlatformAPI
+    GoatedAPI --> |Store| Database[Database]
+    Database --> PlatformAPI
+```
+
+### Implementation:
+- `goatedApiService.ts`: Handles external API communication with retry logic and error handling
+- `platformApiService.ts`: Provides internal API endpoints and transforms data for client consumption
+- `apiRoutes.ts`: Routes API requests to the appropriate service methods
+- `dataSyncTasks.ts`: Scheduled synchronization of data from external API
 
 ## Domain-Based Routing Pattern
 
@@ -89,8 +114,10 @@ The platform synchronizes data with external APIs and transforms it for internal
 
 ```mermaid
 flowchart LR
-    ExternalAPI[External API] --> |Raw Data| FetchLayer[Data Fetch Layer]
-    FetchLayer --> TransformLayer[Transformation Layer]
+    ExternalAPI[External API] --> |Raw Data| GoatedApiService[Goated API Service]
+    GoatedApiService --> |Error Handling & Retry| ExternalAPI
+    GoatedApiService --> |Processed Data| PlatformApiService[Platform API Service]
+    PlatformApiService --> TransformLayer[Transformation Layer]
     TransformLayer --> |Structured Data| Database[Database]
     TransformLayer --> |Cache| Cache[Optional Cache]
     Database --> |Query| Application[Application]
@@ -98,8 +125,9 @@ flowchart LR
 ```
 
 ### Implementation:
-- API synchronization in `api-sync.ts`
-- Data transformation utilities
+- External API access via `goatedApiService.ts`
+- Data transformation in `platformApiService.ts`
+- Data synchronization scheduled through `dataSyncTasks.ts`
 - Database schema designed for efficient querying
 
 ## Component Patterns

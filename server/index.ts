@@ -57,7 +57,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Use environment configuration instead of hard-coded values
-const { PORT, HOST, IS_DEVELOPMENT, IS_PRODUCTION, CORS_ORIGINS, SESSION_SECRET, COOKIE_SECURE, COOKIE_MAX_AGE, API_TOKEN, DATABASE_URL } = ENV;
+const { PORT, HOST, IS_DEVELOPMENT, IS_PRODUCTION, CORS_ORIGINS, SESSION_SECRET, COOKIE_SECURE, COOKIE_MAX_AGE, API_TOKEN, GOATED_API_TOKEN, DATABASE_URL } = ENV;
 
 // Global server state management
 let templateCache: string | null = null;  // Caches HTML template for better performance
@@ -201,7 +201,7 @@ export async function ensureUserProfile(userId: string): Promise<any> {
 
     // No existing user, try to fetch user data from the leaderboard API if it's numeric (potential Goated ID)
     if (isNumericId) {
-      const token = API_TOKEN || API_CONFIG.token;
+      const token = GOATED_API_TOKEN || API_TOKEN || API_CONFIG.token;
 
       // Try to fetch user data from the leaderboard API
       let userData = null;
@@ -400,7 +400,19 @@ async function initializeServer() {
     // Run an immediate profile sync to ensure all user profiles are created
     try {
       log("info", "Starting immediate data sync...");
-      await syncUserProfiles();
+      
+      // Set a timeout to ensure server startup isn't blocked
+      const syncPromise = Promise.race([
+        syncUserProfiles(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Initial sync timeout - continuing with server startup")), 5000))
+      ]);
+      
+      try {
+        await syncPromise;
+      } catch (error) {
+        const timeoutError = error as Error;
+        log("warn", `${timeoutError.message}`);
+      }
       
       // Also update wager data
       const goatedApiService = (await import('./services/goatedApiService')).default;

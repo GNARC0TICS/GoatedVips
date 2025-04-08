@@ -57,6 +57,8 @@
 │   ├── config/           # Server configuration
 │   ├── middleware/       # Express middleware
 │   ├── routes/           # API routes
+│   ├── services/         # Service layer
+│   ├── tasks/            # Scheduled tasks
 │   ├── templates/        # Email templates
 │   └── utils/            # Utility functions
 ├── db/                   # Database layer
@@ -78,11 +80,14 @@
 - Security header configuration by domain
 - Cross-origin policy management
 
-### API Sync System
-- External API integration
+### API System Architecture
+- Two-service architecture for API handling:
+  - GoatedApiService: External API communication
+  - PlatformApiService: Internal API endpoints
 - Data transformation pipeline
-- Synchronization scheduling
 - Error handling and retry logic
+- Caching strategies for API responses
+- Scheduled data synchronization
 
 ### User Verification System
 - Email verification flow
@@ -137,3 +142,4 @@
 - Database query optimization
 - CDN for static assets
 - WebSocket connection pooling
+- Improved API resilience with timeout handling

@@ -44,32 +44,15 @@ export function initializeDataSyncTasks() {
   // This includes all user data from the API
   cron.schedule(SCHEDULE_CONFIG.HOURLY, async () => {
     try {
-      console.log('Running scheduled user profile sync');
+      console.log('Running scheduled profile sync');
       const result = await platformApiService.syncUserProfiles();
       console.log(`Profile sync completed: ${result.created} created, ${result.updated} updated, ${result.existing} unchanged`);
     } catch (error) {
-      console.error('Scheduled user profile sync failed:', error);
+      console.error('Scheduled profile sync failed:', error);
     }
   });
   
   // Set the initialization flag
   initialized = true;
   console.log('Data sync tasks successfully initialized');
-}
-
-// Export other utility functions as needed
-export async function syncAllData() {
-  // This function can be called manually to force a sync
-  try {
-    console.log('Manual sync triggered for all data');
-    
-    // Run the profile sync first
-    const profileResult = await platformApiService.syncUserProfiles();
-    
-    console.log(`All data synchronized successfully: ${profileResult.created + profileResult.updated} profiles updated`);
-    return { profiles: profileResult };
-  } catch (error) {
-    console.error('Manual full data sync failed:', error);
-    throw error;
-  }
 }
