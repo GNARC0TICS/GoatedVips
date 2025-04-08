@@ -328,8 +328,21 @@ export type SelectHistoricalRace = typeof historicalRaces.$inferSelect;
 export type InsertAffiliateStats = typeof affiliateStats.$inferInsert;
 export type SelectAffiliateStats = typeof affiliateStats.$inferSelect;
 
+export const syncLogs = pgTable("sync_logs", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(), // Type of sync: 'profile', 'wager', etc.
+  status: text("status").notNull(), // 'success', 'error', 'pending'
+  error_message: text("error_message"),
+  duration_ms: decimal("duration_ms", { precision: 10, scale: 2 }),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertTransformationLogSchema = createInsertSchema(transformationLogs);
 export const selectTransformationLogSchema = createSelectSchema(transformationLogs);
+export const insertSyncLogSchema = createInsertSchema(syncLogs);
+export const selectSyncLogSchema = createSelectSchema(syncLogs);
 
 export type InsertTransformationLog = typeof transformationLogs.$inferInsert;
 export type SelectTransformationLog = typeof transformationLogs.$inferSelect;
+export type InsertSyncLog = typeof syncLogs.$inferInsert;
+export type SelectSyncLog = typeof syncLogs.$inferSelect;
