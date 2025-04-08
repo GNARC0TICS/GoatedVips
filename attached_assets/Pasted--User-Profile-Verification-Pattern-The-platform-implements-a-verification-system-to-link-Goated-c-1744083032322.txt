@@ -1,0 +1,72 @@
+ User Profile & Verification Pattern
+
+The platform implements a verification system to link Goated.com accounts with platform profiles:
+
+```mermaid
+flowchart TD
+    Register[User Registration] --> CreateProfile[Create Basic Profile]
+    CreateProfile --> BasicAccount[Unverified Account]
+    
+    BasicAccount --> Verification[Verification Request]
+    Verification --> AdminVerify[Admin Verification]
+    AdminVerify --> Approved{Approved?}
+    Approved -->|Yes| LinkedAccount[Verified Linked Account]
+    Approved -->|No| BasicAccount
+    
+    LinkedAccount --> SyncStats[Sync Stats with Goated.com]
+    LinkedAccount --> UnlockFeatures[Unlock Full Features]
+```
+
+### Implementation:
+- Verification requests stored in database
+- Admin approval workflow
+- Email verification system
+- Profile types based on verification status
+
+## Data Transformation Pattern
+
+The platform synchronizes data with external APIs and transforms it for internal use:
+
+```mermaid
+flowchart LR
+    ExternalAPI[External API] --> |Raw Data| FetchLayer[Data Fetch Layer]
+    FetchLayer --> TransformLayer[Transformation Layer]
+    TransformLayer --> |Structured Data| Database[Database]
+    TransformLayer --> |Cache| Cache[Optional Cache]
+    Database --> |Query| Application[Application]
+    Cache --> |Fast Access| Application
+```
+
+### Implementation:
+- API synchronization in `api-sync.ts`
+- Data transformation utilities
+- Database schema designed for efficient querying
+
+## Component Patterns
+
+### Frontend Component Architecture
+- Container/Presentation pattern for complex components
+- Custom hooks for shared logic and state management
+- Context API for global state (authentication, theme)
+
+### Backend Service Architecture
+- Route handler -> Service -> Database access pattern
+- Middleware for cross-cutting concerns
+- Error handling standardization
+
+## Security Patterns
+
+### Authentication Security
+- JWT with proper expiration
+- HTTP-only cookies for token storage
+- CSRF protection
+
+### Admin Security
+- Domain-specific access controls
+- Enhanced security headers for admin domain
+- Environment variable-based credentials
+
+### API Security
+- Input validation with Zod schemas
+- Rate limiting for sensitive endpoints
+- CORS configuration based on domain
