@@ -24,7 +24,7 @@ interface RaceData {
 const SpeedIcon = (props: React.SVGProps<SVGSVGElement> & { isAnimating?: boolean }) => {
   const maskId = "lineMdSpeedTwotoneLoop" + Math.random().toString(36).substr(2, 5); // Generate unique ID
   const { isAnimating = true, ...svgProps } = props;
-  
+
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" {...svgProps}>
       <mask id={maskId}>
@@ -132,7 +132,7 @@ export function RaceTimer() {
     updateTimer();
     // Set animation ready state once data is loaded
     setIsAnimationReady(true);
-    
+
     const interval = setInterval(updateTimer, 60000);
     return () => clearInterval(interval);
   }, [currentRaceData?.endDate]);
@@ -185,7 +185,7 @@ export function RaceTimer() {
 
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-[#8A8B91] text-sm">
-                    {new Date(raceData.startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    {raceData && raceData.startDate ? new Date(raceData.startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''}
                   </span>
                   <button 
                     onClick={() => setShowPrevious(!showPrevious)}
@@ -207,10 +207,10 @@ export function RaceTimer() {
                     <div className="p-4 border-t border-[#2A2B31]">
                       <div className="flex justify-between items-center mb-4">
                         <span className="text-[#8A8B91] text-sm">
-                          Prize Pool: ${raceData.prizePool.toLocaleString()}
+                          {raceData && raceData.prizePool ? `Prize Pool: $${raceData.prizePool.toLocaleString()}` : ''}
                         </span>
                       </div>
-                      {raceData.participants.map((participant, index) => (
+                      {raceData && raceData.participants ? raceData.participants.map((participant, index) => (
                         <div 
                           key={participant.uid}
                           className="flex items-center justify-between py-2"
@@ -233,7 +233,7 @@ export function RaceTimer() {
                             ${participant.wagered.toLocaleString()}
                           </span>
                         </div>
-                      ))}
+                      )) : null}
                       <Link href="/wager-races">
                         <a className="block text-center text-[#D7FF00] mt-4 hover:underline">
                           View Full Leaderboard
