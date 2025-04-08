@@ -2,7 +2,6 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { MessageCircle, Send, Ticket } from "lucide-react";
-import { FloatingSupport } from "./FloatingSupport";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "./ui/button";
 import {
@@ -61,14 +60,8 @@ const GiftIcon = ({ className }: { className?: string }) => (
 
 export const UtilityPanelButton = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isSupport, setIsSupport] = useState(false);
   const [, setLocation] = useLocation();
   const isMobile = useIsMobile();
-
-  const handleSupportClick = () => {
-    setIsSupport(true);
-    setIsOpen(false);
-  };
 
   const MobilePanel = () => (
     <motion.div
@@ -201,7 +194,6 @@ export const UtilityPanelButton = () => {
 
   return (
     <>
-      {isSupport && <FloatingSupport onClose={() => setIsSupport(false)} />}
       {isMobile ? (
         <>
           <Button
