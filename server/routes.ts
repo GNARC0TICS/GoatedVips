@@ -24,7 +24,8 @@ import apiRoutes from "./routes/apiRoutes";
 import { requireAdmin } from "./middleware/admin";
 import { wagerRaces, users, transformationLogs, wagerRaceParticipants } from "@db/schema";
 import { ensureUserProfile } from "./index";
-import { transformLeaderboardData } from "./utils/leaderboard";
+// Import platformApiService for any API-related needs
+import { platformApiService } from "./services/platformApiService";
 
 type RateLimitTier = 'HIGH' | 'MEDIUM' | 'LOW';
 const rateLimits: Record<RateLimitTier, { points: number; duration: number }> = {
@@ -218,174 +219,8 @@ router.get("/sync-profiles", requireAdmin, async (_req: Request, res: Response) 
   }
 });
 
-// Wager races endpoint - moved to /api prefix
-router.get("/api/wager-races/current", 
-  createRateLimiter('high'),
-  cacheMiddleware(CACHE_TIMES.SHORT),
-  async (_req: Request, res: Response) => {
-    try {
-      // Log token status (without revealing the token)
-      const hasEnvToken = !!process.env.API_TOKEN;
-      const hasConfigToken = !!API_CONFIG.token;
-      log(`Wager race API token status: Environment=${hasEnvToken}, Config=${hasConfigToken}`);
-      
-      const apiToken = process.env.API_TOKEN || API_CONFIG.token;
-      if (!apiToken) {
-        throw new Error("API token is not configured for wager race data");
-      }
-      
-      const response = await fetch(
-        `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.leaderboard}`,
-        {
-          headers: {
-            Authorization: `Bearer ${apiToken}`,
-            "Content-Type": "application/json",
-          },
-          signal: AbortSignal.timeout(60000), // 60 seconds timeout
-        }
-      );
-
-      if (!response.ok) {
-        return res.json(getDefaultRaceData());
-      }
-
-      const rawData = await response.json();
-      const stats = await transformLeaderboardData(rawData);
-      const raceData = formatRaceData(stats);
-
-      return res.json(raceData);
-    } catch (error) {
-      log(`Error in /api/wager-races/current: ${error instanceof Error ? error.message : String(error)}`);
-      return res.status(200).json(getDefaultRaceData());
-    }
-  }
-);
-
-// Previous wager races endpoint
-router.get("/api/wager-races/previous", 
-  createRateLimiter('high'),
-  cacheMiddleware(CACHE_TIMES.MEDIUM),
-  async (_req: Request, res: Response) => {
-    try {
-      // Query the database for the most recent completed race
-      const [lastCompletedRace] = await db
-        .select()
-        .from(wagerRaces)
-        .where(eq(wagerRaces.status, 'completed'))
-        .orderBy(desc(wagerRaces.endDate))
-        .limit(1);
-      
-      if (!lastCompletedRace) {
-        return res.json({
-          id: 'previous-race-placeholder',
-          status: 'completed',
-          startDate: new Date(2025, 1, 1).toISOString(), // February 2025
-          endDate: new Date(2025, 1, 28, 23, 59, 59).toISOString(),
-          prizePool: 500,
-          participants: [],
-          metadata: {
-            transitionEnds: new Date(Date.now() + 3600000).toISOString() // 1 hour from now
-          }
-        });
-      }
-      
-      // Get participants for this race
-      const participants = await db
-        .select()
-        .from(wagerRaceParticipants)
-        .where(eq(wagerRaceParticipants.raceId, lastCompletedRace.id))
-        .orderBy(desc(wagerRaceParticipants.wagered));
-      
-      return res.json({
-        ...lastCompletedRace,
-        participants: participants.map((p, index) => ({
-          uid: p.userId,
-          name: p.username || 'Unknown',
-          wagered: p.wagered,
-          position: p.position || index + 1,
-          prize: p.prizeClaimed ? p.prizeAmount : null
-        })),
-        metadata: {
-          transitionEnds: new Date(new Date(lastCompletedRace.endDate).getTime() + 86400000).toISOString() // 24 hours after end
-        }
-      });
-    } catch (error) {
-      log(`Error in /api/wager-races/previous: ${error instanceof Error ? error.message : String(error)}`);
-      return res.status(200).json({
-        id: 'error-previous-race',
-        status: 'completed',
-        startDate: new Date(2025, 1, 1).toISOString(),
-        endDate: new Date(2025, 1, 28, 23, 59, 59).toISOString(),
-        prizePool: 500,
-        participants: [],
-        metadata: {
-          transitionEnds: new Date(Date.now() + 3600000).toISOString() // 1 hour from now
-        }
-      });
-    }
-  }
-);
-
-// Helper functions
-function getDefaultRaceData() {
-  const year = 2025;
-  const marchMonth = 2; // 0-based index, so 2 is March
-  return {
-    id: `${year}03`, // 03 for March
-    status: 'live',
-    startDate: new Date(year, marchMonth, 1).toISOString(),
-    endDate: new Date(year, marchMonth + 1, 0, 23, 59, 59).toISOString(),
-    prizePool: 500,
-    participants: []
-  };
-}
-
-function formatRaceData(stats: any) {
-  // Force year to 2025 and month to March (index 2)
-  const year = 2025;
-  const month = 2; // March (0-indexed)
-  const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
-  const monthlyData = stats?.data?.monthly?.data ?? [];
-  
-  // Log the monthly data to help debug
-  log(`Race data: Found ${monthlyData.length} participants for ${month + 1}/${year} race`);
-  if (monthlyData.length > 0) {
-    log(`Sample participant: ${JSON.stringify(monthlyData[0])}`);
-  }
-
-  // Process the participant data, ensuring we include wagered info
-  const participants = monthlyData
-    .map((participant: any, index: number) => {
-      // Make sure we extract the wager amount correctly
-      const wageredAmount = participant?.wagered?.this_month != null 
-        ? Number(participant.wagered.this_month) 
-        : 0;
-      
-      return {
-        uid: participant?.uid ?? "",
-        name: participant?.name ?? "Unknown",
-        wagered: wageredAmount,
-        // Include the full wagered object for the frontend
-        wagered_full: {
-          today: Number(participant?.wagered?.today ?? 0),
-          this_week: Number(participant?.wagered?.this_week ?? 0), 
-          this_month: wageredAmount,
-          all_time: Number(participant?.wagered?.all_time ?? 0)
-        },
-        position: index + 1
-      };
-    })
-    .slice(0, 10);
-    
-  return {
-    id: `${year}${(month + 1).toString().padStart(2, '0')}`, // 202503 for March 2025
-    status: 'live',
-    startDate: new Date(year, month, 1).toISOString(),
-    endDate: endOfMonth.toISOString(),
-    prizePool: 500,
-    participants: participants
-  };
-}
+// Note: Wager race endpoints have been moved to apiRoutes.ts
+// Use the platformApiService for wager race data access
 
 // Export functions and router
 export { router };
@@ -483,112 +318,8 @@ function setupAPIRoutes(app: Express) {
     }
   });
 
-  app.get("/api/affiliate/stats",
-    createRateLimiter('medium'),
-    cacheMiddleware(CACHE_TIMES.MEDIUM),
-    async (req, res) => {
-      // Flag to track if response has been sent
-      let responseHasBeenSent = false;
-
-      try {
-        // If the cacheMiddleware has already sent a response, don't proceed further
-        if (res.headersSent) {
-          responseHasBeenSent = true;
-          return;
-        }
-
-        const username = typeof req.query.username === 'string' ? req.query.username : undefined;
-        // Use the direct URL for now to ensure it works
-        let url = 'https://api.goated.com/user2/affiliate/referral-leaderboard/2RW440E';
-
-        if (username) {
-          url += `?username=${encodeURIComponent(username)}`;
-        }
-
-        log('Fetching affiliate stats from:', url);
-
-        // Log the API token status (without revealing the actual token)
-        const hasEnvToken = !!process.env.API_TOKEN;
-        const hasConfigToken = !!API_CONFIG.token;
-        log(`API Token status: Environment=${hasEnvToken}, Config=${hasConfigToken}`);
-        
-        const apiToken = process.env.API_TOKEN || API_CONFIG.token;
-        if (!apiToken) {
-          throw new ApiError("API token is not configured", { status: 500 });
-        }
-        
-        const response = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${apiToken}`,
-            "Content-Type": "application/json",
-          },
-          // Use a longer timeout for better reliability
-          signal: AbortSignal.timeout(60000), // 60 seconds
-        });
-          
-        if (!response.ok) {
-          if (response.status === 401) {
-            log("API Authentication failed - check API token");
-            throw new ApiError("API Authentication failed", { status: 401 });
-          }
-          throw new ApiError(`API request failed: ${response.status}`, { status: response.status });
-        }
-
-        const rawData = await response.json();
-
-        // More detailed logging of the raw data structure
-        const logInfo = {
-          hasData: Boolean(rawData),
-          dataStructure: typeof rawData,
-          keys: Object.keys(rawData),
-          hasResults: Boolean(rawData?.results),
-          resultsLength: rawData?.results?.length,
-          hasSuccess: 'success' in rawData,
-          successValue: rawData?.success,
-          nestedData: Boolean(rawData?.data),
-          nestedDataLength: rawData?.data?.length,
-        };
-        log('Raw API response structure: ' + JSON.stringify(logInfo));
-
-        const transformedData = await transformLeaderboardData(rawData);
-
-        const logData = {
-          status: transformedData.status,
-          totalUsers: transformedData.metadata?.totalUsers,
-          dataLengths: {
-            today: transformedData.data?.today?.data?.length,
-            weekly: transformedData.data?.weekly?.data?.length,
-            monthly: transformedData.data?.monthly?.data?.length,
-            allTime: transformedData.data?.all_time?.data?.length,
-          }
-        };
-        log('Transformed leaderboard data: ' + JSON.stringify(logData));
-
-        // Check both responseHasBeenSent flag and res.headersSent for maximum safety
-        if (!responseHasBeenSent && !res.headersSent) {
-          responseHasBeenSent = true;
-          return res.json(transformedData);
-        }
-      } catch (error) {
-        log(`Error in /api/affiliate/stats: ${error instanceof Error ? error.message : String(error)}`);
-        
-        // Only send error response if no response has been sent yet (double-check)
-        if (!responseHasBeenSent && !res.headersSent) {
-          responseHasBeenSent = true;
-          return res.status(error instanceof ApiError ? error.status || 500 : 500).json({
-            status: "error",
-            message: error instanceof Error ? error.message : "An unexpected error occurred",
-            data: {
-              today: { data: [] },
-              weekly: { data: [] },
-              monthly: { data: [] },
-              all_time: { data: [] },
-            },
-          });
-        }
-      }
-    }
-  );
+  // Note: Affiliate stats endpoint has been moved to apiRoutes.ts
+  // Use the platformApiService for affiliate data access
 
   // Admin routes with custom URL path
   app.get("/goated-supervisor/analytics",
@@ -606,27 +337,25 @@ function setupAPIRoutes(app: Express) {
           return;
         }
         
-        // Using direct URL approach to match the affiliate stats endpoint
-        const url = 'https://api.goated.com/user2/affiliate/referral-leaderboard/2RW440E';
+        log('Fetching leaderboard data for analytics...');
         
-        log('Fetching analytics from:', url);
+        // Use our platform API service to get leaderboard data
+        const leaderboardData = await platformApiService.getLeaderboardData();
         
-        const response = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${process.env.API_TOKEN || API_CONFIG.token}`,
-            "Content-Type": "application/json",
-          },
-          signal: AbortSignal.timeout(60000), // 60 seconds timeout
-        });
-          
-        if (!response.ok) {
-          throw new ApiError(`API request failed: ${response.status}`, { status: response.status });
-        }
-
-        const rawData = await response.json();
-        const data = rawData.data || rawData.results || rawData;
-
-        const totals = data.reduce((acc: any, entry: any) => {
+        // Process all entries to get totals
+        const allUsers = [
+          ...(leaderboardData.data?.today?.data || []),
+          ...(leaderboardData.data?.weekly?.data || []),
+          ...(leaderboardData.data?.monthly?.data || []),
+          ...(leaderboardData.data?.all_time?.data || [])
+        ];
+        
+        // Deduplicate users
+        const uniqueUsers = Array.from(new Set(allUsers.map(user => user.uid)))
+          .map(uid => allUsers.find(user => user.uid === uid))
+          .filter(Boolean);
+        
+        const totals = uniqueUsers.reduce((acc: any, entry: any) => {
           acc.dailyTotal += entry.wagered?.today || 0;
           acc.weeklyTotal += entry.wagered?.this_week || 0;
           acc.monthlyTotal += entry.wagered?.this_month || 0;
@@ -647,7 +376,8 @@ function setupAPIRoutes(app: Express) {
         const stats = {
           totalRaces: raceCount[0].count,
           activeRaces: activeRaceCount[0].count,
-          wagerTotals: totals
+          wagerTotals: totals,
+          userCount: uniqueUsers.length
         };
 
         // Check both responseHasBeenSent flag and res.headersSent for maximum safety
