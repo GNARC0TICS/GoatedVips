@@ -112,13 +112,17 @@ export class GoatedApiService {
     let retryCount = 0;
     let lastError: Error | null = null;
     
+    // Ensure URL is properly formatted and includes protocol
+    const urlToUse = this.apiUrl.startsWith('http') ? this.apiUrl : `https://${this.apiUrl}`;
+    console.log(`Using normalized API URL: ${urlToUse}`);
+    
     while (retryCount <= this.maxRetries) {
       try {
         // Log retry information
         if (retryCount > 0) {
           console.log(`Retry attempt ${retryCount}/${this.maxRetries}`);
         } else {
-          console.log(`Attempting API request to: ${this.apiUrl}`);
+          console.log(`Attempting API request to: ${urlToUse}`);
           // Log token info without revealing full token
           const tokenPreview = this.apiToken.length > 10 
             ? `${this.apiToken.substring(0, 5)}...${this.apiToken.substring(this.apiToken.length - 5)}`
@@ -126,33 +130,54 @@ export class GoatedApiService {
           console.log(`Using authorization: Bearer ${tokenPreview}`);
         }
         
-        // Use a longer timeout and store the fetch Promise
+        // Create a new controller for each attempt
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.requestTimeout);
+        let timeoutId: NodeJS.Timeout | null = null;
+        
+        // Set up timeout with proper error handling
+        timeoutId = setTimeout(() => {
+          console.warn(`Request timeout after ${this.requestTimeout}ms, aborting...`);
+          controller.abort();
+        }, this.requestTimeout);
+        
+        console.log(`Starting fetch with timeout of ${this.requestTimeout}ms`);
         
         // First, try to fetch the raw response text
-        const response = await fetch(this.apiUrl, {
+        const response = await fetch(urlToUse, {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${this.apiToken}`,
             "Accept": "*/*", // Accept any content type
-            "Content-Type": "application/x-www-form-urlencoded"
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
           },
           signal: controller.signal,
         });
         
         // Clear the timeout since we got a response
-        clearTimeout(timeoutId);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        
+        console.log(`Received response with status: ${response.status}`);
         
         // Handle HTTP error responses
         if (!response.ok) {
           const errorText = await response.text();
+          console.error(`API error response (${response.status}):`, errorText.substring(0, 200));
           throw new Error(`API request failed with status ${response.status}: ${errorText}`);
         }
         
         // Get the raw text response first
         const rawText = await response.text();
         console.log(`Received raw API response (length: ${rawText.length} chars)`);
+        
+        // Log a sample of the response for debugging
+        if (rawText.length > 0) {
+          console.log(`Response sample: ${rawText.substring(0, Math.min(200, rawText.length))}...`);
+        }
         
         // If empty response, throw error
         if (!rawText || rawText.trim() === '') {
@@ -165,7 +190,8 @@ export class GoatedApiService {
           data = JSON.parse(rawText);
           console.log(`Successfully parsed JSON response with ${response.status} status`);
         } catch (jsonError) {
-          console.warn("Failed to parse response as JSON, using raw text:", rawText.substring(0, 100) + "...");
+          console.warn("Failed to parse response as JSON:", String(jsonError));
+          console.warn("Raw text sample:", rawText.substring(0, 100) + "...");
           // Return raw text as a fallback
           data = { rawText, parseError: true };
         }
@@ -177,19 +203,29 @@ export class GoatedApiService {
         return data;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
+        
+        // Check for different types of errors with better diagnostics
         const isTimeoutError = lastError.name === 'AbortError' || 
                               lastError.message.includes('timeout') || 
                               lastError.message.includes('abort');
+        
+        const isNetworkError = lastError.message.includes('network') || 
+                              lastError.message.includes('fetch') ||
+                              lastError.message.includes('connect');
                               
-        console.error(`API request failed (attempt ${retryCount + 1}/${this.maxRetries + 1}):`, 
-          isTimeoutError ? 'The operation was aborted due to timeout' : lastError.message);
+        if (isTimeoutError) {
+          console.error(`API request timed out (attempt ${retryCount + 1}/${this.maxRetries + 1})`);
+          console.error(`Timeout details: Limit=${this.requestTimeout}ms, Error=${lastError.message}`);
+        } else if (isNetworkError) {
+          console.error(`Network error (attempt ${retryCount + 1}/${this.maxRetries + 1}):`, lastError.message);
+          console.error(`Check network connectivity and API endpoint: ${urlToUse}`);
+        } else {
+          console.error(`API request failed (attempt ${retryCount + 1}/${this.maxRetries + 1}):`, lastError.message);
+        }
         
         // Don't retry if we've hit the max retries
         if (retryCount >= this.maxRetries) {
-          // Mark as timed out in console to help with debugging
-          if (isTimeoutError) {
-            console.warn("API request timed out after all retry attempts");
-          }
+          console.warn(`Exhausted all ${this.maxRetries + 1} attempts to reach the API`);
           break;
         }
         
@@ -208,8 +244,16 @@ export class GoatedApiService {
       return this.lastSuccessfulResponse;
     }
     
-    // If we've exhausted all retries, throw the last error
-    throw lastError || new Error("API request failed with unknown error");
+    // If we've exhausted all retries, throw the last error with diagnostic info
+    const errorMessage = lastError ? 
+      `API request failed after ${this.maxRetries + 1} attempts: ${lastError.message}` : 
+      "API request failed with unknown error";
+    
+    console.error(`Final error: ${errorMessage}`);
+    console.error(`API URL: ${urlToUse}`);
+    console.error(`Timeout setting: ${this.requestTimeout}ms`);
+    
+    throw new Error(errorMessage);
   }
 
   /**

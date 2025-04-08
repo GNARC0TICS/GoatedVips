@@ -22,11 +22,11 @@ export const API_CONFIG = {
   
   // Request configuration
   request: {
-    // Substantially increased timeout to allow for very slow API responses
-    timeout: 30000,
+    // Extended timeout to allow for very slow API responses (60 seconds)
+    timeout: 60000,
 
     // Increased number of retries for failed requests
-    retries: 3
+    retries: 5
   }
 };
 
