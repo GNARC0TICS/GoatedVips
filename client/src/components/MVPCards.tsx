@@ -444,13 +444,13 @@ export function MVPCards() {
   // Debug the data we're receiving from the API
   console.log("Leaderboard Data:", leaderboardData);
 
-  // Get the current user for the backside card
+  // Get the current user for the backside card - pull all hooks to top level
   const { user } = useAuth();
-  const { profile: currentUserProfile } = useProfile(user?.id, { 
-    manual: true,
+  const [profile, setProfile] = useState<any>(null);
+  const { profile: currentUserProfile } = useProfile(user?.id ?? '', { 
+    manual: !user?.id,
     includeStats: true 
   });
-  const [profile, setProfile] = useState<any>(null);
 
   // Fetch profile data when user is available
   useEffect(() => {
