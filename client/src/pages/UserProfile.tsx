@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useParams } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -12,14 +13,16 @@ export function UserProfile() {
   const userId = params.id;
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   // Use our consolidated hook for profile fetching with stats
   const { profile, isLoading, error } = useProfile(userId, { includeStats: true });
-  
-  // Check if the current user is the profile owner using the profileService helper
-  // This is more robust as it handles both numeric IDs and Goated IDs
-  const isOwner = user ? profileService.isProfileOwner(userId) : false;
-  
+
+  // Determine ownership status after profile is loaded
+  const isOwner = React.useMemo(() => {
+    if (!user || !profile) return false;
+    return profileService.isProfileOwner(userId);
+  }, [user, profile, userId]);
+
   // Handle loading state
   if (isLoading) {
     return (
@@ -30,7 +33,7 @@ export function UserProfile() {
       </div>
     );
   }
-  
+
   // Handle error state
   if (error || !profile) {
     return (
@@ -46,7 +49,7 @@ export function UserProfile() {
       </div>
     );
   }
-  
+
   return (
     <div className="container mx-auto my-8 px-4">
       <ProfileLayout
