@@ -665,33 +665,7 @@ function setupWebSocket(httpServer: Server) {
     handleTransformationLogsConnection(ws);
   });
   
-  // Create WebSocket server for support chat
-  createWebSocketServer(httpServer, '/ws/chat', (ws, _req) => {
-    log("info", "New support chat WebSocket connection established");
-    
-    ws.on('message', (message) => {
-      try {
-        const data = JSON.parse(message.toString());
-        if (data.type === 'chat_message') {
-          // Echo the message back to the client for now
-          // In a real implementation, this would store the message and broadcast to other clients
-          ws.send(JSON.stringify({
-            id: Date.now(),
-            userId: 1, // Mock user ID
-            message: data.message,
-            createdAt: new Date().toISOString(),
-            isStaffReply: data.isStaffReply || false
-          }));
-        }
-      } catch (err) {
-        log("error", `Error parsing chat message: ${err}`);
-      }
-    });
-    
-    ws.on('error', (error) => {
-      log("error", `Chat WebSocket error: ${error.message}`);
-    });
-  });
+  // Note: Chat WebSocket endpoint removed to simplify the system
 }
 
 function handleLeaderboardConnection(ws: WebSocket) {

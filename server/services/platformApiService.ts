@@ -653,6 +653,102 @@ export class PlatformApiService {
   }
   
   /**
+   * Update wager data for all users
+   * Fetches latest wager statistics from the API and updates our database
+   */
+  async updateWagerData(): Promise<number> {
+    console.log("updateAllWagerData method called (placeholder)");
+    
+    const startTime = Date.now();
+    
+    try {
+      // Fetch the latest data from the API
+      const rawData = await goatedApiService.fetchReferralData();
+      
+      // If no data is available, return early
+      if (!rawData || !rawData.data) {
+        await this.logTransformation(
+          'wager-data-update',
+          'warning', 
+          'No data available from external API',
+          Date.now() - startTime
+        );
+        return 0;
+      }
+      
+      // Process and transform the data
+      const leaderboardData = this.transformToLeaderboard(rawData);
+      
+      // Extract the all_time data for processing
+      const profiles = leaderboardData.data.all_time.data || [];
+      
+      // If no profiles found, log and return
+      if (!profiles.length) {
+        await this.logTransformation(
+          'wager-data-update',
+          'warning',
+          'No profiles found in API response',
+          Date.now() - startTime
+        );
+        return 0;
+      }
+      
+      let updatedCount = 0;
+      
+      // Update each user's wager data
+      for (const profile of profiles) {
+        try {
+          // Extract required fields
+          const { uid, wagered } = profile;
+          
+          // Skip invalid profiles
+          if (!uid || !wagered) continue;
+          
+          // Update the user's wager data in our database
+          const result = await db.update(users)
+            .set({
+              totalWager: String(wagered.all_time || 0),
+              // Only set fields that exist in the database schema
+              lastActive: new Date() // Using lastActive as the update timestamp
+            })
+            .where(eq(users.goatedId, uid));
+          
+          if (result.rowCount > 0) {
+            updatedCount++;
+          }
+        } catch (error) {
+          console.error(`Error updating wager data for user ${profile.uid}:`, error);
+          // Continue processing other profiles even if one fails
+        }
+      }
+      
+      // Log successful update
+      await this.logTransformation(
+        'wager-data-update',
+        'success',
+        `Updated wager data for ${updatedCount} users`,
+        Date.now() - startTime
+      );
+      
+      console.log(`[Initial wager data update completed for ${updatedCount} users]`, "info");
+      return updatedCount;
+    } catch (error) {
+      // Log the error
+      const duration = Date.now() - startTime;
+      await this.logTransformation(
+        'wager-data-update',
+        'error',
+        'Failed to update wager data',
+        duration,
+        error instanceof Error ? error.message : String(error)
+      );
+      
+      // Rethrow the error
+      throw error;
+    }
+  }
+
+  /**
    * The core profile management functionality of the service
    */
 }
