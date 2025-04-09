@@ -25,6 +25,7 @@ import {
   users 
 } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
+import { hashPassword } from "../auth";
 
 // Type definitions for our data structures
 // These define the standard format for data throughout the platform
@@ -649,6 +650,44 @@ export class PlatformApiService {
       
       console.log(`Found ${profiles.length} profiles to process`);
       
+      // Update rank tracking for all users
+      const dailyRankMap = new Map();
+      const weeklyRankMap = new Map();
+      const monthlyRankMap = new Map();
+      const allTimeRankMap = new Map();
+      
+      // First pass: determine rankings
+      if (leaderboardData.data.today && leaderboardData.data.today.data) {
+        leaderboardData.data.today.data.forEach((profile, index) => {
+          if (profile.uid) {
+            dailyRankMap.set(profile.uid, index + 1);
+          }
+        });
+      }
+      
+      if (leaderboardData.data.weekly && leaderboardData.data.weekly.data) {
+        leaderboardData.data.weekly.data.forEach((profile, index) => {
+          if (profile.uid) {
+            weeklyRankMap.set(profile.uid, index + 1);
+          }
+        });
+      }
+      
+      if (leaderboardData.data.monthly && leaderboardData.data.monthly.data) {
+        leaderboardData.data.monthly.data.forEach((profile, index) => {
+          if (profile.uid) {
+            monthlyRankMap.set(profile.uid, index + 1);
+          }
+        });
+      }
+      
+      // All-time ranks
+      profiles.forEach((profile, index) => {
+        if (profile.uid) {
+          allTimeRankMap.set(profile.uid, index + 1);
+        }
+      });
+      
       // Loop through each profile and process it
       for (const profile of profiles) {
         try {
@@ -664,28 +703,54 @@ export class PlatformApiService {
           });
           
           if (existingUser) {
-            // Update existing user
+            // Update existing user with enhanced data
             await db.update(users)
               .set({
                 goatedUsername: name,
                 totalWager: String(wagered?.all_time || 0),
-                // Update the last active timestamp
-                lastActive: new Date()
+                dailyWager: String(wagered?.today || 0),
+                weeklyWager: String(wagered?.this_week || 0),
+                monthlyWager: String(wagered?.this_month || 0),
+                // Add rank tracking
+                dailyRank: dailyRankMap.get(uid) || null,
+                weeklyRank: weeklyRankMap.get(uid) || null,
+                monthlyRank: monthlyRankMap.get(uid) || null,
+                allTimeRank: allTimeRankMap.get(uid) || null,
+                // Update timestamps
+                lastActive: new Date(),
+                lastUpdated: new Date(),
+                lastWagerSync: new Date()
               })
               .where(eq(users.goatedId, uid));
             
             updated++;
           } else {
-            // Create new user profile - note we need to provide required fields
+            // Create new user profile with enhanced data
+            // Use better default values for auto-created users
+            const randomPassword = Math.random().toString(36).substring(2, 10);
+            const hashedPassword = await hashPassword(randomPassword);
+            
             await db.insert(users).values({
               username: name,
-              password: '', // Required field but we'll set it empty for API-created users
-              email: `${uid}@goated.placeholder`, // Required field with placeholder
+              password: hashedPassword,
+              email: `${uid}@goated.placeholder`,
               goatedId: uid,
               goatedUsername: name,
               goatedAccountLinked: true,
+              // Wager data
               totalWager: String(wagered?.all_time || 0),
+              dailyWager: String(wagered?.today || 0),
+              weeklyWager: String(wagered?.this_week || 0),
+              monthlyWager: String(wagered?.this_month || 0),
+              // Rank tracking
+              dailyRank: dailyRankMap.get(uid) || null,
+              weeklyRank: weeklyRankMap.get(uid) || null,
+              monthlyRank: monthlyRankMap.get(uid) || null,
+              allTimeRank: allTimeRankMap.get(uid) || null,
+              // Profile data
               createdAt: new Date(),
+              lastUpdated: new Date(),
+              lastWagerSync: new Date(),
               profileColor: '#D7FF00',
               bio: 'Goated.com player'
             });

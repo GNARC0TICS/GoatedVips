@@ -2,46 +2,23 @@ import React from "react";
 import { useParams } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Profile, profileService } from "@/services/profileService";
+import { profileService } from "@/services/profileService";
 import { ProfileLayout } from "@/components/profile/ProfileLayout";
 import { Spinner } from "@/components/ui/spinner";
+import { useProfile } from "@/hooks/use-profile";
 
 export function UserProfile() {
   const params = useParams<{ id: string }>();
   const userId = params.id;
   const { user } = useAuth();
   const { toast } = useToast();
-  const [profile, setProfile] = React.useState<Profile | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<Error | null>(null);
   
-  React.useEffect(() => {
-    async function fetchProfile() {
-      try {
-        setIsLoading(true);
-        const profileData = await profileService.getProfile(userId);
-        setProfile(profileData);
-      } catch (err) {
-        console.error("Error fetching profile:", err);
-        setError(err instanceof Error ? err : new Error(String(err)));
-        
-        toast({
-          title: "Error loading profile",
-          description: "Could not retrieve user profile. Please try again later.",
-          type: "error",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    
-    if (userId) {
-      fetchProfile();
-    }
-  }, [userId, toast]);
+  // Use our consolidated hook for profile fetching with stats
+  const { profile, isLoading, error } = useProfile(userId, { includeStats: true });
   
-  // Check if the current user is the profile owner
-  const isOwner = user ? user.id === parseInt(userId) : false;
+  // Check if the current user is the profile owner using the profileService helper
+  // This is more robust as it handles both numeric IDs and Goated IDs
+  const isOwner = user ? profileService.isProfileOwner(userId) : false;
   
   // Handle loading state
   if (isLoading) {

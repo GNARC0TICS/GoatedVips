@@ -1,12 +1,16 @@
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
-import { Trophy, TrendingUp } from "lucide-react";
+import { Trophy, TrendingUp, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { QuickProfile } from "./QuickProfile";
+import { QuickProfile } from "./profile/QuickProfile";
 import { getTierFromWager, getTierInfo, getTierIcon, getTierIconComponent } from "@/lib/tier-utils";
 import { Dialog, DialogContent } from "./ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 import { ProfileTierProgress } from './profile/ProfileTierProgress';
 import { profileService } from '@/services/profileService';
+import { useAuth } from '@/hooks/use-auth';
+import { useProfile } from '@/hooks/use-profile';
 
 /**
  * MVP card type definition with all required properties
@@ -440,8 +444,15 @@ export function MVPCards() {
   // Debug the data we're receiving from the API
   console.log("Leaderboard Data:", leaderboardData);
 
+  // Get the current user for the backside card - fetch hook OUTSIDE of any conditionals
+  const { user } = useAuth();
+  // Always call useProfile with consistent parameters to avoid conditional hook calls
+  // Safe fallback for user.id being undefined
+  const userId = user?.id ?? null;
+  const { profile: currentUserProfile } = useProfile(userId, { manual: !userId });
+  
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-0 max-w-5xl mx-auto perspective-1000 px-0">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-0 max-w-5xl mx-auto perspective-1000 px-0">
       {timeframes.map((timeframe, index) => (
         <motion.div
           key={timeframe.period}
@@ -503,6 +514,134 @@ export function MVPCards() {
           />
         </motion.div>
       ))}
+      
+      {/* New "Backside" Card - shows your stats or prompts login */}
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        whileHover={{ scale: 1.02 }}
+        transition={{ 
+          type: "spring", 
+          stiffness: 400, 
+          damping: 30,
+          delay: 0.3  // Last animation
+        }}
+        className="group relative transform transition-all duration-300 p-2 md:p-3"
+      >
+        <div className="relative w-full h-[200px] cursor-pointer">
+          <div className="relative h-full">
+            <div 
+              className="relative p-4 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm transition-all duration-300 shadow-lg card-hover h-full cursor-pointer overflow-hidden"
+              style={{
+                '--hover-border-color': `#D7FF0080`,
+                '--hover-shadow-color': `#D7FF0040`
+              } as React.CSSProperties}
+            >
+              {user ? (
+                // Logged in state - Show user stats
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-5 w-5 bg-[#D7FF00] rounded-full flex items-center justify-center">
+                        <User className="h-3 w-3 text-black" />
+                      </div>
+                      <h3 className="text-lg font-heading text-white">Your Stats</h3>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      {currentUserProfile?.profileColor ? (
+                        <div 
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-black font-bold"
+                          style={{ backgroundColor: currentUserProfile.profileColor }}
+                        >
+                          {currentUserProfile.username ? currentUserProfile.username.charAt(0).toUpperCase() : '?'}
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-[#D7FF00]/20 flex items-center justify-center">
+                          <User className="h-5 w-5 text-[#D7FF00]" />
+                        </div>
+                      )}
+                      <div className="flex-grow min-w-0">
+                        <h4 className="text-base font-heading text-white truncate">
+                          {currentUserProfile?.username || user.username || "You"}
+                        </h4>
+                        <p className="text-xs text-[#9A9BA1] truncate">
+                          {currentUserProfile?.goatedUsername 
+                            ? `Linked to ${currentUserProfile.goatedUsername}` 
+                            : "Link your Goated account"}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center justify-between text-sm bg-black/40 p-2 rounded-lg">
+                        <span className="text-white/70">All-Time Wagered:</span>
+                        <span className="text-white font-mono font-bold">
+                          ${currentUserProfile?.totalWager 
+                              ? parseFloat(currentUserProfile.totalWager).toLocaleString()
+                              : '0'}
+                        </span>
+                      </div>
+                      
+                      <Link href="/profile" className="block w-full">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="w-full bg-[#D7FF00]/10 border-[#D7FF00]/20 text-[#D7FF00] hover:bg-[#D7FF00]/20"
+                        >
+                          View Full Profile
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                // Not logged in state - Show login prompt
+                <>
+                  {/* Playing card backside design */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#1A1B21] to-[#14151A] overflow-hidden">
+                    {/* Pattern overlay */}
+                    <div className="absolute inset-0 opacity-5">
+                      <div className="absolute inset-0 bg-[url('/images/noise.png')] mix-blend-overlay" />
+                      <div className="grid grid-cols-5 grid-rows-7 h-full w-full">
+                        {Array.from({ length: 35 }).map((_, i) => (
+                          <div key={i} className="border border-[#D7FF00]/5"></div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Center logo */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="h-16 w-16 rounded-full border-2 border-[#D7FF00] flex items-center justify-center transform rotate-45">
+                        <div className="h-14 w-14 rounded-full border-2 border-[#D7FF00] flex items-center justify-center backdrop-blur-sm">
+                          <span className="text-[#D7FF00] font-bold text-xl transform -rotate-45">MVP</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Call to action */}
+                  <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-center">
+                    <h3 className="text-lg font-heading text-white mb-2">Ready to Compete?</h3>
+                    <p className="text-sm text-[#D7FF00] mb-3">Sign in to track your stats</p>
+                    <Link href="/auth">
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        className="w-full bg-[#D7FF00] text-black font-medium hover:bg-[#C0E600]"
+                      >
+                        Sign In
+                      </Button>
+                    </Link>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }

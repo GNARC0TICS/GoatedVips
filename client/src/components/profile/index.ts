@@ -10,3 +10,5 @@ export * from './ProfileTierProgress';
 export * from './ProfileActions';
 export * from './ProfileLayout';
 export * from './QuickProfileCard';
+export * from './QuickProfile';
+export * from './ProfileEmblem';

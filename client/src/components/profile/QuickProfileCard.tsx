@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { profileService, UserProfile, ProfileError } from '@/services/profileService';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
 import { getTierFromWager, getTierInfo, TierLevel } from '@/lib/tier-utils';
 import { motion } from 'framer-motion';
+import { useProfile } from '@/hooks/use-profile';
 
 interface QuickProfileCardProps {
   profileId: string | number;
@@ -32,55 +33,9 @@ export function QuickProfileCard({
   className,
 }: QuickProfileCardProps) {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
   
-  // Define the fetch profile function outside useEffect so it can be called from retry buttons
-  const fetchProfile = async () => {
-    if (!profileId) return;
-    
-    let isMounted = true;
-    try {
-      setIsLoading(true);
-      
-      // Try to safely handle both numeric and non-numeric IDs
-      // If it's a numeric string, convert to number, otherwise pass as is
-      let id = profileId;
-      if (typeof profileId === 'string' && /^\d+$/.test(profileId)) {
-        id = parseInt(profileId, 10);
-      }
-      
-      console.log(`Fetching profile for ID: ${id} (original: ${profileId}, type: ${typeof id})`);
-      const profileData = await profileService.getProfile(id);
-      
-      if (isMounted) {
-        setProfile(profileData);
-        setError(null);
-      }
-    } catch (err) {
-      console.error('Error fetching profile:', err);
-      
-      if (isMounted) {
-        setError(err instanceof Error ? err : new Error(String(err)));
-      }
-    } finally {
-      if (isMounted) {
-        setIsLoading(false);
-      }
-    }
-  };
-  
-  // Fetch profile data on mount
-  useEffect(() => {
-    let isMounted = true;
-    
-    fetchProfile();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [profileId]);
+  // Use our consolidated hook for profile fetching
+  const { profile, isLoading, error, fetchProfile } = useProfile(profileId);
   
   // Determine if the current user owns this profile
   const isOwner = user ? profileService.isProfileOwner(profileId) : false;
@@ -254,6 +209,50 @@ export function QuickProfileCard({
           </motion.div>
         )}
         
+        {/* Stats Preview Section */}
+        <motion.div
+          className="mb-5 grid grid-cols-2 gap-2"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.15 }}
+        >
+          {/* Total Wagered Stat */}
+          <div className="p-3 rounded-md bg-[#1A1B21]/50 border border-[#2A2B31]/50">
+            <div className="text-xs text-[#9A9BA1] mb-1">Total Wagered</div>
+            <div className="font-bold text-white text-lg">
+              {profile.totalWager 
+                ? `$${parseFloat(profile.totalWager).toLocaleString()}`
+                : '$0'}
+            </div>
+          </div>
+          
+          {/* Rank Stat */}
+          <div className="p-3 rounded-md bg-[#1A1B21]/50 border border-[#2A2B31]/50">
+            <div className="text-xs text-[#9A9BA1] mb-1">Rank</div>
+            <div className="font-bold text-white text-lg">
+              {(profile as any).rank
+                ? `#${(profile as any).rank}`
+                : 'N/A'}
+            </div>
+          </div>
+          
+          {/* Races Joined Stat */}
+          <div className="p-3 rounded-md bg-[#1A1B21]/50 border border-[#2A2B31]/50">
+            <div className="text-xs text-[#9A9BA1] mb-1">Races Joined</div>
+            <div className="font-bold text-white text-lg">
+              {(profile as any).stats?.races?.total || '0'}
+            </div>
+          </div>
+          
+          {/* Races Won Stat */}
+          <div className="p-3 rounded-md bg-[#1A1B21]/50 border border-[#2A2B31]/50">
+            <div className="text-xs text-[#9A9BA1] mb-1">Race Wins</div>
+            <div className="font-bold text-white text-lg">
+              {(profile as any).stats?.races?.won || '0'}
+            </div>
+          </div>
+        </motion.div>
+        
         {/* Profile Bio */}
         {profile.bio && (
           <motion.div 
@@ -273,17 +272,33 @@ export function QuickProfileCard({
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.3 }}
         >
-          {profile.goatedAccountLinked ? (
-            <div className="bg-[#1A1B21]/50 p-3 rounded-md flex items-center gap-2 border border-green-900/20">
-              <Check className="h-4 w-4 text-green-500" />
-              <span className="text-white/90 font-medium">Goated Account Linked</span>
+          {/* Only show account link status for the users who registered on our platform */}
+          {user ? (
+            profile.goatedAccountLinked ? (
+              <div className="bg-[#1A1B21]/50 p-3 rounded-md flex items-center gap-2 border border-green-900/20">
+                <Check className="h-4 w-4 text-green-500" />
+                <span className="text-white/90 font-medium">Goated Account Linked</span>
+              </div>
+            ) : profile.goatedLinkRequested ? (
+              <div className="bg-[#1A1B21]/50 p-3 rounded-md flex items-center gap-2 border border-orange-900/20">
+                <Clock className="h-4 w-4 text-orange-500" />
+                <span className="text-white/90 font-medium">Link Request Pending</span>
+              </div>
+            ) : isOwner ? (
+              <div className="bg-[#1A1B21]/50 p-3 rounded-md flex items-center gap-2 border border-blue-900/20">
+                <ExternalLink className="h-4 w-4 text-blue-500" />
+                <span className="text-white/90 font-medium">Link Your Goated Account</span>
+              </div>
+            ) : null
+          ) : profile.goatedId ? (
+            // For Goated users in leaderboard, show Goated ID if available
+            <div className="bg-[#1A1B21]/50 p-3 rounded-md flex items-center gap-2 border border-[#2A2B31]/30">
+              <ExternalLink className="h-4 w-4 text-[#9A9BA1]" />
+              <span className="text-[#9A9BA1] font-medium">
+                Goated ID: <span className="font-mono text-xs">{profile.goatedId.substring(0, 10)}...</span>
+              </span>
             </div>
-          ) : (
-            <div className="bg-[#1A1B21]/50 p-3 rounded-md flex items-center gap-2 border border-yellow-900/20">
-              <AlertTriangle className="h-4 w-4 text-yellow-500" />
-              <span className="text-white/90 font-medium">Goated Account Not Linked</span>
-            </div>
-          )}
+          ) : null}
           
           {/* Created Date */}
           {profile.createdAt && (
@@ -328,7 +343,7 @@ export function QuickProfileCard({
             </Button>
           )}
           
-          <Link href={`/profile/${profile.id}`}>
+          <Link href={`/user-profile/${profile.id}`}>
             <Button 
               variant="default"
               size="sm"

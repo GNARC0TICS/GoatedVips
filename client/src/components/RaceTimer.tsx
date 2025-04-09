@@ -4,12 +4,8 @@ import { Trophy, History, Clock, ChevronRight, ChevronLeft } from "lucide-react"
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useMediaQuery } from "@/hooks/use-media-query";
 
-// We can't import from the separate file yet as it's causing errors
-// When we fix file structure, we'll reenable this: import { SpeedIcon } from "./icons/SpeedIcon";
-
-// Inline SpeedIcon component until we fix the file structure
+// Inline SpeedIcon component
 const SpeedIcon = ({ isAnimating = true, ...svgProps }: any) => {
   const maskId = "lineMdSpeedTwotoneLoop" + Math.random().toString(36).substr(2, 5);
   return (
@@ -77,10 +73,9 @@ export function RaceTimer() {
   const [isExpanded] = useState(true);
   const [showPrevious, setShowPrevious] = useState(false);
   const [timeLeft, setTimeLeft] = useState("");
-  const [isContentVisible, setIsContentVisible] = useState(true);
+  const [isContentVisible, setIsContentVisible] = useState(false); // Start hidden
   const [isAnimationReady, setIsAnimationReady] = useState(false);
   const { toast } = useToast();
-  const isMobile = useMediaQuery("(max-width: 768px)");
 
   // API request function - memoized to prevent unnecessary recreations
   const fetchRaceData = useCallback(async (endpoint: string): Promise<RaceData> => {
@@ -107,7 +102,7 @@ export function RaceTimer() {
     queryFn: () => fetchRaceData('/api/wager-races/current'),
     refetchInterval: 5 * 60 * 1000, // 5 minutes - aligned with server cache time
     retry: 3,
-    enabled: !showPrevious,
+    enabled: true, // Always keep this query active so animation starts
     staleTime: 4 * 60 * 1000, // 4 minutes
   });
 
@@ -133,14 +128,14 @@ export function RaceTimer() {
         description: currentError.message || "Please try again later",
       });
     }
-    if (previousError) {
+    if (previousError && showPrevious) {
       console.error('Previous race data fetch error:', previousError);
       toast({
         title: "Error loading previous race data",
         description: previousError.message || "Please try again later",
       });
     }
-  }, [currentError, previousError, toast]);
+  }, [currentError, previousError, toast, showPrevious]);
 
   // Memoized values to prevent unnecessary re-renders
   const raceData = useMemo(() => 
@@ -194,81 +189,36 @@ export function RaceTimer() {
     setShowPrevious(prev => !prev);
   }, []);
 
-  // Position based on screen size
-  const positionClass = useMemo(() => {
-    if (isMobile) {
-      return "fixed bottom-0 left-0 right-0 z-50"; // Bottom of screen on mobile
-    }
-    return "fixed top-1/2 right-0 transform -translate-y-1/2 z-50"; // Right side on desktop
-  }, [isMobile]);
-
-  // Animation variants
-  const contentAnimation = useMemo(() => {
-    if (isMobile) {
-      return {
-        initial: { y: "100%" },
-        animate: { y: isContentVisible ? 0 : "calc(100% - 48px)" },
-        exit: { y: "100%" }
-      };
-    }
-    return {
-      initial: { x: "100%" },
-      animate: { x: isContentVisible ? 0 : "calc(100% - 48px)" },
-      exit: { x: "100%" }
-    };
-  }, [isMobile, isContentVisible]);
-
-  // Toggle button icon and positioning
-  const toggleButtonContent = useMemo(() => {
-    if (isLoading) {
-      return <div className="h-7 w-7 animate-pulse bg-[#2A2B31]/50 rounded-full"></div>;
-    }
-    
-    if (isMobile) {
-      return isContentVisible 
-        ? <ChevronDown className="h-6 w-6 text-[#D7FF00] group-hover:scale-110 transition-all" />
-        : <ChevronUp className="h-6 w-6 text-[#D7FF00] group-hover:scale-110 transition-all" />;
-    }
-    
-    return <SpeedIcon 
-      className="h-7 w-7 text-[#D7FF00] group-hover:scale-110 transition-all"
-      isAnimating={isAnimationReady} 
-    />;
-  }, [isLoading, isMobile, isContentVisible, isAnimationReady]);
-
-  // Extracting the toggle button to a component
-  const ToggleButton = useMemo(() => {
-    const buttonClass = isMobile
-      ? "bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-b-0 rounded-t-lg p-3 flex items-center justify-center hover:bg-[#1A1B21] transition-colors group w-20 mx-auto"
-      : "bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-3 flex items-center justify-center hover:bg-[#1A1B21] transition-colors group";
-      
-    return (
-      <button
-        onClick={toggleContentVisibility}
-        aria-label={isContentVisible ? "Hide race timer" : "Show race timer"}
-        className={buttonClass}
-      >
-        {toggleButtonContent}
-      </button>
-    );
-  }, [isMobile, toggleContentVisibility, isContentVisible, toggleButtonContent]);
-
   return (
-    <div className={positionClass}>
+    <div className="fixed top-1/2 right-0 transform -translate-y-1/2 z-50">
       <AnimatePresence>
         <motion.div
-          initial={contentAnimation.initial}
-          animate={contentAnimation.animate}
-          exit={contentAnimation.exit}
+          initial={{ x: "100%" }}
+          animate={{ x: isContentVisible ? 0 : "calc(100% - 48px)" }}
+          exit={{ x: "100%" }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className={isMobile ? "flex flex-col" : "flex items-start"}
+          className="flex items-start"
         >
-          {isMobile && isContentVisible ? ToggleButton : null}
+          <div 
+            className="order-first"
+          >
+            <button
+              onClick={toggleContentVisibility}
+              aria-label={isContentVisible ? "Hide race timer" : "Show race timer"}
+              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-3 flex items-center justify-center hover:bg-[#1A1B21] transition-colors group"
+            >
+              {isLoading ? (
+                <div className="h-7 w-7 animate-pulse bg-[#2A2B31]/50 rounded-full"></div>
+              ) : (
+                <SpeedIcon 
+                  className="h-7 w-7 text-[#D7FF00] group-hover:scale-110 transition-all"
+                  isAnimating={isAnimationReady} 
+                />
+              )}
+            </button>
+          </div>
           
-          <div className={isMobile 
-            ? "w-full bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] shadow-lg overflow-hidden"
-            : "w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden"
-          }>
+          <div className="w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden order-last">
             <div className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -299,7 +249,7 @@ export function RaceTimer() {
                   aria-label={showPrevious ? "Show current race" : "Show previous race"}
                   className="p-1 rounded hover:bg-[#2A2B31] transition-colors"
                 >
-                  <History className="h-4 w-4 text-[#8A8B91]" />
+                  <History className="h-4 w-4 text-[#8A8B91] hover:text-white transition-colors" />
                 </button>
               </div>
             </div>
@@ -349,30 +299,32 @@ export function RaceTimer() {
                         Error loading race data. Please try again.
                       </div>
                     ) : raceData && raceData.participants && raceData.participants.length > 0 ? (
-                      raceData.participants.map((participant, index) => (
-                        <div 
-                          key={participant.uid}
-                          className="flex items-center justify-between py-2 px-1 rounded hover:bg-[#2A2B31]/50 transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className={`
-                              w-5 h-5 flex items-center justify-center rounded-full text-sm font-medium
-                              ${index === 0 ? 'bg-yellow-500 text-black shadow-sm shadow-yellow-500/50' : ''}
-                              ${index === 1 ? 'bg-gray-400 text-black shadow-sm shadow-gray-400/50' : ''}
-                              ${index === 2 ? 'bg-amber-700 text-white shadow-sm shadow-amber-700/50' : ''}
-                              ${index > 2 ? 'bg-[#2A2B31] text-white' : ''}
-                            `}>
-                              {index + 1}
-                            </span>
-                            <span className="text-white truncate max-w-[120px]">
-                              {participant.name}
+                      <div className="space-y-1">
+                        {raceData.participants.map((participant, index) => (
+                          <div 
+                            key={participant.uid}
+                            className="flex items-center justify-between py-2 px-2 rounded hover:bg-[#2A2B31]/50 transition-colors group"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className={`
+                                w-5 h-5 flex items-center justify-center rounded-full text-sm font-medium
+                                ${index === 0 ? 'bg-yellow-500 text-black shadow-sm shadow-yellow-500/50' : ''}
+                                ${index === 1 ? 'bg-gray-400 text-black shadow-sm shadow-gray-400/50' : ''}
+                                ${index === 2 ? 'bg-amber-700 text-white shadow-sm shadow-amber-700/50' : ''}
+                                ${index > 2 ? 'bg-[#2A2B31] text-white group-hover:bg-[#3A3B41] transition-colors' : ''}
+                              `}>
+                                {index + 1}
+                              </span>
+                              <span className="text-white truncate max-w-[120px] group-hover:text-[#D7FF00] transition-colors">
+                                {participant.name}
+                              </span>
+                            </div>
+                            <span className="text-[#D7FF00] font-mono">
+                              ${participant.wagered.toLocaleString()}
                             </span>
                           </div>
-                          <span className="text-[#D7FF00] font-mono">
-                            ${participant.wagered.toLocaleString()}
-                          </span>
-                        </div>
-                      ))
+                        ))}
+                      </div>
                     ) : (
                       <div className="text-center text-[#8A8B91] py-4">
                         No participants found
@@ -381,8 +333,8 @@ export function RaceTimer() {
                     
                     {/* Footer Action */}
                     <Link href="/wager-races">
-                      <a className="block text-center text-[#D7FF00] mt-4 hover:underline">
-                        View Full Leaderboard
+                      <a className="block text-center text-[#D7FF00] mt-4 py-2 px-4 rounded-md hover:bg-[#D7FF00]/10 transition-colors">
+                        View Full Leaderboard →
                       </a>
                     </Link>
                   </div>
@@ -390,23 +342,8 @@ export function RaceTimer() {
               )}
             </AnimatePresence>
           </div>
-          
-          {!isMobile || !isContentVisible ? ToggleButton : null}
         </motion.div>
       </AnimatePresence>
     </div>
   );
 }
-
-// Mobile-specific chevron icons
-const ChevronUp = (props: any) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <polyline points="18 15 12 9 6 15"></polyline>
-  </svg>
-);
-
-const ChevronDown = (props: any) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <polyline points="6 9 12 15 18 9"></polyline>
-  </svg>
-);

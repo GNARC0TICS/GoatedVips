@@ -17,9 +17,21 @@ export class ProfileError extends Error {
   }
 }
 
-// Profile schema
+// Profile schema - Updated to handle both numeric and string IDs
 export const ProfileSchema = z.object({
-  id: z.number(),
+  // Allow both string and number for ID to handle both internal and Goated IDs
+  // When a string is provided, we'll attempt to parse it as a number if it looks numeric
+  id: z.union([
+    z.number(),
+    z.string().transform((val, ctx) => {
+      // If it's a numeric string, convert to number
+      if (/^\d+$/.test(val)) {
+        return parseInt(val, 10);
+      }
+      // Otherwise keep as string (this allows Goated IDs to pass validation)
+      return val;
+    })
+  ]),
   username: z.string(),
   goatedId: z.string().nullable().optional(),
   goatedUsername: z.string().nullable().optional(),
@@ -36,9 +48,22 @@ export const ProfileSchema = z.object({
   goatedUsernameRequested: z.string().nullable().optional(),
   totalWager: z.string().nullable().optional(),
   tier: z.string().nullable().optional(),
+  rank: z.number().optional(), // User's rank in the leaderboard
+  // Basic stats that can be included in the profile without extending
+  stats: z.object({
+    races: z.object({
+      total: z.number().optional(),
+      won: z.number().optional(),
+      active: z.number().optional(),
+    }).optional(),
+    bonuses: z.object({
+      claimed: z.number().optional(),
+      active: z.number().optional(),
+    }).optional(),
+  }).optional(),
 });
 
-// Extended profile with stats
+// Extended profile with more detailed stats
 export const ProfileWithStatsSchema = ProfileSchema.extend({
   stats: z.object({
     wagered: z.object({
@@ -50,6 +75,17 @@ export const ProfileWithStatsSchema = ProfileSchema.extend({
     challenges: z.object({
       completed: z.number().optional(),
       active: z.number().optional(),
+    }).optional(),
+    races: z.object({
+      total: z.number().optional(),
+      won: z.number().optional(),
+      active: z.number().optional(),
+      earnings: z.number().optional(),
+    }).optional(),
+    bonuses: z.object({
+      claimed: z.number().optional(),
+      active: z.number().optional(),
+      total: z.number().optional(),
     }).optional(),
   }).optional(),
 });
@@ -93,20 +129,26 @@ class ProfileService {
 
   /**
    * Check if a profile is owned by the current user
-   * Safely handles both string and numeric IDs
+   * Safely handles both string and numeric IDs, including Goated IDs
    */
   isProfileOwner(profileId: string | number): boolean {
     if (!this.currentUser) return false;
     
-    // Convert both to strings for comparison when profileId is a non-numeric string
+    // Case 1: If profileId is a non-numeric string, it's a Goated ID
     if (typeof profileId === 'string' && !/^\d+$/.test(profileId)) {
-      // Handle non-numeric string IDs (like goatedId)
-      return this.currentUser.goatedId === profileId;
+      // Compare with current user's goatedId if available
+      return !!this.currentUser.goatedId && this.currentUser.goatedId === profileId;
     }
     
-    // For numeric IDs (both number type and numeric strings)
+    // Case 2: For numeric IDs or numeric strings, compare with internal ID
     const numericProfileId = typeof profileId === 'string' ? parseInt(profileId, 10) : profileId;
-    return this.currentUser.id === numericProfileId;
+    
+    // Handle the case where this.currentUser.id might be a string (from API)
+    const currentUserId = typeof this.currentUser.id === 'string' && /^\d+$/.test(this.currentUser.id) 
+      ? parseInt(this.currentUser.id, 10) 
+      : this.currentUser.id;
+      
+    return currentUserId === numericProfileId;
   }
 
   /**

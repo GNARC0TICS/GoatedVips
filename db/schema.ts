@@ -29,14 +29,28 @@ export const users = pgTable("users", {
   goatedLinkRequested: boolean("goated_link_requested").default(false),
   goatedUsernameRequested: text("goated_username_requested"),
   goatedLinkRequestedAt: timestamp("goated_link_requested_at"),
+  // Stats from Goated API
   totalWager: text("total_wager"),
   dailyWager: text("daily_wager"),
   weeklyWager: text("weekly_wager"),
   monthlyWager: text("monthly_wager"),
+  // Rank tracking
+  dailyRank: integer("daily_rank"),
+  weeklyRank: integer("weekly_rank"),
+  monthlyRank: integer("monthly_rank"),
+  allTimeRank: integer("all_time_rank"),
+  // Account verification
+  accountVerified: boolean("account_verified").default(false),
+  verifiedBy: text("verified_by"),
+  verifiedAt: timestamp("verified_at"),
+  // Last data update timestamp
   lastUpdated: timestamp("last_updated"),
+  lastWagerSync: timestamp("last_wager_sync"),
+  // Email verification fields
   emailVerificationToken: text("email_verification_token"),
   emailVerificationSentAt: timestamp("email_verification_sent_at"),
   emailVerifiedAt: timestamp("email_verified_at"),
+  // Activity tracking
   lastActive: timestamp("last_active"),
 });
 
