@@ -266,7 +266,7 @@ function MVPCard({
                   Player Statistics
                 </div>
               </div>
-              
+
               {/* TIER PROGRESS SECTION - Only show if profile is loaded */}
               {profile && (
                 <div className="mb-4">
@@ -276,7 +276,7 @@ function MVPCard({
                   }} />
                 </div>
               )}
-              
+
               <div className="space-y-4">
                 {[
                   { label: "Daily Rank", value: leaderboardData?.data?.today?.data?.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: "#8B5CF6" },
@@ -345,21 +345,21 @@ export function MVPCards() {
       console.log("Leaderboard data not available or not an object", leaderboardData);
       return { daily: undefined, weekly: undefined, monthly: undefined };
     }
-    
+
     const data = leaderboardData as any;
-    
+
     // Extract users from appropriate data paths
     let dailyUsers = data?.data?.today?.data || [];
     let weeklyUsers = data?.data?.weekly?.data || [];
     let monthlyUsers = data?.data?.monthly?.data || [];
-    
+
     // Fallback logic for different API response formats
     if (dailyUsers.length === 0 && data?.data?.today) {
       if (Array.isArray(data.data.today)) {
         dailyUsers = data.data.today;
       }
     }
-    
+
     if (weeklyUsers.length === 0 && data?.data?.weekly) {
       if (Array.isArray(data.data.weekly)) {
         weeklyUsers = data.data.weekly;
@@ -367,18 +367,18 @@ export function MVPCards() {
         weeklyUsers = data.data.weekly.this_week;
       }
     }
-    
+
     if (monthlyUsers.length === 0 && data?.data?.monthly) {
       if (Array.isArray(data.data.monthly)) {
         monthlyUsers = data.data.monthly;
       }
     }
-    
+
     // Extract first user from each group if available
     const dailyMVP = dailyUsers.length > 0 ? dailyUsers[0] : undefined;
     const weeklyMVP = weeklyUsers.length > 0 ? weeklyUsers[0] : undefined;
     const monthlyMVP = monthlyUsers.length > 0 ? monthlyUsers[0] : undefined;
-    
+
     return {
       daily: dailyMVP,
       weekly: weeklyMVP,
@@ -417,7 +417,7 @@ export function MVPCards() {
             <p className="text-sm text-white/60">{error instanceof Error ? error.message : "Unknown error"}</p>
           </div>
         )}
-        
+
         {timeframes.map((timeframe, index) => (
           <motion.div
             key={timeframe.period}
@@ -440,7 +440,7 @@ export function MVPCards() {
       </div>
     );
   }
-  
+
   // Debug the data we're receiving from the API
   console.log("Leaderboard Data:", leaderboardData);
 
@@ -450,6 +450,7 @@ export function MVPCards() {
     manual: true,
     includeStats: true 
   });
+  const [profile, setProfile] = useState<any>(null);
 
   // Fetch profile data when user is available
   useEffect(() => {
@@ -459,7 +460,7 @@ export function MVPCards() {
         .catch(err => console.error("Error fetching profile:", err));
     }
   }, [user?.id]);
-  
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-0 max-w-5xl mx-auto perspective-1000 px-0">
       {timeframes.map((timeframe, index) => (
@@ -480,11 +481,11 @@ export function MVPCards() {
             timeframe={timeframe}
             mvp={mvps[timeframe.period as keyof typeof mvps] ? (() => {
               const mvpData = mvps[timeframe.period as keyof typeof mvps];
-              
+
               // Try to determine the structure of the data and extract needed fields
               const username = mvpData.name || mvpData.username || '';
               const uid = mvpData.uid || mvpData.id || '';
-              
+
               // Figure out the wager amount based on what's available
               let wagerAmount = 0;
               if (timeframe.period === 'daily' && typeof mvpData.wagered?.today === 'number') {
@@ -498,7 +499,7 @@ export function MVPCards() {
               } else if (typeof mvpData.amount === 'number') {
                 wagerAmount = mvpData.amount;
               }
-              
+
               // Create a standard wagered object or use what we have
               const wagered = mvpData.wagered || {
                 today: typeof mvpData.today === 'number' ? mvpData.today : 0,
@@ -507,7 +508,7 @@ export function MVPCards() {
                 all_time: typeof mvpData.all_time === 'number' ? mvpData.all_time : 
                           (typeof mvpData.wagered?.all_time === 'number' ? mvpData.wagered.all_time : wagerAmount)
               };
-              
+
               return {
                 username,
                 uid,
@@ -523,7 +524,7 @@ export function MVPCards() {
           />
         </motion.div>
       ))}
-      
+
       {/* New "Backside" Card - shows your stats or prompts login */}
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -557,7 +558,7 @@ export function MVPCards() {
                       <h3 className="text-lg font-heading text-white">Your Stats</h3>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       {currentUserProfile?.profileColor ? (
@@ -583,7 +584,7 @@ export function MVPCards() {
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="mt-2 space-y-2">
                       <div className="flex items-center justify-between text-sm bg-black/40 p-2 rounded-lg">
                         <span className="text-white/70">All-Time Wagered:</span>
@@ -593,7 +594,7 @@ export function MVPCards() {
                               : '0'}
                         </span>
                       </div>
-                      
+
                       <Link href="/profile" className="block w-full">
                         <Button 
                           variant="outline" 
@@ -620,7 +621,7 @@ export function MVPCards() {
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* Center logo */}
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="h-16 w-16 rounded-full border-2 border-[#D7FF00] flex items-center justify-center transform rotate-45">
@@ -630,7 +631,7 @@ export function MVPCards() {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Call to action */}
                   <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-center">
                     <h3 className="text-lg font-heading text-white mb-2">Ready to Compete?</h3>
