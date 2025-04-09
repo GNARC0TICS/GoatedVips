@@ -9,7 +9,7 @@
 
 import { db } from '@db';
 import { users } from '@db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 // Custom error class for user operations
 export class UserError extends Error {
@@ -115,20 +115,28 @@ export async function ensureUserProfile(userId: string) {
     
     try {
       // Create a new user profile with the Goated ID
-      const result = await db.insert(users)
-        .values({
-          username: `User_${shortId}`,
-          goatedId: userId,
-          bio: 'Placeholder profile - not verified',
-          profileColor: '#D7FF00',
-          isVerified: false
-        })
-        .returning();
+      // Use raw SQL to match the exact database schema
+      // This is a temporary fix until we can resolve the TypeScript schema issues
+      const result = await db.execute(sql`
+        INSERT INTO users (
+          username, goated_id, bio, profile_color, password, email, 
+          email_verified, created_at, goated_account_linked, is_admin,
+          wager_today, wager_week, wager_month, total_wager, is_active, verified
+        ) VALUES (
+          ${`User_${shortId}`}, ${userId}, ${'Placeholder profile - not verified'}, 
+          ${'#D7FF00'}, ${'placeholder'}, ${`${shortId}@placeholder.com`},
+          false, ${new Date()}, false, false,
+          0, 0, 0, 0, true, false
+        ) RETURNING *
+      `);
       
-      if (result && result.length > 0) {
+      // Convert the raw result to a more usable format
+      const insertedUser = result.rows && result.rows.length > 0 ? result.rows[0] : null;
+      
+      if (insertedUser) {
         console.log(`Created placeholder profile for Goated ID ${userId}`);
         return {
-          ...result[0],
+          ...insertedUser,
           isNewlyCreated: true
         };
       }

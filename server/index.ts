@@ -263,10 +263,10 @@ export async function ensureUserProfile(userId: string): Promise<any> {
           // Create a more complete profile with the real data from Goated
           const result = await db.execute(sql`
             INSERT INTO users (
-              id, username, email, password, created_at, profile_color, 
+              username, email, password, created_at, profile_color, 
               bio, is_admin, goated_id, goated_username, goated_account_linked
             ) VALUES (
-              ${newUserId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', 
+              ${username}, ${email}, '', ${new Date()}, '#D7FF00', 
               'Official Goated.com player profile', false, ${userId}, ${username}, true
             ) RETURNING id, username, bio, profile_color as "profileColor", created_at as "createdAt", 
               goated_id as "goatedId", goated_username as "goatedUsername", goated_account_linked as "goatedAccountLinked"
@@ -294,10 +294,10 @@ export async function ensureUserProfile(userId: string): Promise<any> {
           // Create a placeholder profile with clear indication this is temporary
           const result = await db.execute(sql`
             INSERT INTO users (
-              id, username, email, password, created_at, profile_color, 
+              username, email, password, created_at, profile_color, 
               bio, is_admin, goated_id, goated_account_linked
             ) VALUES (
-              ${newUserId}, ${tempUsername}, ${email}, '', ${new Date()}, '#D7FF00', 
+              ${tempUsername}, ${email}, '', ${new Date()}, '#D7FF00', 
               'User profile', false, ${userId}, false
             ) RETURNING id, username, bio, profile_color as "profileColor", created_at as "createdAt", 
               goated_id as "goatedId", goated_username as "goatedUsername", goated_account_linked as "goatedAccountLinked"
@@ -326,10 +326,10 @@ export async function ensureUserProfile(userId: string): Promise<any> {
         // Clear indication this is a non-Goated profile
         const result = await db.execute(sql`
           INSERT INTO users (
-            id, username, email, password, created_at, profile_color, 
+            username, email, password, created_at, profile_color, 
             bio, is_admin, goated_id, goated_account_linked
           ) VALUES (
-            ${newUserId}, ${username}, ${email}, '', ${new Date()}, '#D7FF00', 
+            ${username}, ${email}, '', ${new Date()}, '#D7FF00', 
             'User profile', false, ${userId}, false
           ) RETURNING id, username, bio, profile_color as "profileColor", created_at as "createdAt", 
             goated_id as "goatedId", goated_username as "goatedUsername", goated_account_linked as "goatedAccountLinked"
