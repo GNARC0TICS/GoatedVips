@@ -1,0 +1,32 @@
+use-leaderboard.ts:52 WebSocket connection to 'wss://32227c5c-bbf5-490b-9302-a351e215f0e5-00-bv3r7s9hkx0y.spock.replit.dev/ws/leaderboard' failed: Error during WebSocket handshake: Unexpected response code: 400
+use-leaderboard.ts:70 WebSocket error: 
+Event
+use-leaderboard.ts:52 WebSocket connection to 'wss://32227c5c-bbf5-490b-9302-a351e215f0e5-00-bv3r7s9hkx0y.spock.replit.dev/ws/leaderboard' failed: Error during WebSocket handshake: Unexpected response code: 400
+use-leaderboard.ts:70 WebSocket error: 
+Event
+use-leaderboard.ts:52 WebSocket connection to 'wss://32227c5c-bbf5-490b-9302-a351e215f0e5-00-bv3r7s9hkx0y.spock.replit.dev/ws/leaderboard' failed: Error during WebSocket handshake: Unexpected response code: 400
+use-leaderboard.ts:70 WebSocket error: 
+Event
+use-leaderboard.ts:52 WebSocket connection to 'wss://32227c5c-bbf5-490b-9302-a351e215f0e5-00-bv3r7s9hkx0y.spock.replit.dev/ws/leaderboard' failed: Error during WebSocket handshake: Unexpected response code: 400
+use-leaderboard.ts:70 WebSocket error: 
+Event
+use-leaderboard.ts:52 WebSocket connection to 'wss://32227c5c-bbf5-490b-9302-a351e215f0e5-00-bv3r7s9hkx0y.spock.replit.dev/ws/leaderboard' failed: Error during WebSocket handshake: Unexpected response code: 400
+use-leaderboard.ts:70 WebSocket error: 
+Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
+use-leaderboard.ts:52 WebSocket connection to 'wss://32227c5c-bbf5-490b-9302-a351e215f0e5-00-bv3r7s9hkx0y.spock.replit.dev/ws/leaderboard' failed: Error during WebSocket handshake: Unexpected response code: 400
+use-leaderboard.ts:70 WebSocket error: 
+Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
+use-leaderboard.ts:52 WebSocket connection to 'wss://32227c5c-bbf5-490b-9302-a351e215f0e5-00-bv3r7s9hkx0y.spock.replit.dev/ws/leaderboard' failed: Error during WebSocket handshake: Unexpected response code: 400
+use-leaderboard.ts:70 WebSocket error: 
+Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
+use-leaderboard.ts:52 WebSocket connection to 'wss://32227c5c-bbf5-490b-9302-a351e215f0e5-00-bv3r7s9hkx0y.spock.replit.dev/ws/leaderboard' failed: Error during WebSocket handshake: Unexpected response code: 400
+use-leaderboard.ts:70 WebSocket error: 
+Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
+use-leaderboard.ts:52 WebSocket connection to 'wss://32227c5c-bbf5-490b-9302-a351e215f0e5-00-bv3r7s9hkx0y.spock.replit.dev/ws/leaderboard' failed: Error during WebSocket handshake: Unexpected response code: 400
+use-leaderboard.ts:70 WebSocket error: 
+Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
+use-leaderboard.ts:52 WebSocket connection to 'wss://32227c5c-bbf5-490b-9302-a351e215f0e5-00-bv3r7s9hkx0y.spock.replit.dev/ws/leaderboard' failed: Error during WebSocket handshake: Unexpected response code: 400
+use-leaderboard.ts:70 WebSocket error: 
+Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
+﻿
+
