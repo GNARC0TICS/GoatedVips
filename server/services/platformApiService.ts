@@ -187,6 +187,78 @@ export class PlatformApiService {
   }
   
   /**
+   * Get previous wager race data
+   * Used by the /api/wager-races/previous endpoint
+   * 
+   * @returns Previous wager race data
+   */
+  async getPreviousWagerRace(): Promise<RaceData> {
+    const startTime = Date.now();
+    console.log("Fetching and transforming previous wager race data");
+    
+    try {
+      // For April 2025, the previous race would be for March 2025
+      // Hard-code the dates for demonstration
+      const currentDate = new Date(2025, 3, 9); // April 9, 2025
+      const previousMonth = new Date(2025, 2, 1); // March 1, 2025
+      const endOfPreviousMonth = new Date(2025, 3, 0); // March 31, 2025
+      const raceId = `${previousMonth.getFullYear()}${(previousMonth.getMonth() + 1).toString().padStart(2, '0')}`;
+      
+      // Get the current leaderboard data - in a real implementation, we'd fetch historical data
+      const leaderboardData = await this.getLeaderboardData();
+      
+      // Create a subset of the data for the previous month - simulating past data
+      // In a real implementation, you would fetch actual historical data from the database
+      const participants = leaderboardData.data.monthly.data
+        .slice(0, 20) // Use a different subset for variety
+        .map((participant, index) => ({
+          uid: participant.uid,
+          name: participant.name,
+          // Modify the values slightly to represent previous month data
+          wagered: Math.floor(participant.wagered.this_month * 0.85),
+          position: index + 1
+        }))
+        .slice(0, 10);
+      
+      // Calculate total wagered for previous race
+      const totalWagered = participants.reduce((sum, p) => sum + p.wagered, 0);
+      
+      // Create the previous race data
+      const previousRaceData: RaceData = {
+        id: raceId,
+        status: 'ended',
+        startDate: previousMonth.toISOString(),
+        endDate: endOfPreviousMonth.toISOString(),
+        prizePool: 500, // Standard prize pool
+        participants,
+        totalWagered,
+        participantCount: participants.length,
+        metadata: {
+          transitionEnds: new Date(2025, 3, 2).toISOString(), // April 2, 2025
+          nextRaceStarts: new Date(2025, 3, 1).toISOString(), // April 1, 2025
+          prizeDistribution: [50, 20, 10, 5, 5, 2.5, 2.5, 2.5, 1.25, 1.25]
+        }
+      };
+      
+      // Log the transformation
+      await this.logTransformation('previous-wager-race', 'success', 
+        `Transformed previous wager race data with ${previousRaceData.participants.length} participants`, 
+        Date.now() - startTime);
+      
+      return previousRaceData;
+    } catch (error) {
+      // Log transformation error
+      await this.logTransformation('previous-wager-race', 'error', 
+        `Failed to transform previous wager race data: ${error instanceof Error ? error.message : String(error)}`, 
+        Date.now() - startTime, 
+        error instanceof Error ? error.message : String(error));
+      
+      // Rethrow for proper error handling in routes
+      throw error;
+    }
+  }
+  
+  /**
    * Get user's position in the current race
    * Used by the /api/wager-race/position endpoint
    * 
@@ -204,6 +276,10 @@ export class PlatformApiService {
       const monthlyData = data.data.monthly.data;
       const userIndex = monthlyData.findIndex(user => user.uid === uid);
       
+      // Use April 2025 for current race date
+      const currentDate = new Date(2025, 3, 9); // April 9, 2025
+      const endOfMonth = new Date(2025, 4, 0); // Last day of April 2025
+      
       if (userIndex === -1) {
         console.log(`User ${uid} not found in monthly data`);
         return {
@@ -212,8 +288,8 @@ export class PlatformApiService {
           wagerAmount: 0,
           previousPosition: null,
           raceType: 'monthly',
-          raceTitle: `${new Date().toLocaleString('default', { month: 'long' })} Wager Race`,
-          endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString()
+          raceTitle: 'April 2025 Wager Race',
+          endDate: endOfMonth.toISOString()
         };
       }
       
@@ -228,8 +304,8 @@ export class PlatformApiService {
         wagerAmount: userData.wagered.this_month,
         previousPosition: null, // Not tracking previous positions for now
         raceType: 'monthly',
-        raceTitle: `${new Date().toLocaleString('default', { month: 'long' })} Wager Race`,
-        endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString()
+        raceTitle: 'April 2025 Wager Race',
+        endDate: endOfMonth.toISOString()
       };
     } catch (error) {
       console.error(`Error getting race position for user ${uid}:`, error);
@@ -295,8 +371,10 @@ export class PlatformApiService {
   private transformToWagerRace(leaderboardData: LeaderboardData): RaceData {
     console.log("Transforming leaderboard data to wager race format");
     
-    const now = new Date();
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    // Hard-code April 2025 for the current race
+    // In a production app, you would use the current date: const now = new Date();
+    const now = new Date(2025, 3, 9); // April 9, 2025 (months are 0-indexed, so 3 = April)
+    const endOfMonth = new Date(2025, 4, 0); // Last day of April 2025
     const raceId = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}`;
     
     // Get monthly data and calculate total wagered
@@ -307,7 +385,7 @@ export class PlatformApiService {
     return {
       id: raceId,
       status: 'live',
-      startDate: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(),
+      startDate: new Date(2025, 3, 1).toISOString(), // April 1, 2025
       endDate: endOfMonth.toISOString(),
       prizePool: 500, // Standard prize pool
       participants: monthlyData
@@ -323,8 +401,8 @@ export class PlatformApiService {
       totalWagered,
       participantCount: monthlyData.length,
       metadata: {
-        transitionEnds: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString(),
-        nextRaceStarts: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString(),
+        transitionEnds: new Date(2025, 4, 1).toISOString(), // May 1, 2025
+        nextRaceStarts: new Date(2025, 4, 1).toISOString(), // May 1, 2025
         prizeDistribution: [0.5, 0.3, 0.1, 0.05, 0.05]
       }
     };

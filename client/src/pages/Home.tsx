@@ -526,7 +526,7 @@ export default function Home() {
           </motion.div>
         </div>
       </main>
-      <RaceTimer />
+      {/* RaceTimer moved to Layout component for app-wide availability */}
       <CryptoSwapTooltip />
     </div>
   );

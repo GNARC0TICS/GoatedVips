@@ -82,6 +82,30 @@ router.get("/wager-races/current", cache(15 * 60), async (_req: Request, res: Re
 });
 
 /**
+ * GET /api/wager-races/previous
+ * Returns previous race data
+ * Rate limit: 30 requests/minute
+ * Updates every 15 minutes
+ */
+router.get("/wager-races/previous", cache(15 * 60), async (_req: Request, res: Response) => {
+  try {
+    console.log("GET /api/wager-races/previous");
+    const raceData = await platformApiService.getPreviousWagerRace();
+    res.json({
+      status: "success",
+      data: raceData
+    });
+  } catch (error) {
+    console.error("Error fetching previous wager race:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to fetch previous wager race data",
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+});
+
+/**
  * GET /api/wager-race/position
  * Returns user's current race position
  * Rate limit: 30 requests/minute
