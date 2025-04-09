@@ -444,12 +444,21 @@ export function MVPCards() {
   // Debug the data we're receiving from the API
   console.log("Leaderboard Data:", leaderboardData);
 
-  // Get the current user for the backside card - fetch hook OUTSIDE of any conditionals
+  // Get the current user for the backside card
   const { user } = useAuth();
-  // Always call useProfile with consistent parameters to avoid conditional hook calls
-  // Safe fallback for user.id being undefined
-  const userId = user?.id ?? null;
-  const { profile: currentUserProfile } = useProfile(userId, { manual: !userId });
+  const { profile: currentUserProfile } = useProfile(user?.id, { 
+    manual: true,
+    includeStats: true 
+  });
+
+  // Fetch profile data when user is available
+  useEffect(() => {
+    if (user?.id) {
+      profileService.getProfile(user.id)
+        .then(data => setProfile(data))
+        .catch(err => console.error("Error fetching profile:", err));
+    }
+  }, [user?.id]);
   
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-0 max-w-5xl mx-auto perspective-1000 px-0">
