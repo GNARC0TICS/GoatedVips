@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Gift,
   Lock,
+  Repeat,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -642,6 +643,18 @@ export function Layout({ children }: { children: ReactNode }) {
             <div className="w-full max-w-[170px]">
               <UserSearch />
             </div>
+
+            {/* Crypto Swap Button */}
+            <Link href="/crypto-swap">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-[#D7FF00] hover:text-white relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
+              >
+                <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
+                <Repeat className="h-4 w-4 md:h-5 md:w-5 relative z-10" />
+              </Button>
+            </Link>
 
             {/* Gift Button */}
             <UtilityPanelButton />

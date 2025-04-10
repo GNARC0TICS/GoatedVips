@@ -17,7 +17,6 @@ import {
   Search,
 } from "lucide-react";
 import { CryptoSwapHomeWidget } from "@/components/CryptoSwapHomeWidget";
-import { CryptoSwapTooltip } from "@/components/CryptoSwapTooltip";
 import { FeatureCarousel } from "@/components/FeatureCarousel";
 import { MVPCards } from "@/components/MVPCards";
 import { RaceTimer } from "@/components/RaceTimer";
@@ -527,7 +526,6 @@ export default function Home() {
         </div>
       </main>
       {/* RaceTimer moved to Layout component for app-wide availability */}
-      <CryptoSwapTooltip />
     </div>
   );
 }
