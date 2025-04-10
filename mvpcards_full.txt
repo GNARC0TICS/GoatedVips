@@ -311,153 +311,12 @@ function MVPCard({
 export const MVPCardMemo = React.memo(MVPCard);
 
 /**
- * User card for MVPCards component
- * Separating this into its own component ensures hook order is preserved
- */
-function UserCard({ 
-  user, 
-  currentUserProfile, 
-  userProfile 
-}: { 
-  user: any | null, 
-  currentUserProfile: any | null,
-  userProfile: any | null
-}) {
-  return (
-    <div className="relative w-full h-[200px] cursor-pointer">
-      <div className="relative h-full">
-        <div 
-          className="relative p-4 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm transition-all duration-300 shadow-lg card-hover h-full cursor-pointer overflow-hidden"
-          style={{
-            '--hover-border-color': `#D7FF0080`,
-            '--hover-shadow-color': `#D7FF0040`
-          } as React.CSSProperties}
-        >
-          {user ? (
-            // Logged in state - Show user stats
-            <>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="h-5 w-5 bg-[#D7FF00] rounded-full flex items-center justify-center">
-                    <User className="h-3 w-3 text-black" />
-                  </div>
-                  <h3 className="text-lg font-heading text-white">Your Stats</h3>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  {currentUserProfile?.profileColor ? (
-                    <div 
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-black font-bold"
-                      style={{ backgroundColor: currentUserProfile.profileColor }}
-                    >
-                      {currentUserProfile.username ? currentUserProfile.username.charAt(0).toUpperCase() : '?'}
-                    </div>
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-[#D7FF00]/20 flex items-center justify-center">
-                      <User className="h-5 w-5 text-[#D7FF00]" />
-                    </div>
-                  )}
-                  <div className="flex-grow min-w-0">
-                    <h4 className="text-base font-heading text-white truncate">
-                      {currentUserProfile?.username || user.username || "You"}
-                    </h4>
-                    <p className="text-xs text-[#9A9BA1] truncate">
-                      {currentUserProfile?.goatedUsername 
-                        ? `Linked to ${currentUserProfile.goatedUsername}` 
-                        : "Link your Goated account"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-2 space-y-2">
-                  <div className="flex items-center justify-between text-sm bg-black/40 p-2 rounded-lg">
-                    <span className="text-white/70">All-Time Wagered:</span>
-                    <span className="text-white font-mono font-bold">
-                      ${currentUserProfile?.totalWager 
-                          ? parseFloat(currentUserProfile.totalWager).toLocaleString()
-                          : '0'}
-                    </span>
-                  </div>
-
-                  <Link href="/profile" className="block w-full">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="w-full bg-[#D7FF00]/10 border-[#D7FF00]/20 text-[#D7FF00] hover:bg-[#D7FF00]/20"
-                    >
-                      View Full Profile
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </>
-          ) : (
-            // Not logged in state - Show login prompt
-            <>
-              {/* Playing card backside design */}
-              <div className="absolute inset-0 bg-gradient-to-br from-[#1A1B21] to-[#14151A] overflow-hidden">
-                {/* Pattern overlay */}
-                <div className="absolute inset-0 opacity-5">
-                  <div className="absolute inset-0 bg-[url('/images/noise.png')] mix-blend-overlay" />
-                  <div className="grid grid-cols-5 grid-rows-7 h-full w-full">
-                    {Array.from({ length: 35 }).map((_, i) => (
-                      <div key={i} className="border border-[#D7FF00]/5"></div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Center logo */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="h-16 w-16 rounded-full border-2 border-[#D7FF00] flex items-center justify-center transform rotate-45">
-                    <div className="h-14 w-14 rounded-full border-2 border-[#D7FF00] flex items-center justify-center backdrop-blur-sm">
-                      <span className="text-[#D7FF00] font-bold text-xl transform -rotate-45">MVP</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Call to action */}
-              <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-center">
-                <h3 className="text-lg font-heading text-white mb-2">Ready to Compete?</h3>
-                <p className="text-sm text-[#D7FF00] mb-3">Sign in to track your stats</p>
-                <Link href="/auth">
-                  <Button 
-                    variant="default" 
-                    size="sm"
-                    className="w-full bg-[#D7FF00] text-black font-medium hover:bg-[#C0E600]"
-                  >
-                    Sign In
-                  </Button>
-                </Link>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
  * Main MVP Cards component
  * Displays MVP cards for daily, weekly, and monthly periods
  */
 export function MVPCards() {
-  // *** All hooks must be called unconditionally at the top level ***
-  
-  // Card state management
   const [openCard, setOpenCard] = useState<string | null>(null);
   const dialogTimeoutRef = React.useRef<NodeJS.Timeout>();
-  
-  // Auth and profile hooks - always call these at the top level
-  const { user } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
-  const { profile: currentUserProfile } = useProfile(user?.id ?? '', { 
-    manual: !user?.id,
-    includeStats: true 
-  });
 
   // Enhanced data fetching with refresh interval and error handling
   const { data: leaderboardData, isLoading, error, isError } = useQuery<any>({
@@ -527,7 +386,6 @@ export function MVPCards() {
     };
   }, [leaderboardData]);
 
-  // Dialog management
   const handleDialogChange = useCallback((open: boolean, period: string) => {
     if (dialogTimeoutRef.current) {
       clearTimeout(dialogTimeoutRef.current);
@@ -541,7 +399,6 @@ export function MVPCards() {
     }
   }, []);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (dialogTimeoutRef.current) {
@@ -549,15 +406,6 @@ export function MVPCards() {
       }
     };
   }, []);
-
-  // Fetch profile data when user is available
-  useEffect(() => {
-    if (user?.id) {
-      profileService.getProfile(user.id)
-        .then(data => setProfile(data))
-        .catch(err => console.error("Error fetching profile:", err));
-    }
-  }, [user?.id]);
 
   // Display loading state or errors
   if (isLoading || isError) {
@@ -576,24 +424,42 @@ export function MVPCards() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: index * 0.1 }}
-            className="p-6 bg-[#1A1B21]/50 animate-pulse h-48 rounded-xl"
+            className="p-6 bg-[#1A1B21]/50 h-48 rounded-xl relative overflow-hidden"
           >
-            <div className="w-full space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="h-6 w-24 rounded bg-black/20 animate-pulse"></div>
-                <div className="h-4 w-16 rounded bg-black/20 animate-pulse"></div>
-              </div>
-              <div className="mt-4 flex items-center space-x-2">
-                <div className="w-10 h-10 rounded-full bg-black/20 animate-pulse"></div>
-                <div className="h-5 w-32 rounded bg-black/20 animate-pulse"></div>
-              </div>
-              <div className="h-10 w-full rounded bg-black/20 animate-pulse mt-4"></div>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-5 h-5 rounded-full" style={{ backgroundColor: timeframe.colors.primary }} />
+              <div className="h-4 w-24 animate-pulse bg-gradient-to-r from-[#1A1B21]/30 to-[#1A1B21]/50 rounded" />
             </div>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 rounded-full animate-pulse" style={{ backgroundColor: `${timeframe.colors.primary}20` }} />
+              <div className="h-5 w-32 animate-pulse bg-gradient-to-r from-[#1A1B21]/30 to-[#1A1B21]/50 rounded" />
+            </div>
+            <div className="h-8 w-full animate-pulse bg-gradient-to-r from-[#1A1B21]/30 to-[#1A1B21]/50 rounded" />
           </motion.div>
         ))}
       </div>
     );
   }
+
+  // Debug the data we're receiving from the API
+  console.log("Leaderboard Data:", leaderboardData);
+
+  // Get the current user for the backside card - pull all hooks to top level
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
+  const { profile: currentUserProfile } = useProfile(user?.id ?? '', { 
+    manual: !user?.id,
+    includeStats: true 
+  });
+
+  // Fetch profile data when user is available
+  useEffect(() => {
+    if (user?.id) {
+      profileService.getProfile(user.id)
+        .then(data => setProfile(data))
+        .catch(err => console.error("Error fetching profile:", err));
+    }
+  }, [user?.id]);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-0 max-w-5xl mx-auto perspective-1000 px-0">
@@ -619,36 +485,37 @@ export function MVPCards() {
               // Try to determine the structure of the data and extract needed fields
               const username = mvpData.name || mvpData.username || '';
               const uid = mvpData.uid || mvpData.id || '';
-              
-              // Determine the wager amount for this timeframe
+
+              // Figure out the wager amount based on what's available
               let wagerAmount = 0;
-              
-              // We need to handle different possible API response structures
               if (timeframe.period === 'daily' && typeof mvpData.wagered?.today === 'number') {
                 wagerAmount = mvpData.wagered.today;
               } else if (timeframe.period === 'weekly' && typeof mvpData.wagered?.this_week === 'number') {
                 wagerAmount = mvpData.wagered.this_week;
               } else if (timeframe.period === 'monthly' && typeof mvpData.wagered?.this_month === 'number') {
                 wagerAmount = mvpData.wagered.this_month;
-              } else if (typeof mvpData.wager === 'number') {
-                wagerAmount = mvpData.wager;
+              } else if (typeof mvpData.wagerAmount === 'number') {
+                wagerAmount = mvpData.wagerAmount;
+              } else if (typeof mvpData.amount === 'number') {
+                wagerAmount = mvpData.amount;
               }
-              
+
               // Create a standard wagered object or use what we have
               const wagered = mvpData.wagered || {
-                today: 0,
-                this_week: 0,
-                this_month: 0,
-                all_time: typeof mvpData.all_time_wager === 'number' ? mvpData.all_time_wager : 0
+                today: typeof mvpData.today === 'number' ? mvpData.today : 0,
+                this_week: typeof mvpData.this_week === 'number' ? mvpData.this_week : 0,
+                this_month: typeof mvpData.this_month === 'number' ? mvpData.this_month : 0,
+                all_time: typeof mvpData.all_time === 'number' ? mvpData.all_time : 
+                          (typeof mvpData.wagered?.all_time === 'number' ? mvpData.wagered.all_time : wagerAmount)
               };
-              
+
               return {
                 username,
                 uid,
                 wagerAmount,
-                rank: mvpData.rank || 1,
-                wageredAllTime: wagered.all_time,
-                wagered
+                wagered,
+                avatarUrl: mvpData.avatarUrl || mvpData.avatar || '',
+                rank: 1 // MVP is always rank 1
               };
             })() : undefined}
             isOpen={openCard === timeframe.period}
@@ -657,8 +524,8 @@ export function MVPCards() {
           />
         </motion.div>
       ))}
-      
-      {/* Add a user card slot in the last position */}
+
+      {/* New "Backside" Card - shows your stats or prompts login */}
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -667,15 +534,123 @@ export function MVPCards() {
           type: "spring", 
           stiffness: 400, 
           damping: 30,
-          delay: timeframes.length * 0.1  // Staggered animation
+          delay: 0.3  // Last animation
         }}
         className="group relative transform transition-all duration-300 p-2 md:p-3"
       >
-        <UserCard 
-          user={user} 
-          currentUserProfile={currentUserProfile} 
-          userProfile={profile} 
-        />
+        <div className="relative w-full h-[200px] cursor-pointer">
+          <div className="relative h-full">
+            <div 
+              className="relative p-4 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm transition-all duration-300 shadow-lg card-hover h-full cursor-pointer overflow-hidden"
+              style={{
+                '--hover-border-color': `#D7FF0080`,
+                '--hover-shadow-color': `#D7FF0040`
+              } as React.CSSProperties}
+            >
+              {user ? (
+                // Logged in state - Show user stats
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-5 w-5 bg-[#D7FF00] rounded-full flex items-center justify-center">
+                        <User className="h-3 w-3 text-black" />
+                      </div>
+                      <h3 className="text-lg font-heading text-white">Your Stats</h3>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      {currentUserProfile?.profileColor ? (
+                        <div 
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-black font-bold"
+                          style={{ backgroundColor: currentUserProfile.profileColor }}
+                        >
+                          {currentUserProfile.username ? currentUserProfile.username.charAt(0).toUpperCase() : '?'}
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-[#D7FF00]/20 flex items-center justify-center">
+                          <User className="h-5 w-5 text-[#D7FF00]" />
+                        </div>
+                      )}
+                      <div className="flex-grow min-w-0">
+                        <h4 className="text-base font-heading text-white truncate">
+                          {currentUserProfile?.username || user.username || "You"}
+                        </h4>
+                        <p className="text-xs text-[#9A9BA1] truncate">
+                          {currentUserProfile?.goatedUsername 
+                            ? `Linked to ${currentUserProfile.goatedUsername}` 
+                            : "Link your Goated account"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center justify-between text-sm bg-black/40 p-2 rounded-lg">
+                        <span className="text-white/70">All-Time Wagered:</span>
+                        <span className="text-white font-mono font-bold">
+                          ${currentUserProfile?.totalWager 
+                              ? parseFloat(currentUserProfile.totalWager).toLocaleString()
+                              : '0'}
+                        </span>
+                      </div>
+
+                      <Link href="/profile" className="block w-full">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="w-full bg-[#D7FF00]/10 border-[#D7FF00]/20 text-[#D7FF00] hover:bg-[#D7FF00]/20"
+                        >
+                          View Full Profile
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                // Not logged in state - Show login prompt
+                <>
+                  {/* Playing card backside design */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#1A1B21] to-[#14151A] overflow-hidden">
+                    {/* Pattern overlay */}
+                    <div className="absolute inset-0 opacity-5">
+                      <div className="absolute inset-0 bg-[url('/images/noise.png')] mix-blend-overlay" />
+                      <div className="grid grid-cols-5 grid-rows-7 h-full w-full">
+                        {Array.from({ length: 35 }).map((_, i) => (
+                          <div key={i} className="border border-[#D7FF00]/5"></div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Center logo */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="h-16 w-16 rounded-full border-2 border-[#D7FF00] flex items-center justify-center transform rotate-45">
+                        <div className="h-14 w-14 rounded-full border-2 border-[#D7FF00] flex items-center justify-center backdrop-blur-sm">
+                          <span className="text-[#D7FF00] font-bold text-xl transform -rotate-45">MVP</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Call to action */}
+                  <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-center">
+                    <h3 className="text-lg font-heading text-white mb-2">Ready to Compete?</h3>
+                    <p className="text-sm text-[#D7FF00] mb-3">Sign in to track your stats</p>
+                    <Link href="/auth">
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        className="w-full bg-[#D7FF00] text-black font-medium hover:bg-[#C0E600]"
+                      >
+                        Sign In
+                      </Button>
+                    </Link>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       </motion.div>
     </div>
   );

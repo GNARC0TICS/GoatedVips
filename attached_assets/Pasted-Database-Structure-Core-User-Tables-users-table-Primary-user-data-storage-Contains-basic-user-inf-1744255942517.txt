@@ -1,0 +1,145 @@
+Database Structure
+Core User Tables
+users table - Primary user data storage
+
+Contains basic user information: username, email, password (hashed)
+Stores verification status for Goated platform
+Simple Telegram username field (no verification)
+Includes fields like:
+id: Primary key
+username: Unique username
+email: Unique email address
+password: Hashed password
+isAdmin: Admin status flag
+goatedUid, goatedUsername, isGoatedVerified: Goated.com integration
+telegramUsername: Simple text field for Telegram username (no verification/linking)
+Other metadata fields (timestamps, profile info)
+userSessions table - Session management
+
+Tracks active user sessions for authentication
+Links to user records
+userActivityLog table - Audit and tracking
+
+Records user activity for security and analytics
+Verification Tables
+goatedVerificationRequests table
+Stores pending verification requests for Goated.com account linking
+Includes request status, timestamps, user identifiers, and admin notes
+Wager Race System
+wagerRaces table
+
+Defines competitions with timeframes and prize pools
+Fields include title, type, status, prize pool, dates, and rules
+wagerRaceParticipants table
+
+Tracks user participation in wager races
+Records total wager amounts, rankings, and historical data
+Authentication Flow
+Standard Registration/Login
+Registration Process:
+
+User provides username, email, and password via /api/register endpoint
+Password is hashed using secure cryptographic methods (scrypt)
+New user record is created in the database
+JWT authentication token is generated and returned to client
+Login Process:
+
+User submits credentials to /api/login endpoint
+Server validates credentials against database
+On success, JWT token is generated and returned
+Session is created and tracked
+Authentication Middleware:
+
+requireAuth middleware validates JWT tokens
+Checks for session token in cookies first
+Falls back to Bearer token in Authorization header
+Validates token signature and retrieves user from database
+Attaches user object to request for downstream handlers
+Admin Authentication:
+
+requireAdmin middleware extends requireAuth
+Checks for admin flag on user record
+Restricts access to admin-only endpoints
+Account Verification and Linking
+Goated.com Verification Flow
+Initiation:
+
+Authenticated user submits Goated username and UID via /api/verify/goated
+System creates verification request in goatedVerificationRequests table
+Admin Review:
+
+Admin reviews verification request in admin dashboard
+Approves or rejects the verification with optional notes
+Verification Completion:
+
+On approval, user record is updated with Goated details and verified status
+Verification record is marked as approved with timestamp
+User receives notification about verification status
+Telegram Username (Simple Field)
+Profile Management:
+User can add their Telegram username in profile settings
+This is a plain text field with no verification process
+Username is stored in the telegramUsername field of the users table
+No dedicated verification or linking process
+API Structure
+Authentication Endpoints
+Core Auth Endpoints:
+
+POST /api/register - User registration
+POST /api/login - User login
+POST /api/logout - User logout
+GET /api/user - Get current user info
+Verification Endpoints:
+
+POST /api/verify/goated - Request Goated verification
+GET /api/verify/status - Check verification status
+POST /api/verify/goated/:id/:action - Admin approval/rejection of Goated verification
+Profile Management:
+
+PUT /api/user/profile - Update profile including Telegram username
+Wager Race API
+Public Endpoints:
+
+Endpoints for viewing active and past wager races
+Real-time leaderboard data via WebSockets
+Admin Endpoints:
+
+Creation and management of wager races
+Manual administration of participants
+Client-Side Implementation
+Authentication UI:
+
+AuthModal component for login/register functionality
+Form validation using Zod schemas
+Toast notifications for success/error feedback
+API Integration:
+
+React Query for data fetching and cache management
+Custom hooks like useAuth and useUser for authentication state
+Form handling with react-hook-form
+Verification UI:
+
+Forms for Goated verification
+Status indicators for verification progress
+Admin dashboard for managing verification requests
+Profile Management:
+
+Simple form field for Telegram username
+No verification process or special handling
+Security Features
+Password Security:
+
+Secure password hashing with salt
+Timing-safe comparison for password validation
+Session Management:
+
+Server-side session storage
+Secure cookie settings in production
+Protection Against Common Attacks:
+
+CSRF protection
+Rate limiting for authentication attempts
+Integration with External Services
+Goated.com Integration:
+Admin-verified account linking
+Secure storage of Goated identifiers

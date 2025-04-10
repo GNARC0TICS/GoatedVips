@@ -27,6 +27,8 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 // Imports the authentication page component
 import AuthPage from "@/pages/auth-page";
+// Import test component
+import { MVPCardsTest } from "@/components/MVPCardsTest";
 import VipTransfer from "@/pages/VipTransfer";
 import ProvablyFair from "@/pages/ProvablyFair";
 import WagerRaces from "@/pages/WagerRaces";
@@ -134,6 +136,9 @@ function MainContent() {
                   
                   {/* Crypto Swap Feature */}
                   <Route path="/crypto-swap" component={CryptoSwap} />
+                  
+                  {/* Test Route for MVPCards */}
+                  <Route path="/test-mvpcards" component={MVPCardsTest} />
 
                   {/* Fallback Route */}
                   <Route component={NotFound} />
