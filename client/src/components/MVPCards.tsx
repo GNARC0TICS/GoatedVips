@@ -170,32 +170,30 @@ function MVPCard({
                 onOpenChange(true);
               }
             }}
-            className="relative p-6 rounded-2xl border bg-[#1A1B21]/90 backdrop-blur-md transition-all duration-300 shadow-lg card-hover h-full cursor-pointer"
+            className="relative p-4 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm transition-all duration-300 shadow-lg card-hover h-full cursor-pointer"
             style={{
               '--hover-border-color': `${timeframe.colors.primary}80`,
-              '--hover-shadow-color': `${timeframe.colors.primary}40`,
-              borderColor: timeframe.colors.primary + '40',
-              boxShadow: `0 0 20px ${timeframe.colors.primary}20, inset 0 0 20px ${timeframe.colors.primary}10`
+              '--hover-shadow-color': `${timeframe.colors.primary}40`
             } as React.CSSProperties}
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" style={{ color: timeframe.colors.primary }} className="h-6 w-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" style={{ color: timeframe.colors.primary }} className="h-5 w-5">
                   <path fill="currentColor" d="m15.2 10.7l1.4 5.3l-4.6-3.8L7.4 16l1.4-5.2l-4.2-3.5L10 7l2-5l2 5l5.4.3zM14 19h-1v-3l-1-1l-1 1v3h-1c-1.1 0-2 .9-2 2v1h8v-1a2 2 0 0 0-2-2" />
                 </svg>
-                <h3 className="text-2xl font-heading" style={{ color: timeframe.colors.primary }}>{timeframe.title}</h3>
+                <h3 className="text-lg font-heading text-white">{timeframe.title}</h3>
               </div>
               {tierLevel && (
                 <div 
-                  className="flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded-full text-sm border border-white/10" 
+                  className="flex items-center gap-1 bg-black/40 px-2 py-1 rounded-full text-xs" 
                   style={{ color: tierInfo?.color }}
                 >
                   <img 
                     src={getTierIcon(tierLevel)} 
                     alt={tierInfo?.name}
-                    className="h-4 w-4" 
+                    className="h-3 w-3" 
                   />
-                  <span className="font-medium">{tierInfo?.name}</span>
+                  <span>{tierInfo?.name}</span>
                 </div>
               )}
             </div>
@@ -229,16 +227,14 @@ function MVPCard({
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col gap-2 mt-4">
-                <div className="flex items-center justify-between text-sm text-white/50">
-                  <span>Period Total</span>
-                </div>
-                <div className="flex items-center justify-between px-4 py-3 bg-black/40 rounded-xl border border-white/5">
-                  <span className="text-xl font-mono font-bold text-white">
+              <div className="flex items-center justify-between text-sm bg-black/40 p-2 rounded-lg">
+                <span className="text-white/70">Period Total:</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-white font-mono font-bold">
                     ${mvp.wagerAmount.toLocaleString()}
                   </span>
                   {showIncrease && (
-                    <TrendingUp className="h-5 w-5 text-emerald-500 animate-pulse" />
+                    <TrendingUp className="h-4 w-4 text-emerald-500 animate-pulse" />
                   )}
                 </div>
               </div>
