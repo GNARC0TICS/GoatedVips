@@ -800,7 +800,7 @@ export class PlatformApiService {
    * Fetches latest wager statistics from the API and updates our database
    */
   async updateWagerData(): Promise<number> {
-    console.log("updateAllWagerData method called (placeholder)");
+    console.log("updateWagerData method called");
     
     const startTime = Date.now();
     
@@ -842,23 +842,63 @@ export class PlatformApiService {
       for (const profile of profiles) {
         try {
           // Extract required fields
-          const { uid, wagered } = profile;
+          const { uid, name, wagered } = profile;
           
           // Skip invalid profiles
           if (!uid || !wagered) continue;
           
-          // Update the user's wager data in our database
-          const result = await db.update(users)
+          // First, find the user by Goated ID
+          const userResult = await db.query.users.findFirst({
+            where: eq(users.goatedId, uid)
+          });
+          
+          if (!userResult) {
+            // Skip users that don't exist in our database
+            continue;
+          }
+          
+          // Update the user's totalWager field
+          await db.update(users)
             .set({
               totalWager: String(wagered.all_time || 0),
-              // Only set fields that exist in the database schema
               lastActive: new Date() // Using lastActive as the update timestamp
             })
             .where(eq(users.goatedId, uid));
           
-          if (result.rowCount > 0) {
-            updatedCount++;
+          // Check if a wager data record already exists for this user
+          const existingWagerData = await db.query.mockWagerData.findFirst({
+            where: eq(mockWagerData.userId, userResult.id)
+          });
+          
+          if (existingWagerData) {
+            // Update existing wager data record
+            await db.update(mockWagerData)
+              .set({
+                wageredToday: String(wagered.today || 0),
+                wageredThisWeek: String(wagered.this_week || 0),
+                wageredThisMonth: String(wagered.this_month || 0),
+                wageredAllTime: String(wagered.all_time || 0),
+                updatedAt: new Date(),
+                isMocked: false // Mark as real data
+              })
+              .where(eq(mockWagerData.userId, userResult.id));
+          } else {
+            // Create new wager data record
+            await db.insert(mockWagerData)
+              .values({
+                userId: userResult.id,
+                username: userResult.username,
+                wageredToday: String(wagered.today || 0),
+                wageredThisWeek: String(wagered.this_week || 0),
+                wageredThisMonth: String(wagered.this_month || 0),
+                wageredAllTime: String(wagered.all_time || 0),
+                isMocked: false, // Mark as real data
+                createdAt: new Date(),
+                updatedAt: new Date()
+              });
           }
+          
+          updatedCount++;
         } catch (error) {
           console.error(`Error updating wager data for user ${profile.uid}:`, error);
           // Continue processing other profiles even if one fails
@@ -873,7 +913,7 @@ export class PlatformApiService {
         Date.now() - startTime
       );
       
-      console.log(`[Initial wager data update completed for ${updatedCount} users]`, "info");
+      console.log(`[Wager data update completed] Updated: ${updatedCount}, Duration: ${Date.now() - startTime}ms`);
       return updatedCount;
     } catch (error) {
       // Log the error

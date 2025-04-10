@@ -1,0 +1,23 @@
+It appears you're encountering an issue with user profiles not displaying the actual wager data in the GoatedVIPs platform. Here are steps to troubleshoot the situation and ensure wager data is correctly displayed:
+
+Steps to Diagnose and Fix the Issue:
+Check Data Fetching Logic: Ensure that the wager data is being correctly fetched from the API. Review the fetchReferralData method in the GoatedApiService to ensure it is correctly retrieving and returning the necessary wager data.
+
+Profile Synchronization: Confirm that the updateWagerData function is being called at the appropriate intervals and is populating the database with the most current wager data. You might want to look in the dataSyncTasks.ts to ensure that the scheduled tasks for runWagerDataUpdate are running as expected.
+
+Database Updates: Verify if the wager data is being correctly updated in the database. Check the functions within platformApiService.ts that handle database updates (like the updateAllWagerData method). Monitor its logs for any signs of failure in the update process.
+
+Check API Responses: Use console logs (or a logging mechanism) to track the API responses when fetching user wager data. Confirm if the responses contain the wager data you expect. Log the response structure in getCurrentWagerRace and inspect if the profiles return the correct fields.
+
+Debugging User Profiles: Within your UserProfile component, confirm that you are correctly accessing the wager data within the profile object. Make sure the structure of the profile object matches what you expect it to contain in terms of wager data.
+
+Ensure Proper Mapping: In the UI components that display wager data, confirm that you're mapping the correct fields from the profile object to the UI. For instance, ensure that profile.totalWager, profile.dailyWager, etc., are being referenced correctly in your React components.
+
+Example for Debugging in UserProfile.tsx:
+Add logging to check if the wager data is coming through correctly:
+
+console.log("Profile data:", profile); // Add this line to check the incoming profile data.
+Ensure Latest Code Updates
+If any recent changes have been made around the functionalities relating to wager data (either in the fetching, processing, or displaying), make sure these modifications are error-free, tested thoroughly, and properly logged to catch any issues early.
+
+Following these steps should help uncover why user profiles aren't showing the expected wager data, and you can make corrections accordingly. If you already addressed any of these points, please provide any relevant log messages or error outputs to further analyze the problem.
