@@ -408,29 +408,29 @@ function UserCard({
                   </div>
                 </div>
 
-                {/* Center logo */}
-                <div className="absolute inset-0 flex items-center justify-center">
+                {/* Call to action - Moved higher */}
+                <div className="absolute inset-x-0 top-1/4 p-4 text-center">
+                  <h3 className="text-lg font-heading text-white mb-2">Ready to Compete?</h3>
+                  <p className="text-sm text-[#D7FF00] mb-3">Sign in to track your stats</p>
+                  <Link href="/auth">
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      className="w-full bg-[#D7FF00] text-black font-medium hover:bg-[#C0E600]"
+                    >
+                      Sign In
+                    </Button>
+                  </Link>
+                </div>
+
+                {/* Center logo - Moved lower */}
+                <div className="absolute inset-x-0 bottom-8 flex items-center justify-center">
                   <div className="h-16 w-16 rounded-full border-2 border-[#D7FF00] flex items-center justify-center transform rotate-45">
                     <div className="h-14 w-14 rounded-full border-2 border-[#D7FF00] flex items-center justify-center backdrop-blur-sm">
                       <span className="text-[#D7FF00] font-bold text-xl transform -rotate-45">MVP</span>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Call to action */}
-              <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-center">
-                <h3 className="text-lg font-heading text-white mb-2">Ready to Compete?</h3>
-                <p className="text-sm text-[#D7FF00] mb-3">Sign in to track your stats</p>
-                <Link href="/auth">
-                  <Button 
-                    variant="default" 
-                    size="sm"
-                    className="w-full bg-[#D7FF00] text-black font-medium hover:bg-[#C0E600]"
-                  >
-                    Sign In
-                  </Button>
-                </Link>
               </div>
             </>
           )}
