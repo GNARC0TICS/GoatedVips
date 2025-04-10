@@ -324,10 +324,10 @@ function UserCard({
   userProfile: any | null
 }) {
   return (
-    <div className="relative w-full h-[200px] cursor-pointer">
+    <div className="relative w-full h-[200px]">
       <div className="relative h-full">
         <div 
-          className="relative p-4 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm transition-all duration-300 shadow-lg card-hover h-full cursor-pointer overflow-hidden"
+          className="relative p-6 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm transition-all duration-300 shadow-lg card-hover h-full flex flex-col justify-between"
           style={{
             '--hover-border-color': `#D7FF0080`,
             '--hover-shadow-color': `#D7FF0040`
@@ -345,23 +345,23 @@ function UserCard({
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col h-full">
+                <div className="flex items-start gap-3 mb-4">
                   {currentUserProfile?.profileColor ? (
                     <div 
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-black font-bold"
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-black font-bold flex-shrink-0"
                       style={{ backgroundColor: currentUserProfile.profileColor }}
                     >
                       {currentUserProfile.username ? currentUserProfile.username.charAt(0).toUpperCase() : '?'}
                     </div>
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-[#D7FF00]/20 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-[#D7FF00]/20 flex items-center justify-center flex-shrink-0">
                       <User className="h-5 w-5 text-[#D7FF00]" />
                     </div>
                   )}
                   <div className="flex-grow min-w-0">
-                    <h4 className="text-base font-heading text-white truncate">
-                      {currentUserProfile?.username || user.username || "You"}
+                    <h4 className="text-base font-heading text-white truncate mb-1">
+                      {currentUserProfile?.username || user?.username || "You"}
                     </h4>
                     <p className="text-xs text-[#9A9BA1] truncate">
                       {currentUserProfile?.goatedUsername 
@@ -371,8 +371,8 @@ function UserCard({
                   </div>
                 </div>
 
-                <div className="mt-2 space-y-2">
-                  <div className="flex items-center justify-between text-sm bg-black/40 p-2 rounded-lg">
+                <div className="space-y-3 mt-auto">
+                  <div className="flex items-center justify-between text-sm bg-black/40 p-3 rounded-lg">
                     <span className="text-white/70">All-Time Wagered:</span>
                     <span className="text-white font-mono font-bold">
                       ${currentUserProfile?.totalWager 
