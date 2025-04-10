@@ -408,24 +408,24 @@ function UserCard({
                   </div>
                 </div>
 
-                {/* Call to action - Moved higher */}
-                <div className="absolute inset-x-0 top-1/4 p-4 text-center">
-                  <h3 className="text-lg font-heading text-white mb-2">Ready to Compete?</h3>
-                  <p className="text-sm text-[#D7FF00] mb-3">Sign in to track your stats</p>
+                {/* Call to action section */}
+                <div className="absolute inset-x-0 top-1/3 transform -translate-y-1/2 p-4 text-center">
+                  <h3 className="text-2xl font-heading text-white mb-3">Ready to Compete?</h3>
+                  <p className="text-sm text-[#D7FF00] mb-4">Sign in to track your stats</p>
                   <Link href="/auth">
                     <Button 
                       variant="default" 
-                      size="sm"
-                      className="w-full bg-[#D7FF00] text-black font-medium hover:bg-[#C0E600]"
+                      size="lg"
+                      className="w-full bg-[#D7FF00] text-black font-medium hover:bg-[#C0E600] py-6"
                     >
                       Sign In
                     </Button>
                   </Link>
                 </div>
 
-                {/* Center logo - Moved lower */}
+                {/* MVP Logo at bottom */}
                 <div className="absolute inset-x-0 bottom-8 flex items-center justify-center">
-                  <div className="h-16 w-16 rounded-full border-2 border-[#D7FF00] flex items-center justify-center transform rotate-45">
+                  <div className="h-16 w-16 rounded-full border-2 border-[#D7FF00] flex items-center justify-center transform rotate-45 bg-black/20">
                     <div className="h-14 w-14 rounded-full border-2 border-[#D7FF00] flex items-center justify-center backdrop-blur-sm">
                       <span className="text-[#D7FF00] font-bold text-xl transform -rotate-45">MVP</span>
                     </div>
@@ -446,11 +446,11 @@ function UserCard({
  */
 export function MVPCards() {
   // *** All hooks must be called unconditionally at the top level ***
-  
+
   // Card state management
   const [openCard, setOpenCard] = useState<string | null>(null);
   const dialogTimeoutRef = React.useRef<NodeJS.Timeout>();
-  
+
   // Auth and profile hooks - always call these at the top level
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
@@ -619,10 +619,10 @@ export function MVPCards() {
               // Try to determine the structure of the data and extract needed fields
               const username = mvpData.name || mvpData.username || '';
               const uid = mvpData.uid || mvpData.id || '';
-              
+
               // Determine the wager amount for this timeframe
               let wagerAmount = 0;
-              
+
               // We need to handle different possible API response structures
               if (timeframe.period === 'daily' && typeof mvpData.wagered?.today === 'number') {
                 wagerAmount = mvpData.wagered.today;
@@ -633,7 +633,7 @@ export function MVPCards() {
               } else if (typeof mvpData.wager === 'number') {
                 wagerAmount = mvpData.wager;
               }
-              
+
               // Create a standard wagered object or use what we have
               const wagered = mvpData.wagered || {
                 today: 0,
@@ -641,7 +641,7 @@ export function MVPCards() {
                 this_month: 0,
                 all_time: typeof mvpData.all_time_wager === 'number' ? mvpData.all_time_wager : 0
               };
-              
+
               return {
                 username,
                 uid,
@@ -657,7 +657,7 @@ export function MVPCards() {
           />
         </motion.div>
       ))}
-      
+
       {/* Add a user card slot in the last position */}
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
