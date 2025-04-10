@@ -13,6 +13,35 @@ import { useAuth } from '@/hooks/use-auth';
 import { useProfile } from '@/hooks/use-profile';
 
 /**
+ * MVP Sigil Component
+ * A reusable badge/icon for MVP status that can be used across the app
+ * @param size - 'small', 'medium', or 'large' 
+ */
+const MVPCoreSigil = ({ size = 'medium' }: { size?: 'small' | 'medium' | 'large' }) => {
+  let dimensions = "h-16 w-16";
+  let innerDimensions = "h-14 w-14";
+  let textSize = "text-xl";
+
+  if (size === 'small') {
+    dimensions = "h-8 w-8";
+    innerDimensions = "h-7 w-7";
+    textSize = "text-xs";
+  } else if (size === 'large') {
+    dimensions = "h-20 w-20";
+    innerDimensions = "h-18 w-18";
+    textSize = "text-2xl";
+  }
+
+  return (
+    <div className={`${dimensions} rounded-full border-2 border-[#D7FF00] flex items-center justify-center rotate-45 bg-black/20`}>
+      <div className={`${innerDimensions} rounded-full border-2 border-[#D7FF00] flex items-center justify-center backdrop-blur-sm`}>
+        <span className={`text-[#D7FF00] font-bold ${textSize} -rotate-45`}>MVP</span>
+      </div>
+    </div>
+  );
+};
+
+/**
  * MVP card type definition with all required properties
  */
 type MVP = {
@@ -163,6 +192,10 @@ function MVPCard({
               background: `linear-gradient(to bottom, ${timeframe.colors.primary}20, transparent)`,
             }}
           />
+          {/* Animated shine overlay for collectible card feel */}
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none overflow-hidden rounded-xl">
+            <div className="w-[150%] h-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shine transform rotate-12 blur-sm" />
+          </div>
           <div 
             onClick={(e) => {
               const target = e.target as HTMLElement;
@@ -170,7 +203,7 @@ function MVPCard({
                 onOpenChange(true);
               }
             }}
-            className="relative p-4 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm transition-all duration-300 shadow-lg card-hover h-full cursor-pointer"
+            className="relative p-4 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm transition-all duration-300 shadow-lg card-hover h-full cursor-pointer group"
             style={{
               '--hover-border-color': `${timeframe.colors.primary}80`,
               '--hover-shadow-color': `${timeframe.colors.primary}40`
@@ -183,19 +216,32 @@ function MVPCard({
                 </svg>
                 <h3 className="text-lg font-heading text-white">{timeframe.title}</h3>
               </div>
-              {tierLevel && (
-                <div 
-                  className="flex items-center gap-1 bg-black/40 px-2 py-1 rounded-full text-xs" 
-                  style={{ color: tierInfo?.color }}
-                >
-                  <img 
-                    src={getTierIcon(tierLevel)} 
-                    alt={tierInfo?.name}
-                    className="h-3 w-3" 
-                  />
-                  <span>{tierInfo?.name}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {mvp.rank === 1 && (
+                  <svg 
+                    className="h-5 w-5 text-[#FBBF24]" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M9 22V12H15V22" fill="black" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+                {tierLevel && (
+                  <div 
+                    className="flex items-center gap-1 bg-black/40 px-2 py-1 rounded-full text-xs" 
+                    style={{ color: tierInfo?.color }}
+                  >
+                    <img 
+                      src={getTierIcon(tierLevel)} 
+                      alt={tierInfo?.name}
+                      className="h-3 w-3" 
+                    />
+                    <span>{tierInfo?.name}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -234,7 +280,7 @@ function MVPCard({
                     ${mvp.wagerAmount.toLocaleString()}
                   </span>
                   {showIncrease && (
-                    <TrendingUp className="h-4 w-4 text-emerald-500 animate-pulse" />
+                    <TrendingUp className="h-4 w-4 text-emerald-500" />
                   )}
                 </div>
               </div>
@@ -326,8 +372,12 @@ function UserCard({
   return (
     <div className="relative w-full h-[200px]">
       <div className="relative h-full">
+        {/* Animated shine overlay for collectible card feel */}
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none overflow-hidden rounded-xl">
+          <div className="w-[150%] h-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shine transform rotate-12 blur-sm" />
+        </div>
         <div 
-          className="relative p-6 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm transition-all duration-300 shadow-lg card-hover h-full flex flex-col justify-between"
+          className="relative p-4 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm transition-all duration-300 shadow-lg card-hover h-full flex flex-col justify-between group"
           style={{
             '--hover-border-color': `#D7FF0080`,
             '--hover-shadow-color': `#D7FF0040`
@@ -394,42 +444,43 @@ function UserCard({
               </div>
             </>
           ) : (
-            // Not logged in state - Show login prompt
+            // Not logged in state - Show login prompt with layout matching other cards
             <>
-              {/* Playing card backside design */}
-              <div className="absolute inset-0 bg-gradient-to-br from-[#1A1B21] to-[#14151A] overflow-hidden">
-                {/* Pattern overlay */}
-                <div className="absolute inset-0 opacity-5">
-                  <div className="absolute inset-0 bg-[url('/images/noise.png')] mix-blend-overlay" />
-                  <div className="grid grid-cols-5 grid-rows-7 h-full w-full">
-                    {Array.from({ length: 35 }).map((_, i) => (
-                      <div key={i} className="border border-[#D7FF00]/5"></div>
-                    ))}
-                  </div>
+              {/* Pattern overlay in background */}
+              <div className="absolute inset-0 opacity-5 -z-10">
+                <div className="absolute inset-0 bg-[url('/images/noise.png')] mix-blend-overlay" />
+                <div className="grid grid-cols-5 grid-rows-7 h-full w-full">
+                  {Array.from({ length: 35 }).map((_, i) => (
+                    <div key={i} className="border border-[#D7FF00]/5"></div>
+                  ))}
                 </div>
+              </div>
 
-                {/* Call to action section */}
-                <div className="absolute inset-x-0 top-1/3 transform -translate-y-1/2 p-4 text-center">
-                  <h3 className="text-2xl font-heading text-white mb-3">Ready to Compete?</h3>
-                  <p className="text-sm text-[#D7FF00] mb-4">Sign in to track your stats</p>
-                  <Link href="/auth">
+              {/* Header section like other cards */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-5 w-5 bg-[#D7FF00] rounded-full flex items-center justify-center">
+                    <User className="h-3 w-3 text-black" />
+                  </div>
+                  <h3 className="text-lg font-heading text-white">Your Stats</h3>
+                </div>
+                <MVPCoreSigil size="small" />
+              </div>
+
+              {/* Content */}
+              <div className="flex flex-col">
+                <p className="text-sm text-[#D7FF00] mb-6">Sign in to track your stats</p>
+
+                {/* Sign in button at bottom */}
+                <div className="mt-auto">
+                  <Link href="/auth" className="block w-full">
                     <Button 
-                      variant="default" 
-                      size="lg"
-                      className="w-full bg-[#D7FF00] text-black font-medium hover:bg-[#C0E600] py-6"
+                      variant="default"
+                      className="w-full bg-[#D7FF00] text-black font-medium hover:bg-[#C0E600]"
                     >
                       Sign In
                     </Button>
                   </Link>
-                </div>
-
-                {/* MVP Logo at bottom */}
-                <div className="absolute inset-x-0 bottom-8 flex items-center justify-center">
-                  <div className="h-16 w-16 rounded-full border-2 border-[#D7FF00] flex items-center justify-center transform rotate-45 bg-black/20">
-                    <div className="h-14 w-14 rounded-full border-2 border-[#D7FF00] flex items-center justify-center backdrop-blur-sm">
-                      <span className="text-[#D7FF00] font-bold text-xl transform -rotate-45">MVP</span>
-                    </div>
-                  </div>
                 </div>
               </div>
             </>
@@ -596,7 +647,7 @@ export function MVPCards() {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-0 max-w-5xl mx-auto perspective-1000 px-0">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 max-w-5xl mx-auto perspective-1000 px-4">
       {timeframes.map((timeframe, index) => (
         <motion.div
           key={timeframe.period}
@@ -609,7 +660,7 @@ export function MVPCards() {
             damping: 30,
             delay: index * 0.1  // Staggered animation
           }}
-          className="group relative transform transition-all duration-300 p-2 md:p-3"
+          className="group relative transform transition-all duration-300"
         >
           <MVPCardMemo 
             timeframe={timeframe}
@@ -669,7 +720,7 @@ export function MVPCards() {
           damping: 30,
           delay: timeframes.length * 0.1  // Staggered animation
         }}
-        className="group relative transform transition-all duration-300 p-2 md:p-3"
+        className="group relative transform transition-all duration-300"
       >
         <UserCard 
           user={user} 
