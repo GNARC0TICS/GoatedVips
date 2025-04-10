@@ -14,6 +14,10 @@ interface UseProfileOptions {
   manual?: boolean;
   /** Whether to include extended stats in the profile data */
   includeStats?: boolean;
+  /** Whether to show toast notifications on error */
+  showToasts?: boolean;
+  /** Number of retries before giving up */
+  retries?: number;
 }
 
 interface UseProfileReturn {
@@ -43,7 +47,7 @@ export function useProfile(
   const [error, setError] = useState<Error | null>(null);
   const { toast } = useToast();
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (retryCount = 0) => {
     if (!userId) {
       setError(new Error('No user ID provided'));
       setIsLoading(false);
@@ -61,6 +65,14 @@ export function useProfile(
       
       setProfile(profileData);
     } catch (err) {
+      const maxRetries = options.retries ?? 2;
+      
+      if (retryCount < maxRetries) {
+        console.log(`Retrying profile fetch (${retryCount + 1}/${maxRetries})...`);
+        // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+        return fetchProfile(retryCount + 1);
+      }
       console.error('Error fetching profile:', err);
       
       setError(err instanceof Error ? err : new Error(String(err)));
