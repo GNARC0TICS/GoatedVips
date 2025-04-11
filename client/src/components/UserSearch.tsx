@@ -98,7 +98,7 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
       setError(null);
       
       try {
-        const response = await fetch(`/api/users/search?q=${encodeURIComponent(debouncedQuery)}`);
+        const response = await fetch(`/api/users/search/${encodeURIComponent(debouncedQuery)}`);
         
         if (!response.ok) {
           throw new Error("Failed to search users");
@@ -111,6 +111,8 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
         console.error("Error searching users:", err);
         setError("An error occurred while searching");
         setResults([]);
+        // Log the query that failed
+        console.log("Failed search query:", debouncedQuery);
       } finally {
         setIsLoading(false);
       }
