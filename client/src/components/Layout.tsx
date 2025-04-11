@@ -730,6 +730,17 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
           <div className={headerClasses.userSection}>
 
+            {/* Speed/Race Icon */}
+            <Link href="/wager-races">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
+              >
+                <SpeedIcon className="relative z-10 group-hover:animate-[spin_6s_linear_infinite]" isAnimating={false} />
+              </Button>
+            </Link>
+
             {/* Admin Button - Only show when user is admin */}
             {user?.isAdmin && (
               <DropdownMenu>
