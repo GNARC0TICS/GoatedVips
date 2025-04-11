@@ -436,8 +436,8 @@ export function Layout({ children }: { children: ReactNode }) {
             <Link href="/">
               <img src="/images/logo-neon.png" alt="GOATED" className={`${headerClasses.logo} ml-2`} />
             </Link>
-            <div className="h-full border-r border-[#2A2B31]/50 ml-4" />
           </div>
+          <div className="h-16 border-r border-[#2A2B31] mx-4" />
 
           <div className={headerClasses.desktopNav}>
               <NavLink href="/" label="HOME" />
