@@ -662,7 +662,7 @@ export function Layout({ children }: { children: ReactNode }) {
                     variant="ghost"
                     className="flex items-center gap-1 font-heading text-white hover:text-[#D7FF00] transition-colors duration-300 hover:bg-transparent px-2"
                   >
-                    <spanclassName="font-bold">SOCIALS</span>
+                    <span className="font-bold">SOCIALS</span>
                   </Button>
                 </Link>
                 <div className="absolute left-0 mt-2 w-56 opacity-0 invisible transition-all duration-300 ease-in-out group-hover:opacity-100 group-hover:visible">
