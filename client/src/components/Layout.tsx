@@ -465,7 +465,7 @@ export function Layout({ children }: { children: ReactNode }) {
               <img src="/images/logo-neon.png" alt="GOATED" className={`${headerClasses.logo} ml-1`} />
             </Link>
             <div className="h-16 border-r border-[#2A2B31] ml-2" />
-            
+
             {/* Search, Telegram, Crypto Swap, and Utility icons grouped together */}
             <div className="flex items-center gap-2">
               <div className="md:block">
@@ -726,10 +726,9 @@ export function Layout({ children }: { children: ReactNode }) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-[#D7FF00] hover:text-white relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
+                    className="text-white hover:text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transition-colors duration-300"
                   >
-                    <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
-                    <Settings className="h-4 w-4 md:h-5 md:w-5 relative z-10" />
+                    <Settings className="h-4 w-4 md:h-5 md:w-5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56 bg-[#1A1B21] border-[#2A2B31]">
