@@ -87,7 +87,7 @@ export async function runProfileSync() {
       created_at: new Date()
     });
     
-    console.log(`[Profile sync completed] Created: ${result.created}, Updated: ${result.updated}, Duration: ${result.duration}ms`);
+    console.log(`[Profile sync completed] Created: ${result.created}, Updated: ${result.updated}, Unchanged: ${result.existing} (Total: ${result.totalProcessed}), Duration: ${result.duration}ms`);
     return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

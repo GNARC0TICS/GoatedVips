@@ -613,9 +613,10 @@ export class PlatformApiService {
       // Use the GoatedApiService to fetch raw data
       const rawData = await goatedApiService.fetchReferralData();
       
-      // Track created and updated counts
+      // Track created, updated, and existing counts
       let created = 0;
       let updated = 0;
+      let existing = 0;
       
       // If no data is available, return early
       if (!rawData || !rawData.data) {
@@ -625,7 +626,7 @@ export class PlatformApiService {
           'No data available from external API',
           Date.now() - startTime
         );
-        return { created, updated, existing: 0, totalProcessed: 0, duration: Date.now() - startTime };
+        return { created, updated, existing, totalProcessed: 0, duration: Date.now() - startTime };
       }
       
       // Process and transform the data
@@ -645,7 +646,7 @@ export class PlatformApiService {
           'No profiles found in API response',
           Date.now() - startTime
         );
-        return { created, updated, existing: 0, totalProcessed: 0, duration: Date.now() - startTime };
+        return { created, updated, existing, totalProcessed: 0, duration: Date.now() - startTime };
       }
       
       console.log(`Found ${profiles.length} profiles to process`);
@@ -703,27 +704,45 @@ export class PlatformApiService {
           });
           
           if (existingUser) {
-            // Update existing user with enhanced data
-            await db.update(users)
-              .set({
-                goatedUsername: name,
-                totalWager: String(wagered?.all_time || 0),
-                dailyWager: String(wagered?.today || 0),
-                weeklyWager: String(wagered?.this_week || 0),
-                monthlyWager: String(wagered?.this_month || 0),
-                // Add rank tracking
-                dailyRank: dailyRankMap.get(uid) || null,
-                weeklyRank: weeklyRankMap.get(uid) || null,
-                monthlyRank: monthlyRankMap.get(uid) || null,
-                allTimeRank: allTimeRankMap.get(uid) || null,
-                // Update timestamps
-                lastActive: new Date(),
-                lastUpdated: new Date(),
-                lastWagerSync: new Date()
-              })
-              .where(eq(users.goatedId, uid));
+            // Check if any data has changed
+            const needsUpdate = (
+              existingUser.goatedUsername !== name ||
+              existingUser.totalWager !== String(wagered?.all_time || 0) ||
+              existingUser.dailyWager !== String(wagered?.today || 0) ||
+              existingUser.weeklyWager !== String(wagered?.this_week || 0) ||
+              existingUser.monthlyWager !== String(wagered?.this_month || 0) ||
+              existingUser.dailyRank !== dailyRankMap.get(uid) ||
+              existingUser.weeklyRank !== weeklyRankMap.get(uid) ||
+              existingUser.monthlyRank !== monthlyRankMap.get(uid) ||
+              existingUser.allTimeRank !== allTimeRankMap.get(uid)
+            );
             
-            updated++;
+            if (needsUpdate) {
+              // Update existing user with enhanced data
+              await db.update(users)
+                .set({
+                  goatedUsername: name,
+                  totalWager: String(wagered?.all_time || 0),
+                  dailyWager: String(wagered?.today || 0),
+                  weeklyWager: String(wagered?.this_week || 0),
+                  monthlyWager: String(wagered?.this_month || 0),
+                  // Add rank tracking
+                  dailyRank: dailyRankMap.get(uid) || null,
+                  weeklyRank: weeklyRankMap.get(uid) || null,
+                  monthlyRank: monthlyRankMap.get(uid) || null,
+                  allTimeRank: allTimeRankMap.get(uid) || null,
+                  // Update timestamps
+                  lastActive: new Date(),
+                  lastUpdated: new Date(),
+                  lastWagerSync: new Date()
+                })
+                .where(eq(users.goatedId, uid));
+              
+              updated++;
+            } else {
+              // User exists but no changes needed
+              existing++;
+            }
           } else {
             // Create new user profile with enhanced data
             // Use better default values for auto-created users
@@ -768,14 +787,14 @@ export class PlatformApiService {
       await this.logTransformation(
         'profile-sync',
         'success',
-        `Synced ${created + updated} profiles (${created} created, ${updated} updated)`,
+        `Synced ${created + updated} profiles (${created} created, ${updated} updated, ${existing} unchanged)`,
         duration
       );
       
       return { 
         created, 
         updated, 
-        existing: 0, 
+        existing, 
         totalProcessed: profiles.length, 
         duration 
       };

@@ -366,7 +366,7 @@ async function syncUserProfiles() {
     // Using platformApiService directly to sync profiles
     const result = await platformApiService.syncUserProfiles();
 
-    console.log(`Profile sync completed. Created ${result.created} new profiles, updated ${result.updated}, ${result.existing} already existed.`);
+    console.log(`Profile sync completed. Created ${result.created} new profiles, updated ${result.updated}, ${result.existing} unchanged (total: ${result.totalProcessed}).`);
   } catch (error) {
     console.error("Error in scheduled profile sync:", error);
   }
