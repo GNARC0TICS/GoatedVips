@@ -168,9 +168,9 @@ export const UtilityPanelButton = () => {
             variant="ghost"
             size="icon"
             onClick={() => setIsOpen(!isOpen)}
-            className="relative h-8 w-8 hover:bg-[#D7FF00]/10 focus:outline-none"
+            className="relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-transform duration-300 hover:scale-110"
           >
-            <InventoryIcon className="h-5 w-5 text-white hover:text-[#D7FF00]" />
+            <InventoryIcon className="h-5 w-5" />
           </Button>
           {isOpen && <MobilePanel />}
         </>
@@ -180,9 +180,9 @@ export const UtilityPanelButton = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="relative h-10 w-10 hover:bg-[#D7FF00]/10 focus:outline-none"
+              className="relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-transform duration-300 hover:scale-110"
             >
-              <InventoryIcon className="h-5 w-5 text-white hover:text-[#D7FF00]" />
+              <InventoryIcon className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
           <DesktopPanel />
