@@ -512,6 +512,11 @@ export function Layout({ children }: { children: ReactNode }) {
                 </Button>
               </Link>
               <UtilityPanelButton />
+              {!user && (
+                <div onClick={() => setOpenMobile(false)}>
+                  <AuthModal isMobile={true} />
+                </div>
+              )}
             </div>
           </div>
 
