@@ -1,19 +1,15 @@
+
 import React from 'react';
 
 interface SpeedIconProps extends React.SVGProps<SVGSVGElement> {
-  isAnimating?: boolean;
+  className?: string;
 }
 
-/**
- * SpeedIcon Component
- * 
- * A custom speed/gauge icon with animation capabilities
- */
-export const SpeedIcon: React.FC<SpeedIconProps> = ({ isAnimating = true, ...svgProps }) => {
+export const SpeedIcon: React.FC<SpeedIconProps> = ({ className, ...svgProps }) => {
   const maskId = "lineMdSpeed0" + Math.random().toString(36).substr(2, 5);
 
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" {...svgProps}>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" className={className} {...svgProps}>
       <mask id={maskId}>
         <path
           fill="none"

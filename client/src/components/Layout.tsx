@@ -45,12 +45,11 @@ import { UtilityPanelButton } from "./UtilityPanel";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import giftIcon from '/images/GIFT.png';
-import { RaceTimer } from "./RaceTimer"; // Added import for RaceTimer
-import { Toaster } from "./ui/toaster"; // Import for Toaster component
-import { SpeedIcon } from "@/components/icons/SpeedIcon"; // Added import for SpeedIcon
+import { RaceTimer } from "./RaceTimer";
+import { Toaster } from "./ui/toaster";
+import { SpeedIcon } from "@/components/icons/SpeedIcon";
 
 
-// --- Static Styles (Memoized as constants) ---
 const headerClasses = {
   container:
     "fixed top-0 left-0 right-0 z-50 bg-[#14151A]/80 backdrop-blur-xl border-b border-[#2A2B31]/50",
@@ -81,7 +80,6 @@ const footerClasses = {
   heading: "font-heading text-[#14151A] text-2xl font-bold",
 };
 
-// --- MobileNavLink Component ---
 type MobileNavLinkProps = {
   href: string;
   label: string | React.ReactNode;
@@ -115,7 +113,6 @@ const MobileNavLink = React.memo(function MobileNavLink({
   );
 });
 
-// --- NavLink Component ---
 type NavLinkProps = {
   href: string;
   label: string | React.ReactNode;
@@ -159,7 +156,6 @@ const NavLink = React.memo(function NavLink({ href, label, tooltip }: NavLinkPro
   );
 });
 
-// --- Main Layout Component ---
 export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const footerRef = useRef<HTMLElement>(null);
@@ -172,12 +168,10 @@ export function Layout({ children }: { children: ReactNode }) {
   const { data: user } = useQuery<SelectUser>({ queryKey: ["/api/user"] });
   const isAuthenticated = !!user;
 
-  // Scroll to top on location change
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location]);
 
-  // Set up IntersectionObserver to detect footer visibility
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => setIsFooterVisible(entry.isIntersecting),
@@ -230,7 +224,6 @@ export function Layout({ children }: { children: ReactNode }) {
       <ParticleBackground />
       <header className={headerClasses.container}>
         <nav className={headerClasses.nav}>
-          {/* Mobile Search Panel */}
           <div 
             className={`md:hidden absolute left-0 right-0 top-16 bg-[#14151A] border-b border-[#2A2B31] transition-all duration-300 ${
               mobileSearchOpen ? 'h-16 opacity-100' : 'h-0 opacity-0 pointer-events-none'
@@ -393,14 +386,12 @@ export function Layout({ children }: { children: ReactNode }) {
                     )}
 
                     <div className="mt-6 px-4 border-t border-[#2A2B31]/50 pt-6 space-y-3">
-                      {/* Auth controls if not logged in */}
                       {!user && (
                         <div onClick={() => setOpenMobile(false)}>
                           <AuthModal isMobile={true} />
                         </div>
                       )}
 
-                      {/* Play button */}
                       <Button
                         onClick={() => {
                           setOpenMobile(false);
@@ -446,7 +437,6 @@ export function Layout({ children }: { children: ReactNode }) {
                         </span>
                       </Button>
 
-                      {/* Logout if logged in */}
                       {user && (
                         <Button
                           onClick={handleLogout}
@@ -467,12 +457,10 @@ export function Layout({ children }: { children: ReactNode }) {
             </Link>
             <div className="h-16 border-r border-[#2A2B31] ml-2" />
 
-            {/* Search, Crypto Swap, Telegram, Speed Icon, and Utility icons grouped together */}
             <div className="flex items-center gap-2">
               <div className="md:block">
                 <UserSearch />
               </div>
-              {/* Crypto Swap Link */}
               <Link href="/crypto-swap">
                 <Button
                   variant="ghost"
@@ -496,7 +484,6 @@ export function Layout({ children }: { children: ReactNode }) {
                   </svg>
                 </Button>
               </Link>
-              {/* Telegram Link */}
               <Link href="https://t.me/xGoombas" target="_blank">
                 <Button
                   variant="ghost"
@@ -515,14 +502,13 @@ export function Layout({ children }: { children: ReactNode }) {
                   </svg>
                 </Button>
               </Link>
-              {/* Speed/Race Icon */}
               <Link href="/wager-races">
                 <Button
                   variant="ghost"
                   size="icon"
                   className="text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
                 >
-                  <SpeedIcon className="relative z-10 group-hover:animate-[spin_6s_linear_infinite]" isAnimating={false} />
+                  <SpeedIcon className="relative z-10" />
                 </Button>
               </Link>
               <UtilityPanelButton />
@@ -730,18 +716,6 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
           <div className={headerClasses.userSection}>
 
-            {/* Speed/Race Icon */}
-            <Link href="/wager-races">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
-              >
-                <SpeedIcon className="relative z-10 group-hover:animate-[spin_6s_linear_infinite]" isAnimating={false} />
-              </Button>
-            </Link>
-
-            {/* Admin Button - Only show when user is admin */}
             {user?.isAdmin && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -780,9 +754,6 @@ export function Layout({ children }: { children: ReactNode }) {
               </DropdownMenu>
             )}
 
-            {/* Authentication controls are now moved below the header */}
-
-            {/* User Profile Button - Only show when logged in */}
             {user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -850,10 +821,8 @@ export function Layout({ children }: { children: ReactNode }) {
         </nav>
       </header>
 
-      {/* Auth Section - Desktop Only */}
       <div className={authSectionClasses.container}>
         <div className={authSectionClasses.wrapper}>
-          {/* PLAY button - always visible */}
           <div className="hidden lg:flex items-center gap-2 ml-auto">
             {isAuthenticated ? (
               <Link href="/dashboard">
@@ -882,7 +851,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <main className="flex-1">
         {children}
       </main>
-      <RaceTimer /> {/* Added RaceTimer component */}
+      <RaceTimer />
       <ScrollToTop />
       <Toaster />
       <footer ref={footerRef} className={footerClasses.wrapper}>
