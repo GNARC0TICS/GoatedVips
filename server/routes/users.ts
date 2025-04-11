@@ -126,15 +126,15 @@ router.get('/:id', async (req, res) => {
 /**
  * Search users by username
  */
-router.get('/search/:query', async (req, res) => {
+router.get('/search', async (req, res) => {
   try {
-    const query = req.params.query;
+    const query = req.query.username as string;
 
     if (!query || query.length < 2) {
       return res.status(400).json({ error: 'Search query must be at least 2 characters' });
     }
 
-    // Search in our local database only
+    // Enhanced search using our database
     const results = await db.select({
       id: users.id,
       username: users.username,

@@ -98,7 +98,7 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
       setError(null);
       
       try {
-        const response = await fetch(`/api/users/search/${encodeURIComponent(debouncedQuery)}`);
+        const response = await fetch(`/api/users/search?username=${encodeURIComponent(debouncedQuery)}`);
         
         if (!response.ok) {
           throw new Error("Failed to search users");
@@ -107,7 +107,8 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
         const data = await response.json();
         setResults(data.map(user => ({
           id: user.id?.toString() || user.goatedId,
-          username: user.username || user.goatedUsername
+          username: user.username || user.goatedUsername,
+          profileColor: user.profileColor
         })).filter(user => user.username));
       } catch (err) {
         console.error("Error searching users:", err);
