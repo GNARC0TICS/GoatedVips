@@ -12,6 +12,7 @@ import {
   Bell,
   Settings,
   User,
+  Search,
   LogOut,
   ChevronDown,
   Gift,
@@ -163,6 +164,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const [isFooterVisible, setIsFooterVisible] = useState(false);
   const { toast } = useToast();
   const [openMobile, setOpenMobile] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: user } = useQuery<SelectUser>({ queryKey: ["/api/user"] });
@@ -227,6 +229,16 @@ export function Layout({ children }: { children: ReactNode }) {
       <ParticleBackground />
       <header className={headerClasses.container}>
         <nav className={headerClasses.nav}>
+          {/* Mobile Search Panel */}
+          <div 
+            className={`md:hidden absolute left-0 right-0 top-16 bg-[#14151A] border-b border-[#2A2B31] transition-all duration-300 ${
+              mobileSearchOpen ? 'h-16 opacity-100' : 'h-0 opacity-0 pointer-events-none'
+            }`}
+          >
+            <div className="container mx-auto px-4 py-2">
+              <UserSearch isMobile={true} />
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <div className={headerClasses.menuButton}>
               <Sheet open={openMobile} onOpenChange={setOpenMobile}>
@@ -437,6 +449,26 @@ export function Layout({ children }: { children: ReactNode }) {
               <img src="/images/logo-neon.png" alt="GOATED" className={`${headerClasses.logo} ml-1`} />
             </Link>
             <div className="h-16 border-r border-[#2A2B31] ml-2" />
+
+            {/* User search component - Desktop */}
+            <div className="hidden md:block">
+              <UserSearch />
+            </div>
+
+            {/* Crypto Swap Button */}
+            <Link href="/crypto-swap">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-[#D7FF00] hover:text-white relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
+              >
+                <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
+                <Repeat className="h-4 w-4 md:h-5 md:w-5 relative z-10" />
+              </Button>
+            </Link>
+
+            {/* Gift Button */}
+            <UtilityPanelButton />
           </div>
 
           <div className={headerClasses.desktopNav}>
@@ -639,9 +671,16 @@ export function Layout({ children }: { children: ReactNode }) {
               )}
             </div>
           <div className={headerClasses.userSection}>
-            {/* User search component - Improved visibility */}
-            <div className="w-full max-w-[170px]">
-              <UserSearch />
+            {/* Mobile Search Button */}
+            <div className="md:hidden">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+                className="text-[#D7FF00] hover:text-white relative h-8 w-8 flex items-center justify-center"
+              >
+                <Search className="h-5 w-5" />
+              </Button>
             </div>
 
             {/* Crypto Swap Button */}
