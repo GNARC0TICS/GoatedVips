@@ -245,10 +245,9 @@ export function Layout({ children }: { children: ReactNode }) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="relative overflow-visible group pl-2"
+                    className="relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-all duration-300 hover:scale-110"
                   >
-                    <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-                    <Menu className="h-6 w-6 text-white relative z-10 group-hover:text-[#D7FF00] transition-colors duration-300" />
+                    <Menu className="h-6 w-6 text-white hover:text-[#D7FF00] transition-colors duration-300" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent
@@ -663,7 +662,7 @@ export function Layout({ children }: { children: ReactNode }) {
                     variant="ghost"
                     className="flex items-center gap-1 font-heading text-white hover:text-[#D7FF00] transition-colors duration-300 hover:bg-transparent px-2"
                   >
-                    <span className="font-bold">SOCIALS</span>
+                    <spanclassName="font-bold">SOCIALS</span>
                   </Button>
                 </Link>
                 <div className="absolute left-0 mt-2 w-56 opacity-0 invisible transition-all duration-300 ease-in-out group-hover:opacity-100 group-hover:visible">
@@ -726,9 +725,9 @@ export function Layout({ children }: { children: ReactNode }) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-white hover:text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transition-colors duration-300"
+                    className="relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-all duration-300 hover:scale-110"
                   >
-                    <Settings className="h-4 w-4 md:h-5 md:w-5" />
+                    <Settings className="h-4 w-4 md:h-5 md:w-5 text-white hover:text-[#D7FF00] transition-colors duration-300" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56 bg-[#1A1B21] border-[#2A2B31]">
