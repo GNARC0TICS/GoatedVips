@@ -9,7 +9,7 @@ interface SpeedIconProps extends React.SVGProps<SVGSVGElement> {
  * 
  * A custom speed/gauge icon with animation capabilities
  */
-export const SpeedIcon: React.FC<SpeedIconProps> = ({ isAnimating = true, ...svgProps }) => {
+export const SpeedIcon: React.FC<SpeedIconProps> = ({ isAnimating = false, ...svgProps }) => {
   const maskId = "lineMdSpeedTwotoneLoop" + Math.random().toString(36).substr(2, 5); // Generate unique ID
 
   return (

@@ -467,30 +467,11 @@ export function Layout({ children }: { children: ReactNode }) {
             </Link>
             <div className="h-16 border-r border-[#2A2B31] ml-2" />
 
-            {/* Search, Telegram, Crypto Swap, and Utility icons grouped together */}
+            {/* Search, Crypto Swap, Telegram, Speed Icon, and Utility icons grouped together */}
             <div className="flex items-center gap-2">
               <div className="md:block">
                 <UserSearch />
               </div>
-              {/* Telegram Link */}
-              <Link href="https://t.me/xGoombas" target="_blank">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-transform duration-300 hover:scale-110"
-                >
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    width="20" 
-                    height="20" 
-                    viewBox="0 0 256 256"
-                    className="relative z-10"
-                    fill="currentColor"
-                  >
-                    <path d="M228.88 26.19a9 9 0 0 0-9.16-1.57L17.06 103.93a14.22 14.22 0 0 0 2.43 27.21L72 141.45V200a15.92 15.92 0 0 0 10 14.83a15.91 15.91 0 0 0 17.51-3.73l25.32-26.26L165 220a15.88 15.88 0 0 0 10.51 4a16.3 16.3 0 0 0 5-.79a15.85 15.85 0 0 0 10.67-11.63L231.77 35a9 9 0 0 0-2.89-8.81M78.15 126.35l-49.61-9.73l139.2-54.48ZM88 200v-47.48l24.79 21.74Zm87.53 8l-82.68-72.5l119-85.29Z" />
-                  </svg>
-                </Button>
-              </Link>
               {/* Crypto Swap Link */}
               <Link href="/crypto-swap">
                 <Button
@@ -515,17 +496,36 @@ export function Layout({ children }: { children: ReactNode }) {
                   </svg>
                 </Button>
               </Link>
-              <UtilityPanelButton />
-              {/* Speed/Race Icon */}
-              <Link href="/wager-races">
+              {/* Telegram Link */}
+              <Link href="https://t.me/xGoombas" target="_blank">
                 <Button
                   variant="ghost"
                   size="icon"
                   className="text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-transform duration-300 hover:scale-110"
                 >
-                  <SpeedIcon className="relative z-10" />
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 256 256"
+                    className="relative z-10"
+                    fill="currentColor"
+                  >
+                    <path d="M228.88 26.19a9 9 0 0 0-9.16-1.57L17.06 103.93a14.22 14.22 0 0 0 2.43 27.21L72 141.45V200a15.92 15.92 0 0 0 10 14.83a15.91 15.91 0 0 0 17.51-3.73l25.32-26.26L165 220a15.88 15.88 0 0 0 10.51 4a16.3 16.3 0 0 0 5-.79a15.85 15.85 0 0 0 10.67-11.63L231.77 35a9 9 0 0 0-2.89-8.81M78.15 126.35l-49.61-9.73l139.2-54.48ZM88 200v-47.48l24.79 21.74Zm87.53 8l-82.68-72.5l119-85.29Z" />
+                  </svg>
                 </Button>
               </Link>
+              {/* Speed/Race Icon */}
+              <Link href="/wager-races">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
+                >
+                  <SpeedIcon className="relative z-10 group-hover:animate-[spin_6s_linear_infinite]" isAnimating={false} />
+                </Button>
+              </Link>
+              <UtilityPanelButton />
             </div>
           </div>
 
