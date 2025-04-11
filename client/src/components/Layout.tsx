@@ -227,7 +227,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <ParticleBackground />
       <header className={headerClasses.container}>
         <nav className={headerClasses.nav}>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
             <div className={headerClasses.menuButton}>
               <Sheet open={openMobile} onOpenChange={setOpenMobile}>
                 <SheetTrigger asChild>
@@ -434,9 +434,9 @@ export function Layout({ children }: { children: ReactNode }) {
               </Sheet>
             </div>
             <Link href="/">
-              <img src="/images/logo-neon.png" alt="GOATED" className={`${headerClasses.logo} ml-2`} />
+              <img src="/images/logo-neon.png" alt="GOATED" className={`${headerClasses.logo} ml-1`} />
             </Link>
-            <div className="h-16 border-r border-[#2A2B31] ml-4" />
+            <div className="h-16 border-r border-[#2A2B31] ml-2" />
           </div>
 
           <div className={headerClasses.desktopNav}>
