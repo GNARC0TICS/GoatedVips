@@ -476,9 +476,8 @@ export function Layout({ children }: { children: ReactNode }) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-[#D7FF00] hover:text-white relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
+                  className="text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-transform duration-300 hover:scale-110"
                 >
-                  <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
                   <svg 
                     xmlns="http://www.w3.org/2000/svg" 
                     width="20" 
@@ -496,9 +495,8 @@ export function Layout({ children }: { children: ReactNode }) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-[#D7FF00] hover:text-white relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
+                  className="text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-transform duration-300 hover:scale-110"
                 >
-                  <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
                   <svg 
                     xmlns="http://www.w3.org/2000/svg" 
                     width="20" 
