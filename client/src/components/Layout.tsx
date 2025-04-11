@@ -349,7 +349,24 @@ export function Layout({ children }: { children: ReactNode }) {
                     />
 
                     <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">SOCIALS</div>
-                    <MobileNavLink href="/telegram" label="Telegram Community" onClose={() => setOpenMobile(false)} />
+                    <MobileNavLink 
+                      href="https://t.me/xGoombas" 
+                      label={
+                        <div className="flex items-center gap-2">
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            width="16" 
+                            height="16" 
+                            viewBox="0 0 256 256"
+                            fill="currentColor"
+                          >
+                            <path d="M228.88 26.19a9 9 0 0 0-9.16-1.57L17.06 103.93a14.22 14.22 0 0 0 2.43 27.21L72 141.45V200a15.92 15.92 0 0 0 10 14.83a15.91 15.91 0 0 0 17.51-3.73l25.32-26.26L165 220a15.88 15.88 0 0 0 10.51 4a16.3 16.3 0 0 0 5-.79a15.85 15.85 0 0 0 10.67-11.63L231.77 35a9 9 0 0 0-2.89-8.81M78.15 126.35l-49.61-9.73l139.2-54.48ZM88 200v-47.48l24.79 21.74Zm87.53 8l-82.68-72.5l119-85.29Z" />
+                          </svg>
+                          Telegram Community
+                        </div>
+                      } 
+                      onClose={() => setOpenMobile(false)} 
+                    />
 
                     <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">HELP & SUPPORT</div>
                     <MobileNavLink href="/help" label="Help Center" onClose={() => setOpenMobile(false)} />
@@ -449,11 +466,32 @@ export function Layout({ children }: { children: ReactNode }) {
             </Link>
             <div className="h-16 border-r border-[#2A2B31] ml-2" />
             
-            {/* Search, Crypto Swap, and Utility icons grouped together */}
+            {/* Search, Telegram, Crypto Swap, and Utility icons grouped together */}
             <div className="flex items-center gap-2">
               <div className="md:block">
                 <UserSearch />
               </div>
+              {/* Telegram Link */}
+              <Link href="https://t.me/xGoombas" target="_blank">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-[#D7FF00] hover:text-white relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
+                >
+                  <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 256 256"
+                    className="relative z-10"
+                    fill="currentColor"
+                  >
+                    <path d="M228.88 26.19a9 9 0 0 0-9.16-1.57L17.06 103.93a14.22 14.22 0 0 0 2.43 27.21L72 141.45V200a15.92 15.92 0 0 0 10 14.83a15.91 15.91 0 0 0 17.51-3.73l25.32-26.26L165 220a15.88 15.88 0 0 0 10.51 4a16.3 16.3 0 0 0 5-.79a15.85 15.85 0 0 0 10.67-11.63L231.77 35a9 9 0 0 0-2.89-8.81M78.15 126.35l-49.61-9.73l139.2-54.48ZM88 200v-47.48l24.79 21.74Zm87.53 8l-82.68-72.5l119-85.29Z" />
+                  </svg>
+                </Button>
+              </Link>
+              {/* Crypto Swap Link */}
               <Link href="/crypto-swap">
                 <Button
                   variant="ghost"
@@ -461,7 +499,21 @@ export function Layout({ children }: { children: ReactNode }) {
                   className="text-[#D7FF00] hover:text-white relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
                 >
                   <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
-                  <Repeat className="h-4 w-4 md:h-5 md:w-5 relative z-10" />
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 24 24"
+                    className="relative z-10"
+                    stroke="currentColor"
+                    fill="none"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M9.019 9A6.5 6.5 0 1 1 15 14.981" />
+                    <path d="M8.5 22a6.5 6.5 0 1 1 0-13a6.5 6.5 0 0 1 0 13M22 17a3 3 0 0 1-3 3h-2m0 0l2-2m-2 2l2 2M2 7a3 3 0 0 1 3-3h2m0 0L5 6m2-2L5 2" />
+                  </svg>
                 </Button>
               </Link>
               <UtilityPanelButton />
