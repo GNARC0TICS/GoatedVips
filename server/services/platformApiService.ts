@@ -800,7 +800,7 @@ export class PlatformApiService {
    * Fetches latest wager statistics from the API and updates our database
    */
   async updateWagerData(): Promise<number> {
-    console.log("updateWagerData method called");
+    console.log("updateWagerData method called - using real data");
     
     const startTime = Date.now();
     
@@ -857,46 +857,17 @@ export class PlatformApiService {
             continue;
           }
           
-          // Update the user's totalWager field
+          // Update all the wager data fields directly in users table
           await db.update(users)
             .set({
               totalWager: String(wagered.all_time || 0),
-              lastActive: new Date() // Using lastActive as the update timestamp
+              dailyWager: String(wagered.today || 0),
+              weeklyWager: String(wagered.this_week || 0),
+              monthlyWager: String(wagered.this_month || 0),
+              lastWagerSync: new Date(),
+              lastUpdated: new Date()
             })
             .where(eq(users.goatedId, uid));
-          
-          // Check if a wager data record already exists for this user
-          const existingWagerData = await db.query.mockWagerData.findFirst({
-            where: eq(mockWagerData.userId, userResult.id)
-          });
-          
-          if (existingWagerData) {
-            // Update existing wager data record
-            await db.update(mockWagerData)
-              .set({
-                wageredToday: String(wagered.today || 0),
-                wageredThisWeek: String(wagered.this_week || 0),
-                wageredThisMonth: String(wagered.this_month || 0),
-                wageredAllTime: String(wagered.all_time || 0),
-                updatedAt: new Date(),
-                isMocked: false // Mark as real data
-              })
-              .where(eq(mockWagerData.userId, userResult.id));
-          } else {
-            // Create new wager data record
-            await db.insert(mockWagerData)
-              .values({
-                userId: userResult.id,
-                username: userResult.username,
-                wageredToday: String(wagered.today || 0),
-                wageredThisWeek: String(wagered.this_week || 0),
-                wageredThisMonth: String(wagered.this_month || 0),
-                wageredAllTime: String(wagered.all_time || 0),
-                isMocked: false, // Mark as real data
-                createdAt: new Date(),
-                updatedAt: new Date()
-              });
-          }
           
           updatedCount++;
         } catch (error) {
@@ -909,7 +880,7 @@ export class PlatformApiService {
       await this.logTransformation(
         'wager-data-update',
         'success',
-        `Updated wager data for ${updatedCount} users`,
+        `Updated wager data for ${updatedCount} users with real data`,
         Date.now() - startTime
       );
       

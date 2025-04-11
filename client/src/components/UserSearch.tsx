@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { Search, User, Clock, X } from "lucide-react";
+import { User, Clock, X } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { QuickProfile } from "./QuickProfile";
 import { useLocation } from "wouter";
@@ -11,7 +11,11 @@ interface UserResult {
   username: string;
 }
 
-export function UserSearch() {
+interface UserSearchProps {
+  isMobile?: boolean;
+}
+
+export function UserSearch({ isMobile = false }: UserSearchProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UserResult[]>([]);
   const [recentSearches, setRecentSearches] = useState<UserResult[]>([]);
@@ -115,17 +119,54 @@ export function UserSearch() {
     searchUsers();
   }, [debouncedQuery]);
   
+  // Create the search icon SVG component
+  const SearchIcon = ({ className }: { className?: string }) => (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24"
+      className={className}
+      fill="currentColor"
+    >
+      <path d="m9.5 10.95l-1.375 1.075q-.15.125-.3.013t-.1-.288l.525-1.7L6.8 8.9q-.125-.125-.062-.288t.237-.162H8.7l.55-1.725q.05-.175.25-.175t.25.175l.55 1.725h1.725q.175 0 .238.163T12.2 8.9l-1.45 1.15l.525 1.7q.05.175-.1.288t-.3-.013zm0 5.05q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l5.6 5.6q.275.275.275.7t-.275.7t-.7.275t-.7-.275l-5.6-5.6q-.75.6-1.725.95T9.5 16m0-2q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14" />
+    </svg>
+  );
+
+  // Control mobile search dropdown visibility
+  useEffect(() => {
+    if (isMobile) {
+      // Get the dropdown element
+      const searchDropdown = document.getElementById('mobile-search-dropdown');
+      if (searchDropdown) {
+        if (isFocused) {
+          searchDropdown.classList.add('h-16');
+          searchDropdown.classList.remove('h-0');
+        } else {
+          // Add a slight delay before hiding to allow for animations
+          setTimeout(() => {
+            if (!isFocused) {
+              searchDropdown.classList.remove('h-16');
+              searchDropdown.classList.add('h-0');
+            }
+          }, 200);
+        }
+      }
+    }
+  }, [isFocused, isMobile]);
+
   return (
     <div className="w-full relative">
       <div className="relative mb-1">
-        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#D7FF00]" />
+        <SearchIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#D7FF00]" />
         <Input
+          id={isMobile ? "mobile-search-input" : "desktop-search-input"}
           ref={inputRef}
           placeholder="Search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsFocused(true)}
-          className="pl-8 pr-7 bg-[#14151A] border-[#2A2B31] focus:border-[#D7FF00] focus-visible:ring-0 focus-visible:ring-offset-0 text-white placeholder:text-white font-medium shadow-none h-9 rounded-md max-w-[160px]"
+          className={`pl-8 pr-7 bg-[#14151A] border-[#2A2B31] focus:border-[#D7FF00] focus-visible:ring-0 focus-visible:ring-offset-0 text-white placeholder:text-white font-medium shadow-none h-9 rounded-md ${isMobile ? 'w-full' : 'max-w-[160px]'}`}
           style={{ transform: 'translateZ(0)' }} // Prevents layout shifts on mobile
         />
         {query && (

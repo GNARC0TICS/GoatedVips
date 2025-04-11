@@ -10,7 +10,7 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { db } from '@db';
-import { users, mockWagerData } from '@db/schema';
+import { users } from '@db/schema';
 import { eq, like, or, and, not, sql } from 'drizzle-orm';
 import { ensureUserProfile } from '../index';
 import { requireAuth } from '../middleware/auth';
@@ -58,6 +58,12 @@ router.get('/:id', async (req, res) => {
           goatedUsername: true,
           goatedAccountLinked: true,
           createdAt: true,
+          totalWager: true,
+          dailyWager: true,
+          weeklyWager: true,
+          monthlyWager: true,
+          lastWagerSync: true,
+          lastUpdated: true
         }
       });
     }
@@ -75,6 +81,12 @@ router.get('/:id', async (req, res) => {
           goatedUsername: true,
           goatedAccountLinked: true,
           createdAt: true,
+          totalWager: true,
+          dailyWager: true,
+          weeklyWager: true,
+          monthlyWager: true,
+          lastWagerSync: true,
+          lastUpdated: true
         }
       });
     }
@@ -83,12 +95,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Get wager data if available
-    const wagerData = await db.query.mockWagerData.findFirst({
-      where: eq(mockWagerData.userId, user.id)
-    });
-
-    // Format the response
+    // Format the response with wager data directly from users table
     const userProfile = {
       id: user.id.toString(),
       username: user.username,
@@ -98,12 +105,15 @@ router.get('/:id', async (req, res) => {
       goatedId: user.goatedId,
       goatedUsername: user.goatedUsername,
       goatedAccountLinked: user.goatedAccountLinked,
-      wager: wagerData ? {
-        all_time: wagerData.wageredAllTime || 0,
-        monthly: wagerData.wageredThisMonth || 0,
-        weekly: wagerData.wageredThisWeek || 0,
-        daily: wagerData.wageredToday || 0
-      } : null
+      totalWager: user.totalWager || '0',
+      // Add wager object with all time periods
+      wager: {
+        all_time: user.totalWager ? parseFloat(user.totalWager) : 0,
+        monthly: user.monthlyWager ? parseFloat(user.monthlyWager) : 0,
+        weekly: user.weeklyWager ? parseFloat(user.weeklyWager) : 0,
+        daily: user.dailyWager ? parseFloat(user.dailyWager) : 0
+      },
+      lastWagerSync: user.lastWagerSync
     };
 
     return res.json(userProfile);
@@ -159,35 +169,34 @@ router.get('/leaderboard/:timeframe', async (req, res) => {
     // Determine which field to use for sorting based on timeframe
     switch (timeframe) {
       case 'daily':
-        wagerField = 'wagered_today';
+        wagerField = 'daily_wager';
         break;
       case 'weekly':
-        wagerField = 'wagered_this_week';
+        wagerField = 'weekly_wager';
         break;
       case 'monthly':
-        wagerField = 'wagered_this_month';
+        wagerField = 'monthly_wager';
         break;
       case 'all_time':
       default:
-        wagerField = 'wagered_all_time';
+        wagerField = 'total_wager';
     }
 
-    // Query our database for the top wagers in the specified timeframe
+    // Query our database for the top wagers in the specified timeframe using real data
     const results = await db.execute(sql`
       SELECT 
-        u.id, 
-        u.username, 
-        u.profile_color as "profileColor",
-        u.goated_id as "goatedId",
-        m.${sql.raw(wagerField)} as "wagerAmount"
+        id, 
+        username, 
+        profile_color as "profileColor",
+        goated_id as "goatedId",
+        ${sql.raw(wagerField)} as "wagerAmount"
       FROM 
-        users u
-      JOIN 
-        mock_wager_data m ON u.id = m.user_id
+        users
       WHERE 
-        m.${sql.raw(wagerField)} > 0
+        ${sql.raw(wagerField)} IS NOT NULL AND
+        CAST(${sql.raw(wagerField)} AS DECIMAL) > 0
       ORDER BY 
-        m.${sql.raw(wagerField)} DESC
+        CAST(${sql.raw(wagerField)} AS DECIMAL) DESC
       LIMIT 100
     `);
 
@@ -279,19 +288,68 @@ router.post('/ensure-profile', async (req: Request, res: Response, next: NextFun
 router.get('/:id/stats', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.params.id;
-    // Normally we would fetch actual stats from database
-    // For now, return placeholder data that will be replaced with real data
-    // Typically this would come from the leaderboard data
+    
+    // Check if userId is numeric or a goatedId
+    const isNumericId = /^\d+$/.test(userId);
+    
+    // Query for the user based on ID type
+    let user;
+    if (isNumericId) {
+      user = await db.query.users.findFirst({
+        where: eq(users.id, parseInt(userId)),
+        columns: {
+          id: true,
+          totalWager: true,
+          dailyWager: true,
+          weeklyWager: true,
+          monthlyWager: true
+        }
+      });
+    } else {
+      user = await db.query.users.findFirst({
+        where: eq(users.goatedId, userId),
+        columns: {
+          id: true,
+          totalWager: true,
+          dailyWager: true,
+          weeklyWager: true,
+          monthlyWager: true
+        }
+      });
+    }
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Calculate tier based on wager amount
+    // This is a simple placeholder logic that can be expanded
+    const allTimeWager = user.totalWager ? parseFloat(user.totalWager) : 0;
+    let tier = 'BRONZE';
+    
+    if (allTimeWager >= 1000000) {
+      tier = 'DIAMOND';
+    } else if (allTimeWager >= 500000) {
+      tier = 'PLATINUM';
+    } else if (allTimeWager >= 100000) {
+      tier = 'GOLD';
+    } else if (allTimeWager >= 10000) {
+      tier = 'SILVER';
+    }
+    
+    // Return real stats from the database
     const stats = {
-      currentWager: 0,
-      today: 0,
-      thisWeek: 0,
-      thisMonth: 0,
-      allTime: 0,
-      tier: 'BRONZE'
+      currentWager: user.dailyWager ? parseFloat(user.dailyWager) : 0,
+      today: user.dailyWager ? parseFloat(user.dailyWager) : 0,
+      thisWeek: user.weeklyWager ? parseFloat(user.weeklyWager) : 0,
+      thisMonth: user.monthlyWager ? parseFloat(user.monthlyWager) : 0,
+      allTime: allTimeWager,
+      tier
     };
+    
     res.json(stats);
   } catch (error) {
+    console.error('Error fetching user stats:', error);
     next(error);
   }
 });

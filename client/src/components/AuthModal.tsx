@@ -21,27 +21,12 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, LoginSchema, RegisterSchema, LoginData, RegisterData } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
 
-const loginSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-const registerSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string()
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
-type RegisterFormData = z.infer<typeof registerSchema>;
+// Use the types from the auth hooks for consistency
+type LoginFormData = LoginData;
+type RegisterFormData = RegisterData;
 
 interface AuthModalProps {
   isMobile?: boolean;
@@ -53,9 +38,12 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { login, register: registerUser } = useAuth();
   const { toast } = useToast();
+  
+  // Common styles for form inputs
+  const inputStyles = "bg-[#2A2B31] border-[#3A3B41] focus:border-[#D7FF00] focus:ring-1 focus:ring-[#D7FF00] transition-all duration-300";
 
   const loginForm = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(LoginSchema),
     defaultValues: {
       username: "",
       password: "",
@@ -63,7 +51,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
   });
 
   const registerForm = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(RegisterSchema),
     defaultValues: {
       email: "",
       username: "",
@@ -78,7 +66,10 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
       if (mode === "login") {
         // Handle login
         const loginValues = values as LoginFormData;
-        await login(loginValues.username, loginValues.password);
+        await login({
+          username: loginValues.username,
+          password: loginValues.password
+        });
         
         toast({
           title: "Success",
@@ -87,11 +78,12 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
       } else {
         // Handle registration
         const registerValues = values as RegisterFormData;
-        await registerUser(
-          registerValues.username, 
-          registerValues.email,
-          registerValues.password
-        );
+        await registerUser({
+          username: registerValues.username,
+          email: registerValues.email,
+          password: registerValues.password,
+          confirmPassword: registerValues.confirmPassword
+        });
         
         toast({
           title: "Success",
@@ -103,8 +95,19 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
       loginForm.reset();
       registerForm.reset();
     } catch (error) {
+      // Set form error
+      if (mode === "login") {
+        loginForm.setError("root", { 
+          message: error instanceof Error ? error.message : "Authentication failed"
+        });
+      } else {
+        registerForm.setError("root", { 
+          message: error instanceof Error ? error.message : "Registration failed"
+        });
+      }
+      
+      // Show toast notification
       toast({
-        variant: "destructive",
         title: "Error",
         description: error instanceof Error ? error.message : "An unexpected error occurred",
       });
@@ -114,20 +117,31 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen} modal={false}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      setIsOpen(open);
+      // Reset forms when closing modal
+      if (!open) {
+        if (mode === "login") {
+          loginForm.reset();
+        } else {
+          registerForm.reset();
+        }
+      }
+    }}>
       <DialogTrigger asChild>
         <Button 
           variant="outline" 
-          className={`font-heading uppercase bg-[#1A1B21] border-[#2A2B31] hover:bg-[#2A2B31] hover:border-[#D7FF00] transition-all duration-300 ${
-            isMobile ? "w-full" : ""
+          onClick={() => setIsOpen(true)}
+          className={`font-heading uppercase bg-[#1A1B21] border-[#2A2B31] hover:bg-[#2A2B31] hover:border-[#D7FF00] hover:shadow-[0_0_10px_rgba(215,255,0,0.3)] transition-all duration-300 text-sm tracking-wide ${
+            isMobile ? "w-full py-1.5 px-3" : "py-1.5 px-4"
           }`}
         >
           <span className="text-white">LOGIN</span>
-          <span className="text-[#8A8B91]"> / </span>
-          <span className="text-[#D7FF00] group-hover:text-[#D7FF00]">REGISTER</span>
+          <span className="text-[#8A8B91] mx-1">/</span>
+          <span className="text-[#D7FF00]">REGISTER</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px] bg-[#1A1B21] text-white border-[#2A2B31]">
+      <DialogContent className="sm:max-w-[425px] bg-[#1A1B21] text-white border-[#2A2B31] shadow-lg shadow-black/20 backdrop-blur-sm">
         <DialogHeader>
           <DialogTitle className="text-[#D7FF00]">
             {mode === "login" ? "Welcome Back!" : "Create an Account"}
@@ -149,7 +163,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
                   <FormItem>
                     <FormLabel>Username</FormLabel>
                     <FormControl>
-                      <Input {...field} className="bg-[#2A2B31]" />
+                      <Input {...field} className={inputStyles} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -165,17 +179,22 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
                       <Input
                         {...field}
                         type="password"
-                        className="bg-[#2A2B31]"
+                        className={inputStyles}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              {loginForm.formState.errors.root && (
+                <div className="text-red-500 text-sm p-2 rounded bg-red-950/30 border border-red-900">
+                  {loginForm.formState.errors.root.message}
+                </div>
+              )}
               <div className="flex flex-col gap-2">
                 <Button
                   type="submit"
-                  className="w-full font-heading uppercase tracking-tight text-black bg-[#D7FF00] hover:bg-[#b2d000]"
+                  className="w-full font-heading uppercase tracking-tight text-black bg-[#D7FF00] hover:bg-[#b2d000] hover:shadow-[0_0_12px_rgba(215,255,0,0.4)] transition-all duration-300"
                   disabled={isLoading}
                 >
                   {isLoading ? "Signing In..." : "Sign In"}
@@ -183,7 +202,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="text-sm font-heading uppercase tracking-tight text-white hover:text-[#b2d000]"
+                  className="text-sm font-heading uppercase tracking-tight text-[#8A8B91] hover:text-[#D7FF00] transition-colors duration-300"
                   onClick={() => {
                     setMode("register");
                     loginForm.reset();
@@ -204,7 +223,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input {...field} type="email" className="bg-[#2A2B31]" />
+                      <Input {...field} type="email" className={inputStyles} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -217,7 +236,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
                   <FormItem>
                     <FormLabel>Username</FormLabel>
                     <FormControl>
-                      <Input {...field} className="bg-[#2A2B31]" />
+                      <Input {...field} className={inputStyles} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -233,7 +252,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
                       <Input
                         {...field}
                         type="password"
-                        className="bg-[#2A2B31]"
+                        className={inputStyles}
                       />
                     </FormControl>
                     <FormMessage />
@@ -250,17 +269,22 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
                       <Input
                         {...field}
                         type="password"
-                        className="bg-[#2A2B31]"
+                        className={inputStyles}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              {registerForm.formState.errors.root && (
+                <div className="text-red-500 text-sm p-2 rounded bg-red-950/30 border border-red-900">
+                  {registerForm.formState.errors.root.message}
+                </div>
+              )}
               <div className="flex flex-col gap-2">
                 <Button
                   type="submit"
-                  className="w-full font-heading uppercase tracking-tight text-black bg-[#D7FF00] hover:bg-[#b2d000]"
+                  className="w-full font-heading uppercase tracking-tight text-black bg-[#D7FF00] hover:bg-[#b2d000] hover:shadow-[0_0_12px_rgba(215,255,0,0.4)] transition-all duration-300"
                   disabled={isLoading}
                 >
                   {isLoading ? "Creating Account..." : "Create Account"}
@@ -268,7 +292,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="text-sm font-heading uppercase tracking-tight text-white hover:text-[#b2d000]"
+                  className="text-sm font-heading uppercase tracking-tight text-[#8A8B91] hover:text-[#D7FF00] transition-colors duration-300"
                   onClick={() => {
                     setMode("login");
                     registerForm.reset();

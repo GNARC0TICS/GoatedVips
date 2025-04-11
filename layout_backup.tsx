@@ -163,39 +163,10 @@ export function Layout({ children }: { children: ReactNode }) {
   const [isFooterVisible, setIsFooterVisible] = useState(false);
   const { toast } = useToast();
   const [openMobile, setOpenMobile] = useState(false);
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: user } = useQuery<SelectUser>({ queryKey: ["/api/user"] });
   const isAuthenticated = !!user;
-  
-  // Toggle mobile search dropdown
-  const toggleMobileSearch = () => {
-    const searchDropdown = document.getElementById('mobile-search-dropdown');
-    const searchInput = document.getElementById('mobile-search-input');
-    
-    if (searchDropdown) {
-      if (mobileSearchOpen) {
-        searchDropdown.classList.remove('h-[60px]');
-        searchDropdown.classList.add('h-0');
-        searchDropdown.classList.remove('border-b-[1px]');
-        searchDropdown.classList.add('border-b-0');
-      } else {
-        searchDropdown.classList.add('h-[60px]');
-        searchDropdown.classList.remove('h-0');
-        searchDropdown.classList.add('border-b-[1px]');
-        searchDropdown.classList.remove('border-b-0');
-        
-        // Focus the search input after a short delay to allow the animation to start
-        setTimeout(() => {
-          if (searchInput) {
-            searchInput.focus();
-          }
-        }, 180);
-      }
-      setMobileSearchOpen(!mobileSearchOpen);
-    }
-  };
 
   // Scroll to top on location change
   useEffect(() => {
@@ -246,6 +217,7 @@ export function Layout({ children }: { children: ReactNode }) {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to logout. Please try again.",
+        variant: "destructive",
       });
     }
   }, [toast, queryClient, setLocation]);
@@ -254,52 +226,11 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="min-h-screen flex flex-col bg-[#14151A]">
       <ParticleBackground />
       <header className={headerClasses.container}>
-        {/* Mobile Search Bar (Hidden by default, shown when search is clicked) */}
-        <div 
-          id="mobile-search-dropdown"
-          className="h-0 overflow-hidden bg-[#14151A] border-b-0 border-[#2A2B31] transition-all duration-300 ease-in-out"
-        >
-          <div className="container mx-auto px-4 py-3">
-            <div className="w-full transform transition-transform duration-300">
-              <UserSearch isMobile={true} />
-            </div>
-          </div>
-        </div>
         <nav className={headerClasses.nav}>
-          <div className="flex items-center gap-3 md:gap-6">
-            {/* Mobile Menu Toggle */}
-            <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={`${headerClasses.menuButton} h-8 w-8 text-white hover:text-[#D7FF00]`}
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent 
-                side="left" 
-                className="w-[300px] bg-[#14151A] border-r border-[#2A2B31] overflow-y-auto p-0"
-              >
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="flex flex-col gap-4 pt-8"
-                >
-                  <div className="px-4 py-2 text-[#D7FF00] font-heading text-base font-bold">MENU</div>
-                  <MobileNavLink href="/" label="HOME" onClose={() => setOpenMobile(false)} isTitle={true} />
-
-                  <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">EVENTS</div>
-
-            {/* Logo */}
+          <div className="flex items-center gap-6">
             <Link href="/">
               <img src="/images/logo-neon.png" alt="GOATED" className={headerClasses.logo} />
             </Link>
-
-            {/* Separator for mobile view */}
-            <div className="h-6 w-px bg-[#2A2B31] mx-1 md:hidden"></div>
 
             <div className={headerClasses.desktopNav}>
               <NavLink href="/" label="HOME" />
@@ -500,6 +431,33 @@ export function Layout({ children }: { children: ReactNode }) {
                 </div>
               )}
             </div>
+            <div className={headerClasses.menuButton}>
+              <Sheet open={openMobile} onOpenChange={setOpenMobile}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative overflow-hidden group"
+                  >
+                    <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+                    <Menu className="h-6 w-6 text-white relative z-10 group-hover:text-[#D7FF00] transition-colors duration-300" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent
+                  side="left"
+                  className="w-[300px] bg-[#14151A] border-r border-[#2A2B31] overflow-y-auto p-0"
+                >
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col gap-4 pt-8"
+                  >
+                    <div className="px-4 py-2 text-[#D7FF00] font-heading text-base font-bold">MENU</div>
+                    <MobileNavLink href="/" label="HOME" onClose={() => setOpenMobile(false)} isTitle={true} />
+
+                    <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">EVENTS</div>
+                    <MobileNavLink
                       href="/wager-races"
                       label={
                         <div className="flex items-center justify-between w-full">
@@ -609,6 +567,13 @@ export function Layout({ children }: { children: ReactNode }) {
                     )}
 
                     <div className="mt-6 px-4 border-t border-[#2A2B31]/50 pt-6 space-y-3">
+                      {/* Auth controls if not logged in */}
+                      {!user && (
+                        <div onClick={() => setOpenMobile(false)}>
+                          <AuthModal isMobile={true} />
+                        </div>
+                      )}
+
                       {/* Play button */}
                       <Button
                         onClick={() => {
@@ -674,121 +639,25 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
 
           <div className={headerClasses.userSection}>
-            {/* Mobile View Action Buttons - Left aligned with separator */}
-            <div className="flex md:hidden items-center gap-2">
-              {/* Search Icon Button (Mobile) */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-[#D7FF00] relative h-8 w-8 flex items-center justify-center group"
-                onClick={toggleMobileSearch}
-              >
-                <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
-                <svg
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="24" 
-                  height="24" 
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4 relative z-10"
-                  fill="currentColor"
-                >
-                  <path d="m9.5 10.95l-1.375 1.075q-.15.125-.3.013t-.1-.288l.525-1.7L6.8 8.9q-.125-.125-.062-.288t.237-.162H8.7l.55-1.725q.05-.175.25-.175t.25.175l.55 1.725h1.725q.175 0 .238.163T12.2 8.9l-1.45 1.15l.525 1.7q.05.175-.1.288t-.3-.013zm0 5.05q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l5.6 5.6q.275.275.275.7t-.275.7t-.7.275t-.7-.275l-5.6-5.6q-.75.6-1.725.95T9.5 16m0-2q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14" />
-                </svg>
-              </Button>
-
-              {/* Telegram Button (Mobile) */}
-              <a href="https://t.me/+2dFGi_rMDodjMmZh" target="_blank" rel="noopener noreferrer">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-[#D7FF00] relative h-8 w-8 flex items-center justify-center group"
-                >
-                  <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 256 256"
-                    className="h-4 w-4 relative z-10"
-                    fill="currentColor"
-                  >
-                    <g>
-                      <path d="M223.41 32.09L80 134.87L21 123.3a6.23 6.23 0 0 1-1-11.92l202.63-79.31a1 1 0 0 1 .78.02M80 200a8 8 0 0 0 13.76 5.56l30.61-31.76L80 134.87Z" opacity="0.2" />
-                      <path d="M228.88 26.19a9 9 0 0 0-9.16-1.57L17.06 103.93a14.22 14.22 0 0 0 2.43 27.21L72 141.45V200a15.92 15.92 0 0 0 10 14.83a15.91 15.91 0 0 0 17.51-3.73l25.32-26.26L165 220a15.88 15.88 0 0 0 10.51 4a16.3 16.3 0 0 0 5-.79a15.85 15.85 0 0 0 10.67-11.63L231.77 35a9 9 0 0 0-2.89-8.81M78.15 126.35l-49.61-9.73l139.2-54.48ZM88 200v-47.48l24.79 21.74Zm87.53 8l-82.68-72.5l119-85.29Z" />
-                    </g>
-                  </svg>
-                </Button>
-              </a>
-
-              {/* Crypto Swap Button (Mobile) */}
-              <Link href="/crypto-swap">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-[#D7FF00] relative h-8 w-8 flex items-center justify-center group"
-                >
-                  <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
-                  <Repeat className="h-4 w-4 relative z-10" />
-                </Button>
-              </Link>
-              
-              {/* Inventory Button (Mobile) */}
-              <UtilityPanelButton />
-            </div>
-
-            {/* Desktop View Search Component */}
-            <div className="hidden md:block w-full max-w-[170px]">
+            {/* User search component - Improved visibility */}
+            <div className="w-full max-w-[170px]">
               <UserSearch />
             </div>
 
-            {/* Desktop View Action Buttons */}
-            <div className="hidden md:flex items-center gap-2">
-              {/* Crypto Swap Button (Desktop) */}
-              <Link href="/crypto-swap">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-[#D7FF00] hover:text-white relative h-10 w-10 flex items-center justify-center group"
-                >
-                  <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
-                  <Repeat className="h-5 w-5 relative z-10" />
-                </Button>
-              </Link>
+            {/* Crypto Swap Button */}
+            <Link href="/crypto-swap">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-[#D7FF00] hover:text-white relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
+              >
+                <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
+                <Repeat className="h-4 w-4 md:h-5 md:w-5 relative z-10" />
+              </Button>
+            </Link>
 
-              {/* Telegram Button (Desktop) */}
-              <a href="https://t.me/+2dFGi_rMDodjMmZh" target="_blank" rel="noopener noreferrer">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-[#D7FF00] hover:text-white relative h-10 w-10 flex items-center justify-center group"
-                >
-                  <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 256 256"
-                    className="h-5 w-5 relative z-10"
-                    fill="currentColor"
-                  >
-                    <g>
-                      <path d="M223.41 32.09L80 134.87L21 123.3a6.23 6.23 0 0 1-1-11.92l202.63-79.31a1 1 0 0 1 .78.02M80 200a8 8 0 0 0 13.76 5.56l30.61-31.76L80 134.87Z" opacity="0.2" />
-                      <path d="M228.88 26.19a9 9 0 0 0-9.16-1.57L17.06 103.93a14.22 14.22 0 0 0 2.43 27.21L72 141.45V200a15.92 15.92 0 0 0 10 14.83a15.91 15.91 0 0 0 17.51-3.73l25.32-26.26L165 220a15.88 15.88 0 0 0 10.51 4a16.3 16.3 0 0 0 5-.79a15.85 15.85 0 0 0 10.67-11.63L231.77 35a9 9 0 0 0-2.89-8.81M78.15 126.35l-49.61-9.73l139.2-54.48ZM88 200v-47.48l24.79 21.74Zm87.53 8l-82.68-72.5l119-85.29Z" />
-                    </g>
-                  </svg>
-                </Button>
-              </a>
-
-              {/* Inventory Button (Desktop) */}
-              <UtilityPanelButton />
-            </div>
-            
-            {/* Mobile Login/Register Button - Only visible when not authenticated */}
-            {!isAuthenticated && (
-              <div className="md:hidden">
-                <AuthModal isMobile={true} />
-              </div>
-            )}
+            {/* Gift Button */}
+            <UtilityPanelButton />
 
             {/* Admin Button - Only show when user is admin */}
             {user?.isAdmin && (
@@ -903,7 +772,7 @@ export function Layout({ children }: { children: ReactNode }) {
       {/* Auth Section - Desktop Only */}
       <div className={authSectionClasses.container}>
         <div className={authSectionClasses.wrapper}>
-          {/* Auth and Play buttons - visibility controlled by auth state */}
+          {/* PLAY button - always visible */}
           <div className="hidden lg:flex items-center gap-2 ml-auto">
             {isAuthenticated ? (
               <Link href="/dashboard">
@@ -913,9 +782,11 @@ export function Layout({ children }: { children: ReactNode }) {
               </Link>
             ) : (
               <>
-                <div className="mr-2">
-                  <AuthModal isMobile={false} />
-                </div>
+                <Link href="/login">
+                  <Button variant="outline" className="border-[#2A2B31] hover:bg-[#2A2B31]/50 hover:text-white">
+                    Login / Register
+                  </Button>
+                </Link>
                 <Link href="/play">
                   <Button className="bg-[#D7FF00] text-black hover:bg-[#D7FF00]/90 uppercase font-heading">
                     Play Now

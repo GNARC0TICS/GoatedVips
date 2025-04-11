@@ -1,0 +1,71 @@
+Objective:
+Review and refine the current login/registration button behavior and structure across both mobile and desktop views. These buttons should only be visible when the user is not authenticated.
+
+Display Requirements:
+	•	Mobile: Place login/register buttons inside the header navigation for immediate visibility and intuitive access.
+	•	Desktop: Display the buttons directly below the header section.
+	•	Visibility Logic: Ensure both buttons are hidden when the user is logged in.
+
+⸻
+
+Functional Workflow Review:
+
+1. User Experience Flow
+	•	What happens when a new user registers?
+	•	What occurs immediately after login?
+	•	Ensure both flows:
+	•	Trigger appropriate UI updates (e.g., closing modals, updating header states).
+	•	Store and retrieve authentication state persistently (e.g., tokens, user profile).
+	•	Redirect or navigate the user to a relevant section (dashboard, homepage, etc.).
+
+2. Onboarding Best Practices:
+	•	Match expectations set by modern platforms (e.g., Google, Facebook, GitHub):
+	•	Smooth modal transitions between login and registration.
+	•	Clear feedback on validation errors and success.
+	•	Persistent login state across page reloads or sessions.
+	•	Avoid flickers or delays in showing updated auth state.
+
+⸻
+
+Key Technical Considerations:
+
+Event Handling:
+	•	Confirm the onClick event for login/register buttons reliably opens the authentication dialog.
+	•	If the dialog fails to open, check for issues in the modal trigger logic or event bindings.
+
+Dialog Logic (AuthModal.tsx):
+	•	Verify the modal initializes correctly, with dynamic switching between login and register modes.
+	•	Ensure that UI state transitions (e.g., switching modes, form resets) are functioning properly.
+
+Authentication Submission:
+	•	Review the onSubmit handler:
+	•	Validate API calls are functioning correctly for both login and registration.
+	•	Confirm proper error handling, state updates, and loading indicators are in place.
+	•	Ensure access tokens, session data, or cookies are saved and consumed appropriately post-login.
+
+⸻
+
+Testing Checklist:
+	•	Mobile View:
+	•	Tap login/register buttons—confirm dialog opens properly.
+	•	Ensure proper placement inside the mobile header navigation.
+	•	Desktop View:
+	•	Confirm buttons appear beneath the header and behave consistently.
+	•	Confirm they disappear upon successful login.
+	•	Feedback & State:
+	•	Show inline validation for errors (e.g., wrong password, email taken).
+	•	Display success notifications or redirect as appropriate.
+	•	Developer Debugging:
+	•	Check for console errors during auth flow.
+	•	Log and trace modal state (isOpen) and form submission steps.
+	•	Validate state persistence with developer tools (tokens, cookies, etc.).
+
+⸻
+
+Final Notes:
+	•	If functionality is still not working:
+	•	Add logging around modal open/close logic.
+	•	Double-check state management hooks or Redux context surrounding auth.
+	•	Test edge cases (e.g., user already logged in, slow network, incorrect credentials).
+
+By solidifying this process, we ensure a seamless and responsive authentication experience across all devices, aligned with user expectations and best UX practices.
