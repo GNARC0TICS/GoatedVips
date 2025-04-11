@@ -434,10 +434,10 @@ export function Layout({ children }: { children: ReactNode }) {
               </Sheet>
             </div>
             <Link href="/">
-              <img src="/images/logo-neon.png" alt="GOATED" className={`${headerClasses.logo} ml-4`} />
+              <img src="/images/logo-neon.png" alt="GOATED" className={`${headerClasses.logo} ml-2`} />
             </Link>
           </div>
-          <div className="border-b border-[#2A2B31]/50" />
+          <div className="h-8 border-r border-[#2A2B31]/50 mx-4" />
 
           <div className={headerClasses.desktopNav}>
               <NavLink href="/" label="HOME" />
