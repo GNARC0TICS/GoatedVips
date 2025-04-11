@@ -516,6 +516,16 @@ export function Layout({ children }: { children: ReactNode }) {
                 </Button>
               </Link>
               <UtilityPanelButton />
+              {/* Speed/Race Icon */}
+              <Link href="/wager-races">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-transform duration-300 hover:scale-110"
+                >
+                  <SpeedIcon className="relative z-10" />
+                </Button>
+              </Link>
             </div>
           </div>
 
