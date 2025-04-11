@@ -47,6 +47,8 @@ import { motion } from "framer-motion";
 import giftIcon from '/images/GIFT.png';
 import { RaceTimer } from "./RaceTimer"; // Added import for RaceTimer
 import { Toaster } from "./ui/toaster"; // Import for Toaster component
+import { SpeedIcon } from "@/components/icons/SpeedIcon"; // Added import for SpeedIcon
+
 
 // --- Static Styles (Memoized as constants) ---
 const headerClasses = {
