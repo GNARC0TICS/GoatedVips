@@ -5,6 +5,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { QuickProfile } from "./QuickProfile";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
+import { ProfileEmblem } from "./profile/ProfileEmblem";
 
 interface UserResult {
   id: string;
@@ -115,7 +116,7 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
 
   useEffect(() => {
     async function searchUsers() {
-      if (!debouncedQuery || debouncedQuery.length < 2) {
+      if (!debouncedQuery || debouncedQuery.length < 3) {
         setResults([]);
         setTotalResults(0);
         setHasMoreResults(false);
@@ -134,7 +135,7 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
       }
       
       try {
-        const response = await fetch(`/api/users/search?username=${encodeURIComponent(debouncedQuery)}&page=${currentPage}&limit=30`);
+        const response = await fetch(`/api/users/search?q=${encodeURIComponent(debouncedQuery)}&page=${currentPage}&limit=30`);
         
         if (!response.ok) {
           throw new Error("Failed to search users");
@@ -277,16 +278,22 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
                   <span className="text-xs">{totalResults > 0 ? `${totalResults} found` : `${results.length} found`}</span>
                 </div>
                 {results.map((user) => (
-                  <div 
+                  <motion.div 
                     key={user.id} 
                     onClick={() => handleProfileClick(user)}
                     className="flex items-center gap-3 p-3 hover:bg-[#1A1B21] cursor-pointer transition-colors"
+                    whileHover={{ backgroundColor: "#1A1B21" }}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 * results.indexOf(user) }}
                   >
-                    <div className="w-8 h-8 rounded-full bg-[#2A2B31] flex items-center justify-center">
-                      <User className="h-4 w-4 text-[#D7FF00]" />
-                    </div>
-                    <span className="text-white font-medium">{user.username}</span>
-                  </div>
+                    <ProfileEmblem 
+                      username={user.username}
+                      color={user.profileColor || "#D7FF00"}
+                      size="xs"
+                    />
+                    <span className="text-white font-medium truncate">{user.username}</span>
+                  </motion.div>
                 ))}
                 
                 {/* Pagination controls */}
@@ -330,17 +337,28 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
                     Clear
                   </button>
                 </div>
-                {recentSearches.map((user) => (
-                  <div 
+                {recentSearches.map((user, index) => (
+                  <motion.div 
                     key={user.id} 
                     onClick={() => handleProfileClick(user)}
                     className="flex items-center gap-3 p-3 hover:bg-[#1A1B21] cursor-pointer transition-colors"
+                    whileHover={{ backgroundColor: "#1A1B21" }}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 * index }}
                   >
-                    <div className="w-8 h-8 rounded-full bg-[#2A2B31] flex items-center justify-center">
-                      <Clock className="h-4 w-4 text-[#8A8B91]" />
+                    <div className="relative">
+                      <ProfileEmblem 
+                        username={user.username}
+                        color={user.profileColor || "#8A8B91"}
+                        size="xs"
+                      />
+                      <div className="absolute -right-1 -bottom-1 bg-[#1A1B21] p-0.5 rounded-full">
+                        <Clock className="h-2.5 w-2.5 text-[#8A8B91]" />
+                      </div>
                     </div>
-                    <span className="text-white">{user.username}</span>
-                  </div>
+                    <span className="text-white truncate">{user.username}</span>
+                  </motion.div>
                 ))}
               </>
             )}

@@ -20,10 +20,14 @@ export type TierLevel =
 export interface TierInfo {
   name: string;
   color: string;
+  colorClass: string; // Base color name for Tailwind classes (amber, slate, yellow, etc.)
+  hexColor: string;   // Hex color code for custom styling
   icon: typeof TrendingUp;
   minWager: number;
   maxWager: number | null;
   benefits: string[];
+  // Glass morphism properties
+  glassGradient?: string;
 }
 
 /**
@@ -34,6 +38,8 @@ export const TIERS: Record<TierLevel, TierInfo> = {
   bronze: {
     name: "Bronze",
     color: "text-amber-600",
+    colorClass: "amber",
+    hexColor: "#D97706",
     icon: TrendingUp,
     minWager: 1000,
     maxWager: 9999,
@@ -41,11 +47,14 @@ export const TIERS: Record<TierLevel, TierInfo> = {
       "Instant Rakeback",
       "Level Up Bonus",
       "Weekly Bonus"
-    ]
+    ],
+    glassGradient: "linear-gradient(135deg, rgba(217, 119, 6, 0.15), rgba(180, 83, 9, 0.1))"
   },
   silver: {
     name: "Silver",
     color: "text-slate-400",
+    colorClass: "slate",
+    hexColor: "#94A3B8",
     icon: Star,
     minWager: 10000,
     maxWager: 99999,
@@ -53,11 +62,14 @@ export const TIERS: Record<TierLevel, TierInfo> = {
       "All Bronze benefits",
       "Monthly Bonus",
       "Bonus Increase"
-    ]
+    ],
+    glassGradient: "linear-gradient(135deg, rgba(148, 163, 184, 0.15), rgba(100, 116, 139, 0.1))"
   },
   gold: {
     name: "Gold",
     color: "text-yellow-500",
+    colorClass: "yellow",
+    hexColor: "#EAB308",
     icon: Award,
     minWager: 100000,
     maxWager: 449999,
@@ -65,11 +77,14 @@ export const TIERS: Record<TierLevel, TierInfo> = {
       "All Silver benefits",
       "Referral Increase",
       "Loss Back Bonus"
-    ]
+    ],
+    glassGradient: "linear-gradient(135deg, rgba(234, 179, 8, 0.15), rgba(202, 138, 4, 0.1))"
   },
   platinum: {
     name: "Platinum",
     color: "text-blue-400",
+    colorClass: "blue",
+    hexColor: "#60A5FA",
     icon: Trophy,
     minWager: 450000,
     maxWager: 1499999,
@@ -77,11 +92,14 @@ export const TIERS: Record<TierLevel, TierInfo> = {
       "All Gold benefits",
       "Higher bonuses",
       "Premium rewards"
-    ]
+    ],
+    glassGradient: "linear-gradient(135deg, rgba(96, 165, 250, 0.15), rgba(59, 130, 246, 0.1))"
   },
   diamond: {
     name: "Diamond",
     color: "text-cyan-400",
+    colorClass: "cyan",
+    hexColor: "#22D3EE",
     icon: Diamond,
     minWager: 1500000,
     maxWager: 2999999,
@@ -89,11 +107,14 @@ export const TIERS: Record<TierLevel, TierInfo> = {
       "All Platinum benefits",
       "VIP Host",
       "Exclusive perks"
-    ]
+    ],
+    glassGradient: "linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgba(6, 182, 212, 0.1))"
   },
   master: {
     name: "Master",
     color: "text-purple-500",
+    colorClass: "purple",
+    hexColor: "#A855F7",
     icon: Crown,
     minWager: 3000000,
     maxWager: 6999999,
@@ -101,11 +122,14 @@ export const TIERS: Record<TierLevel, TierInfo> = {
       "All Diamond benefits",
       "Elite VIP events",
       "Highest cashback rates"
-    ]
+    ],
+    glassGradient: "linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(126, 34, 206, 0.1))"
   },
   legend: {
     name: "Legend",
     color: "text-rose-500",
+    colorClass: "rose",
+    hexColor: "#F43F5E",
     icon: Zap,
     minWager: 7000000,
     maxWager: null,
@@ -114,7 +138,8 @@ export const TIERS: Record<TierLevel, TierInfo> = {
       "Goated Event Invitations",
       "Tailor-made promotions",
       "Unlimited privileges"
-    ]
+    ],
+    glassGradient: "linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(225, 29, 72, 0.1))"
   }
 };
 

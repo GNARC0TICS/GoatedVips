@@ -1,5 +1,21 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
+
+/**
+ * Utility function to convert hex color to RGB values
+ */
+function hexToRgb(hex: string): string {
+  // Remove the hash if it exists
+  const cleanHex = hex.replace('#', '');
+  
+  // Parse the hex values
+  const r = parseInt(cleanHex.substring(0, 2), 16) || 0;
+  const g = parseInt(cleanHex.substring(2, 4), 16) || 0;
+  const b = parseInt(cleanHex.substring(4, 6), 16) || 0;
+  
+  return `${r}, ${g}, ${b}`;
+}
 
 interface ProfileEmblemProps {
   username: string;
@@ -11,6 +27,7 @@ interface ProfileEmblemProps {
 /**
  * Profile emblem component for displaying a user's avatar
  * Uses the first letter of the username with a background color
+ * Enhanced with glass morphism effect and animations
  */
 export function ProfileEmblem({
   username,
@@ -18,37 +35,68 @@ export function ProfileEmblem({
   size = 'md',
   className,
 }: ProfileEmblemProps) {
-  // Determine the first letter of the username
-  const firstLetter = username ? username.charAt(0).toUpperCase() : '?';
+  // Determine the first letter of the username or use first 2 letters for shorter display
+  const initials = username 
+    ? username.length > 1 
+      ? username.substring(0, 2).toUpperCase() 
+      : username.charAt(0).toUpperCase() 
+    : '?';
   
-  // Determine the size class
+  // Determine the size class with enhanced dimensions
   const sizeClasses = {
-    xs: 'w-6 h-6 text-xs',
-    sm: 'w-8 h-8 text-sm',
-    md: 'w-10 h-10 text-base',
-    lg: 'w-14 h-14 text-lg',
-    xl: 'w-20 h-20 text-xl',
+    xs: 'w-7 h-7 text-xs',
+    sm: 'w-9 h-9 text-sm',
+    md: 'w-12 h-12 text-base',
+    lg: 'w-16 h-16 text-lg',
+    xl: 'w-24 h-24 text-2xl',
   };
   
-  // Determine the emblem color
-  // Use 20% opacity of the color for the background
-  const backgroundColor = `${color}20`;
+  // Parse the hex color to RGB for glass morphism effects
+  const rgbValues = hexToRgb(color);
+  
+  // Enhanced color handling for glass morphism effect
+  const backgroundColor = `rgba(${rgbValues}, 0.15)`;
+  const borderColor = `rgba(${rgbValues}, 0.3)`;
   const textColor = color;
+  const glowColor = `0 0 15px rgba(${rgbValues}, 0.4)`;
   
   return (
-    <div
+    <motion.div
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ 
+        type: "spring",
+        stiffness: 260,
+        damping: 20,
+        duration: 0.3
+      }}
+      whileHover={{ 
+        scale: 1.05,
+        boxShadow: `0 0 20px rgba(${rgbValues}, 0.6)` 
+      }}
       className={cn(
         'rounded-full flex items-center justify-center font-bold',
+        'backdrop-blur-sm transition-all duration-300',
+        'border-2 shadow-lg',
         sizeClasses[size],
         className
       )}
       style={{
         backgroundColor,
+        borderColor,
         color: textColor,
+        boxShadow: glowColor,
       }}
     >
-      {firstLetter}
-    </div>
+      {/* Add subtle fade in animation for the initials */}
+      <motion.span
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1 }}
+      >
+        {initials}
+      </motion.span>
+    </motion.div>
   );
 }
 
@@ -85,11 +133,26 @@ export function ProfileEmblemEditor({
         className={className}
       />
       
-      <div className="flex gap-1 flex-wrap">
-        {colorOptions.map((option) => (
-          <button
+      <motion.div 
+        className="flex gap-1 flex-wrap"
+        initial={{ opacity: 0, y: 5 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.3 }}
+      >
+        {colorOptions.map((option, index) => (
+          <motion.button
             key={option}
             type="button"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ 
+              delay: 0.1 + (index * 0.05), 
+              type: "spring",
+              stiffness: 300,
+              damping: 15 
+            }}
+            whileHover={{ scale: 1.2 }}
+            whileTap={{ scale: 0.9 }}
             className={cn(
               'w-4 h-4 rounded-full transition-all',
               color === option ? 'ring-2 ring-white ring-offset-1 ring-offset-black' : ''
@@ -99,7 +162,7 @@ export function ProfileEmblemEditor({
             aria-label={`Select color ${option}`}
           />
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }

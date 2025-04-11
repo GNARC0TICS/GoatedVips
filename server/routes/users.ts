@@ -49,10 +49,10 @@ router.get('/search', async (req, res) => {
       return res.status(400).json({ error: 'Search query must be at least 2 characters' });
     }
 
-    // Prepare conditions for username search
+    // Prepare conditions for case-insensitive username search
     const searchCondition = or(
-      like(users.username, `%${query}%`),
-      like(users.goatedUsername, `%${query}%`)
+      sql`LOWER(${users.username}) LIKE LOWER(${`%${query}%`})`,
+      sql`LOWER(${users.goatedUsername}) LIKE LOWER(${`%${query}%`})`
     );
 
     // Get total count for pagination
@@ -77,10 +77,10 @@ router.get('/search', async (req, res) => {
     .orderBy(
       sql`
         CASE 
-          WHEN username = ${query} THEN 1
-          WHEN goated_username = ${query} THEN 1
-          WHEN username ILIKE ${query + '%'} THEN 2
-          WHEN goated_username ILIKE ${query + '%'} THEN 2
+          WHEN LOWER(username) = LOWER(${query}) THEN 1
+          WHEN LOWER(goated_username) = LOWER(${query}) THEN 1
+          WHEN LOWER(username) LIKE LOWER(${query + '%'}) THEN 2
+          WHEN LOWER(goated_username) LIKE LOWER(${query + '%'}) THEN 2
           ELSE 3
         END
       `
