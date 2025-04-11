@@ -9,6 +9,25 @@ import { motion, AnimatePresence } from "framer-motion";
 interface UserResult {
   id: string;
   username: string;
+  profileColor?: string;
+}
+
+interface UserSearchItem {
+  id: number;
+  username?: string;
+  profileColor?: string;
+  goatedId?: string;
+  goatedUsername?: string;
+}
+
+interface UserSearchResponse {
+  results: UserSearchItem[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
 }
 
 interface UserSearchProps {
@@ -87,33 +106,66 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
     };
   }, []);
   
+  const [totalResults, setTotalResults] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [hasMoreResults, setHasMoreResults] = useState<boolean>(false);
+  
+  // Track the last query to detect changes
+  const lastQueryRef = useRef<string>("");
+
   useEffect(() => {
     async function searchUsers() {
       if (!debouncedQuery || debouncedQuery.length < 2) {
         setResults([]);
+        setTotalResults(0);
+        setHasMoreResults(false);
         return;
       }
       
       setIsLoading(true);
       setError(null);
       
+      // Check if this is a new search or pagination of existing search
+      const isNewSearch = debouncedQuery !== lastQueryRef.current;
+      if (isNewSearch) {
+        // Reset results when query changes
+        setResults([]);
+        lastQueryRef.current = debouncedQuery;
+      }
+      
       try {
-        const response = await fetch(`/api/users/search?username=${encodeURIComponent(debouncedQuery)}`);
+        const response = await fetch(`/api/users/search?username=${encodeURIComponent(debouncedQuery)}&page=${currentPage}&limit=30`);
         
         if (!response.ok) {
           throw new Error("Failed to search users");
         }
         
-        const data = await response.json();
-        setResults(data.map(user => ({
-          id: user.id?.toString() || user.goatedId,
-          username: user.username || user.goatedUsername,
+        const data = await response.json() as UserSearchResponse;
+        
+        // Process search results
+        const formattedResults = data.results ? data.results.map((user: UserSearchItem) => ({
+          id: user.id.toString() || user.goatedId || '',
+          username: user.username || user.goatedUsername || '',
           profileColor: user.profileColor
-        })).filter(user => user.username));
+        })).filter((user: UserResult) => Boolean(user.username)) : [];
+        
+        // Append new results to existing ones if paginating, otherwise replace
+        setResults(prevResults => 
+          isNewSearch || currentPage === 1 
+            ? formattedResults 
+            : [...prevResults, ...formattedResults]
+        );
+        
+        setTotalResults(data.pagination.total);
+        setHasMoreResults(data.pagination.page < data.pagination.pages);
       } catch (err) {
         console.error("Error searching users:", err);
         setError("An error occurred while searching");
-        setResults([]);
+        if (isNewSearch) {
+          setResults([]);
+        }
+        setTotalResults(0);
+        setHasMoreResults(false);
         // Log the query that failed
         console.log("Failed search query:", debouncedQuery);
       } finally {
@@ -121,8 +173,13 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
       }
     }
     
+    // Reset to page 1 when query changes
+    if (debouncedQuery !== lastQueryRef.current) {
+      setCurrentPage(1);
+    }
+    
     searchUsers();
-  }, [debouncedQuery]);
+  }, [debouncedQuery, currentPage]);
   
   // Create the search icon SVG component
   const SearchIcon = ({ className }: { className?: string }) => (
@@ -217,7 +274,7 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
               <>
                 <div className="px-3 py-2 text-xs text-[#8A8B91] font-medium uppercase flex justify-between items-center">
                   <span>Search Results</span>
-                  <span className="text-xs">{results.length} found</span>
+                  <span className="text-xs">{totalResults > 0 ? `${totalResults} found` : `${results.length} found`}</span>
                 </div>
                 {results.map((user) => (
                   <div 
@@ -231,6 +288,26 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
                     <span className="text-white font-medium">{user.username}</span>
                   </div>
                 ))}
+                
+                {/* Pagination controls */}
+                {hasMoreResults && (
+                  <div className="px-3 py-2 flex justify-center">
+                    <button 
+                      onClick={() => setCurrentPage(prev => prev + 1)}
+                      className="text-xs text-[#D7FF00] hover:text-[#D7FF00]/80 transition-colors flex items-center gap-1 px-3 py-1 rounded-full bg-[#1A1B21] hover:bg-[#252631]"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <span className="flex items-center">
+                          <div className="animate-spin w-3 h-3 border-2 border-[#D7FF00] border-t-transparent rounded-full mr-2"></div>
+                          Loading more...
+                        </span>
+                      ) : (
+                        <span>Load more results ({totalResults - results.length} remaining)</span>
+                      )}
+                    </button>
+                  </div>
+                )}
               </>
             )}
             

@@ -35,6 +35,76 @@ const errorHandler = (err: any, req: Request, res: Response, next: NextFunction)
 };
 
 /**
+ * Search users by username with pagination support
+ * NOTE: This route needs to be defined BEFORE the '/:id' route to avoid conflicts
+ */
+router.get('/search', async (req, res) => {
+  try {
+    const query = req.query.username as string;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 30, 100); // Default 30, max 100
+    const offset = (page - 1) * limit;
+
+    if (!query || query.length < 2) {
+      return res.status(400).json({ error: 'Search query must be at least 2 characters' });
+    }
+
+    // Prepare conditions for username search
+    const searchCondition = or(
+      like(users.username, `%${query}%`),
+      like(users.goatedUsername, `%${query}%`)
+    );
+
+    // Get total count for pagination
+    const countResult = await db.select({
+      count: sql<number>`count(*)::int`,
+    })
+    .from(users)
+    .where(searchCondition);
+    
+    const totalCount = countResult[0]?.count || 0;
+
+    // Execute search with pagination
+    const results = await db.select({
+      id: users.id,
+      username: users.username,
+      profileColor: users.profileColor,
+      goatedId: users.goatedId,
+      goatedUsername: users.goatedUsername,
+    })
+    .from(users)
+    .where(searchCondition)
+    .orderBy(
+      sql`
+        CASE 
+          WHEN username = ${query} THEN 1
+          WHEN goated_username = ${query} THEN 1
+          WHEN username ILIKE ${query + '%'} THEN 2
+          WHEN goated_username ILIKE ${query + '%'} THEN 2
+          ELSE 3
+        END
+      `
+    )
+    .limit(limit)
+    .offset(offset);
+
+    // Return with pagination metadata
+    return res.json({
+      results,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        pages: Math.ceil(totalCount / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error searching users:', error);
+    return res.status(500).json({ error: 'Failed to search users' });
+  }
+});
+
+/**
  * Get user by ID (from our database)
  */
 router.get('/:id', async (req, res) => {
@@ -120,41 +190,6 @@ router.get('/:id', async (req, res) => {
   } catch (error) {
     console.error('Error fetching user:', error);
     return res.status(500).json({ error: 'Failed to fetch user data' });
-  }
-});
-
-/**
- * Search users by username
- */
-router.get('/search', async (req, res) => {
-  try {
-    const query = req.query.username as string;
-
-    if (!query || query.length < 2) {
-      return res.status(400).json({ error: 'Search query must be at least 2 characters' });
-    }
-
-    // Enhanced search using our database
-    const results = await db.select({
-      id: users.id,
-      username: users.username,
-      profileColor: users.profileColor,
-      goatedId: users.goatedId,
-      goatedUsername: users.goatedUsername,
-    })
-    .from(users)
-    .where(
-      or(
-        like(users.username, `%${query}%`),
-        like(users.goatedUsername, `%${query}%`)
-      )
-    )
-    .limit(10);
-
-    return res.json(results);
-  } catch (error) {
-    console.error('Error searching users:', error);
-    return res.status(500).json({ error: 'Failed to search users' });
   }
 });
 

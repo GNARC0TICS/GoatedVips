@@ -219,7 +219,6 @@ export function Layout({ children }: { children: ReactNode }) {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to logout. Please try again.",
-        variant: "destructive",
       });
     }
   }, [toast, queryClient, setLocation]);
