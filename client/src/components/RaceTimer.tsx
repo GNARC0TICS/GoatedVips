@@ -156,6 +156,20 @@ export function RaceTimer() {
     setShowPrevious(prev => !prev);
   }, []);
 
+  const [hasSeenNotification, setHasSeenNotification] = useState(false);
+
+  // Reset notification when new data loads
+  useEffect(() => {
+    if (currentRaceData && !isLoading) {
+      setHasSeenNotification(false);
+    }
+  }, [currentRaceData, isLoading]);
+
+  const handleNotificationClick = useCallback(() => {
+    setIsContentVisible(true);
+    setHasSeenNotification(true);
+  }, []);
+
   return (
     <div className="fixed md:top-1/2 top-20 right-0 md:transform md:-translate-y-1/2 z-50">
       <AnimatePresence>
@@ -170,10 +184,13 @@ export function RaceTimer() {
             className="order-first"
           >
             <button
-              onClick={toggleContentVisibility}
+              onClick={handleNotificationClick}
               aria-label={isContentVisible ? "Hide race timer" : "Show race timer"}
-              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-3 flex items-center justify-center hover:bg-[#1A1B21] transition-colors group"
+              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-3 flex items-center justify-center hover:bg-[#1A1B21] transition-colors group relative"
             >
+              {!isLoading && currentRaceData && !hasSeenNotification && !isContentVisible && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+              )}
               {isLoading ? (
                 <div className="h-7 w-7 animate-pulse bg-[#2A2B31]/50 rounded-full"></div>
               ) : (
