@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { profileService } from '@/services/profileService';
 import { colors, cardStyles, textStyles, gradients } from '@/lib/style-constants';
 import { fadeIn, fadeInUp } from '@/lib/animation-presets';
+import { ClickableUsername } from '@/components/username';
 
 /**
  * MVP type definition with standardized properties
@@ -115,7 +116,11 @@ export function MVPCard({
     <>
       <motion.div
         className="relative w-full h-[200px] cursor-pointer"
-        onClick={() => onOpenChange(true)}
+        onClick={(e) => {
+          // Prevent event bubbling issues
+          e.stopPropagation();
+          onOpenChange(true);
+        }}
         {...fadeIn}
       >
         <div className="relative h-full">
@@ -127,9 +132,13 @@ export function MVPCard({
             }}
           />
           
-          {/* Card content with active/touch state handling for mobile */}
+          {/* Card content with enhanced mobile touch handling */}
           <div 
+            onTouchStart={() => {}} // Empty handler to ensure touch events register properly
             onClick={(e) => {
+              // Stop propagation to prevent event conflicts
+              e.stopPropagation();
+              
               const target = e.target as HTMLElement;
               if (!target.closest('.username-trigger')) {
                 onOpenChange(true);
@@ -140,7 +149,8 @@ export function MVPCard({
               '--hover-border-color': `${timeframe.colors.primary}80`,
               '--hover-shadow-color': `${timeframe.colors.primary}40`,
               height: '100%',
-              WebkitTapHighlightColor: 'transparent' // Remove tap highlight on mobile
+              WebkitTapHighlightColor: 'transparent', // Remove tap highlight on mobile
+              touchAction: 'manipulation' // Improve touch handling
             } as React.CSSProperties}
           >
             <div className="flex items-center justify-between mb-3">
@@ -193,14 +203,14 @@ export function MVPCard({
                   </div>
                 )}
                 
-                {/* Username with QuickProfile */}
+                {/* Username with ClickableUsername component */}
                 <div className="flex-grow min-w-0">
                   <div onClick={(e) => e.stopPropagation()}>
-                    <QuickProfile userId={mvp.uid} username={mvp.username}>
-                      <h4 className="text-base font-heading text-white truncate hover:text-[#D7FF00] transition-colors cursor-pointer username-trigger">
-                        {mvp.username}
-                      </h4>
-                    </QuickProfile>
+                    <ClickableUsername
+                      userId={mvp.uid}
+                      username={mvp.username}
+                      className="text-base font-heading text-white truncate hover:text-[#D7FF00] transition-colors cursor-pointer username-trigger"
+                    />
                   </div>
                 </div>
               </div>
@@ -238,7 +248,11 @@ export function MVPCard({
                       className="h-6 w-6" 
                     />
                   )}
-                  <h4 className="text-xl md:text-2xl font-heading text-white">{mvp.username}</h4>
+                  <ClickableUsername
+                    userId={mvp.uid}
+                    username={mvp.username}
+                    className="text-xl md:text-2xl font-heading text-white"
+                  />
                 </div>
                 <div className="flex items-center gap-2 text-xl font-heading text-white">
                   <Trophy className="w-5 h-5 text-[#D7FF00]" />
