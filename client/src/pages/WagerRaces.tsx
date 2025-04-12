@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { queryClient } from "@/lib/queryClient";
@@ -21,6 +21,7 @@ import {
   Timer,
   TrendingUp,
   ArrowRight,
+  User,
 } from "lucide-react";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { useLeaderboard } from "@/hooks/use-leaderboard";
@@ -188,19 +189,53 @@ const getTrophyIcon = (rank: number) => {
   };
 
   const getWagerAmount = (player: LeaderboardEntry) => {
+    if (!player || !player.wagered) {
+      return 0; // Return 0 if player or wagered data is missing
+    }
+    
+    let amount = 0;
     switch (raceType) {
       case "weekly":
-        return player.wagered.this_week;
+        amount = player.wagered.this_week || 0;
+        break;
       case "monthly":
-        return player.wagered.this_month;
+        amount = player.wagered.this_month || 0;
+        break;
       default:
-        return player.wagered.this_week;
+        amount = player.wagered.this_week || 0;
     }
+    
+    // Make sure we're returning a number, not an object
+    return typeof amount === 'number' ? amount : 0;
   };
 
   const getPrizeAmount = (rank: number) => {
     return Math.round(prizePool * (prizeDistribution[rank] || 0) * 100) / 100;
   };
+  
+  // Anonymize usernames for privacy while preserving some recognition
+  const getAnonymizedName = useMemo(() => {
+    return (username: string, position?: number) => {
+      if (!username) return "Unknown";
+      
+      // Special handling for top 3 positions - less anonymization
+      if (position && position <= 3) {
+        // First 2 characters visible, then asterisks, last character visible
+        const firstPart = username.substring(0, 2);
+        const lastPart = username.substring(username.length - 1);
+        const middlePart = '*'.repeat(Math.min(3, username.length - 3)); // At least 3 asterisks
+        return `${firstPart}${middlePart}${lastPart}`;
+      }
+      
+      // More anonymization for regular positions
+      if (username.length <= 3) {
+        return `${username[0]}${'*'.repeat(username.length - 1)}`;
+      }
+      
+      // First character visible, then asterisks
+      return `${username[0]}${'*'.repeat(Math.min(4, username.length - 1))}`;
+    };
+  }, []);
 
   if (isLoading || !leaderboardData) {
     return (
@@ -375,7 +410,7 @@ const getTrophyIcon = (rank: number) => {
                   <div className="flex items-center justify-center gap-2">
                     <Crown className="h-5 w-5 text-[#D7FF00]" />
                     <p className="text-xl font-bold truncate">
-                      {currentLeader?.name || "No Leader"}
+                      {getAnonymizedName(currentLeader?.name || "No Leader", 1)}
                     </p>
                   </div>
                 </div>
@@ -414,7 +449,7 @@ const getTrophyIcon = (rank: number) => {
                   <div className="text-center">
                     <QuickProfile userId={top10Players[1]?.uid} username={top10Players[1]?.name}>
                       <p className="text-base md:text-lg font-bold truncate text-white/90 cursor-pointer hover:text-[#D7FF00] transition-colors">
-                        {top10Players[1]?.name || "-"}
+                        {getAnonymizedName(top10Players[1]?.name || "-", 2)}
                       </p>
                     </QuickProfile>
                     <p className="text-sm md:text-base font-heading text-[#D7FF00] mt-2">
@@ -456,7 +491,7 @@ const getTrophyIcon = (rank: number) => {
                   <div className="text-center">
                   <QuickProfile userId={top10Players[0]?.uid} username={top10Players[0]?.name}>
                     <p className="text-xl font-bold truncate text-white cursor-pointer hover:text-[#D7FF00] transition-colors">
-                      {top10Players[0]?.name || "-"}
+                      {getAnonymizedName(top10Players[0]?.name || "-", 1)}
                     </p>
                   </QuickProfile>
                   <p className="text-lg font-heading text-[#D7FF00] mt-2">
@@ -498,7 +533,7 @@ const getTrophyIcon = (rank: number) => {
                   <div className="text-center">
                     <QuickProfile userId={top10Players[2]?.uid} username={top10Players[2]?.name}>
                       <p className="text-base md:text-lg font-bold truncate text-white/90 cursor-pointer hover:text-[#D7FF00] transition-colors">
-                        {top10Players[2]?.name || "-"}
+                        {getAnonymizedName(top10Players[2]?.name || "-", 3)}
                       </p>
                     </QuickProfile>
                     <p className="text-sm md:text-base font-heading text-[#D7FF00] mt-1">
@@ -563,7 +598,10 @@ const getTrophyIcon = (rank: number) => {
                       <QuickProfile userId={player.uid} username={player.name}>
                         <div className="flex items-center gap-2 cursor-pointer min-w-0">
                           {/*Removed Tier Icon*/}
-                          <span className="truncate">{player.name}</span>
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-[#D7FF00]/70" />
+                            <span className="truncate">{getAnonymizedName(player.name, index + 1)}</span>
+                          </div>
                         </div>
                       </QuickProfile>
                     </TableCell>
@@ -579,7 +617,7 @@ const getTrophyIcon = (rank: number) => {
                         }}
                         transition={{ duration: 5, repeat: 1, repeatDelay: 0 }}
                       >
-                        ${getWagerAmount(player)?.toLocaleString()}
+                        ${getWagerAmount(player).toLocaleString()}
                       </motion.span>
                     </TableCell>
                     <TableCell className={`text-right font-sans text-[#D7FF00] ${showCompletedRace ? 'font-bold' : ''}`}>
