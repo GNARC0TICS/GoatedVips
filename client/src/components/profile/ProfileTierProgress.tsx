@@ -51,9 +51,9 @@ export function ProfileTierProgress({
       'text-slate-400': '#94A3B8', // Silver
       'text-yellow-500': '#EAB308', // Gold
       'text-blue-400': '#60A5FA', // Platinum
-      'text-cyan-400': '#22D3EE', // Diamond
-      'text-pink-500': '#EC4899', // Master
-      'text-purple-500': '#A855F7'  // Legend
+      'text-cyan-400': '#22D3EE', // Diamond (Pearl in Goated Emblems)
+      'text-purple-500': '#A855F7', // Master (Sapphire in Goated Emblems)
+      'text-rose-500': '#F43F5E'    // Legend (Emerald in Goated Emblems)
     };
 
     return colorMap[color] || color;

@@ -33,6 +33,7 @@ export interface TierInfo {
 /**
  * Tier system configuration
  * Maps tier levels to their respective information based on the VIP Program
+ * Updated to match actual tier thresholds from the VipProgram page
  */
 export const TIERS: Record<TierLevel, TierInfo> = {
   bronze: {
@@ -41,7 +42,7 @@ export const TIERS: Record<TierLevel, TierInfo> = {
     colorClass: "amber",
     hexColor: "#D97706",
     icon: TrendingUp,
-    minWager: 1000,
+    minWager: 1000, // Bronze 1
     maxWager: 9999,
     benefits: [
       "Instant Rakeback",
@@ -56,7 +57,7 @@ export const TIERS: Record<TierLevel, TierInfo> = {
     colorClass: "slate",
     hexColor: "#94A3B8",
     icon: Star,
-    minWager: 10000,
+    minWager: 10000, // Silver 1
     maxWager: 99999,
     benefits: [
       "All Bronze benefits",
@@ -71,7 +72,7 @@ export const TIERS: Record<TierLevel, TierInfo> = {
     colorClass: "yellow",
     hexColor: "#EAB308",
     icon: Award,
-    minWager: 100000,
+    minWager: 100000, // Gold 1
     maxWager: 449999,
     benefits: [
       "All Silver benefits",
@@ -86,7 +87,7 @@ export const TIERS: Record<TierLevel, TierInfo> = {
     colorClass: "blue",
     hexColor: "#60A5FA",
     icon: Trophy,
-    minWager: 450000,
+    minWager: 450000, // Platinum 1
     maxWager: 1499999,
     benefits: [
       "All Gold benefits",
@@ -101,7 +102,7 @@ export const TIERS: Record<TierLevel, TierInfo> = {
     colorClass: "cyan",
     hexColor: "#22D3EE",
     icon: Diamond,
-    minWager: 1500000,
+    minWager: 1500000, // Pearl 1 (mapped to Diamond in our tier system)
     maxWager: 2999999,
     benefits: [
       "All Platinum benefits",
@@ -116,7 +117,7 @@ export const TIERS: Record<TierLevel, TierInfo> = {
     colorClass: "purple",
     hexColor: "#A855F7",
     icon: Crown,
-    minWager: 3000000,
+    minWager: 3000000, // Sapphire 1
     maxWager: 6999999,
     benefits: [
       "All Diamond benefits",
@@ -131,7 +132,7 @@ export const TIERS: Record<TierLevel, TierInfo> = {
     colorClass: "rose",
     hexColor: "#F43F5E",
     icon: Zap,
-    minWager: 7000000,
+    minWager: 7000000, // Emerald 1
     maxWager: null,
     benefits: [
       "All Master benefits",
@@ -181,21 +182,22 @@ export function getTierIconComponent(tier: TierLevel) {
 
 /**
  * Get the tier icon image path for a specific tier
- * This matches the original implementation expected in MVPCards
+ * This matches the official Goated Emblems as shown in the VIP program page
  * 
  * @param tier - Tier level
  * @returns Image path
  */
 export function getTierIcon(tier: TierLevel): string {
-  // Map tier levels to image paths
+  // Using proper mapping to Goated Emblems directory
+  // We have emblems: copper, bronze, silver, gold, platinum, pearl, sapphire, emerald, diamond
   const tierIcons: Record<TierLevel, string> = {
     bronze: "/images/Goated Emblems/bronze.e6ea941b.svg",
     silver: "/images/Goated Emblems/silver.8e3ec67f.svg",
     gold: "/images/Goated Emblems/gold.1c810178.svg",
     platinum: "/images/Goated Emblems/platinum.d258f583.svg",
     diamond: "/images/Goated Emblems/diamond.ddf47a1e.svg",
-    master: "/images/Goated Emblems/pearl.1815809f.svg", // Using pearl as master
-    legend: "/images/Goated Emblems/emerald.46bd38eb.svg" // Using emerald as legend
+    master: "/images/Goated Emblems/sapphire.91e6756b.svg", // Master = Sapphire tier
+    legend: "/images/Goated Emblems/emerald.46bd38eb.svg"    // Legend = Emerald tier
   };
   
   return tierIcons[tier];
