@@ -506,9 +506,23 @@ export function Layout({ children }: { children: ReactNode }) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
+                  className="text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-all duration-300 hover:scale-110"
                 >
-                  <SpeedIcon className="relative z-10" />
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 24 24"
+                    className="relative z-10"
+                    stroke="currentColor"
+                    fill="none"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M4 5v14" />
+                    <path d="M4 5a1 1 0 0 1 1-1h3.756a1 1 0 0 1 .958.713l3.972 12.916a1 1 0 0 0 .958.713h6.356a1 1 0 0 0 1-1v-12a1 1 0 0 0-1-1h-6.356a1 1 0 0 0-.958.713l-3.972 12.916a1 1 0 0 1-.958.713h-3.756a1 1 0 0 1-1-1" />
+                  </svg>
                 </Button>
               </Link>
               <UtilityPanelButton />
