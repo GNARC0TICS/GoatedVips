@@ -172,7 +172,7 @@ export function QuickProfileCard({
             
             {profile.goatedUsername && (
               <p className="text-xs text-[#9A9BA1] truncate flex items-center gap-1 mt-1">
-                <ExternalLink className="h-3 w-3" />
+                <User className="h-3 w-3" />
                 <span className="opacity-80">Goated:</span> <span className="text-[#D7FF00]">{profile.goatedUsername}</span>
               </p>
             )}
@@ -293,7 +293,7 @@ export function QuickProfileCard({
           ) : profile.goatedId ? (
             // For Goated users in leaderboard, show Goated ID if available
             <div className="bg-[#1A1B21]/50 p-3 rounded-md flex items-center gap-2 border border-[#2A2B31]/30">
-              <ExternalLink className="h-4 w-4 text-[#9A9BA1]" />
+              <User className="h-4 w-4 text-[#9A9BA1]" />
               <span className="text-[#9A9BA1] font-medium">
                 Goated ID: <span className="font-mono text-xs">{profile.goatedId.substring(0, 10)}...</span>
               </span>
