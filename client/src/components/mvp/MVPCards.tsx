@@ -347,10 +347,10 @@ export function MVPCards() {
                       </div>
                     </div>
 
-                    {/* Center logo */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="h-16 w-16 rounded-full border-2 border-[#D7FF00] flex items-center justify-center transform rotate-45">
-                        <div className="h-14 w-14 rounded-full border-2 border-[#D7FF00] flex items-center justify-center backdrop-blur-sm">
+                    {/* Center logo - ensuring it's not cut off */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                      <div className="h-16 w-16 rounded-full border-2 border-[#D7FF00] flex items-center justify-center transform rotate-45 bg-[#14151A]/80">
+                        <div className="h-14 w-14 rounded-full border-2 border-[#D7FF00] flex items-center justify-center backdrop-blur-sm bg-[#14151A]/50">
                           <span className="text-[#D7FF00] font-bold text-xl transform -rotate-45">MVP</span>
                         </div>
                       </div>

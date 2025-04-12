@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from "framer-motion";
 import { Trophy, TrendingUp } from "lucide-react";
 import { QuickProfile } from "@/components/profile/QuickProfile";
@@ -127,7 +127,7 @@ export function MVPCard({
             }}
           />
           
-          {/* Card content */}
+          {/* Card content with active/touch state handling for mobile */}
           <div 
             onClick={(e) => {
               const target = e.target as HTMLElement;
@@ -135,11 +135,12 @@ export function MVPCard({
                 onOpenChange(true);
               }
             }}
-            className={cardStyles.hover}
+            className={cardStyles.hover + " touch-manipulation active:scale-[0.98] active:shadow-inner transition-all"}
             style={{
               '--hover-border-color': `${timeframe.colors.primary}80`,
               '--hover-shadow-color': `${timeframe.colors.primary}40`,
-              height: '100%'
+              height: '100%',
+              WebkitTapHighlightColor: 'transparent' // Remove tap highlight on mobile
             } as React.CSSProperties}
           >
             <div className="flex items-center justify-between mb-3">

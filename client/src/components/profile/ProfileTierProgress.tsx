@@ -111,7 +111,7 @@ export function ProfileTierProgress({
           value={progressPercentage}
           className="h-2"
           style={{
-            backgroundColor: colors.backgrounds.cardDark, 
+            backgroundColor: colors.background.card, 
             borderRadius: '9999px',
             overflow: 'hidden'
           }}
