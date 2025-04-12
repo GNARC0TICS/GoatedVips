@@ -25,7 +25,7 @@ import {
   users 
 } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
-import { hashPassword } from "../auth";
+import { preparePassword } from "../utils/auth-utils";
 
 // Type definitions for our data structures
 // These define the standard format for data throughout the platform
@@ -747,7 +747,7 @@ export class PlatformApiService {
             // Create new user profile with enhanced data
             // Use better default values for auto-created users
             const randomPassword = Math.random().toString(36).substring(2, 10);
-            const hashedPassword = await hashPassword(randomPassword);
+            const hashedPassword = await preparePassword(randomPassword);
             
             await db.insert(users).values({
               username: name,
