@@ -127,7 +127,12 @@ export const textStyles = {
   cardSubtitle: "text-sm text-[#9A9BA1]",
   label: "text-xs text-[#9A9BA1]",
   value: "font-bold text-white",
-  mono: "font-mono"
+  mono: "font-mono",
+  error: "text-red-400",
+  subtle: "text-gray-400",
+  success: "text-green-500",
+  warning: "text-yellow-500",
+  info: "text-blue-400"
 };
 
 // Helper function to convert hex to RGB for shadow generation
