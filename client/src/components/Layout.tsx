@@ -60,11 +60,7 @@ const headerClasses = {
   userSection: "flex items-center gap-2 md:gap-3",
 };
 
-const authSectionClasses = {
-  container: "container mx-auto flex justify-end mt-16 pt-2 px-4",
-  wrapper: "hidden md:flex items-center gap-3 z-40 absolute right-4",
-  buttons: "flex items-center gap-2",
-};
+
 
 const dropdownClasses = {
   content:
@@ -835,32 +831,7 @@ export function Layout({ children }: { children: ReactNode }) {
         </nav>
       </header>
 
-      <div className={authSectionClasses.container}>
-        <div className={authSectionClasses.wrapper}>
-          <div className="hidden lg:flex items-center gap-2 ml-auto">
-            {isAuthenticated ? (
-              <Link href="/dashboard">
-                <Button className="bg-[#D7FF00] text-black hover:bg-[#D7FF00]/90">
-                  Dashboard
-                </Button>
-              </Link>
-            ) : (
-              <>
-                <Link href="/login">
-                  <Button variant="outline" className="border-[#2A2B31] hover:bg-[#2A2B31]/50 hover:text-white">
-                    Login / Register
-                  </Button>
-                </Link>
-                <Link href="/play">
-                  <Button className="bg-[#D7FF00] text-black hover:bg-[#D7FF00]/90 uppercase font-heading">
-                    Play Now
-                  </Button>
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      
 
       <main className="flex-1">
         {children}
