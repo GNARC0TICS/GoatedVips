@@ -39,8 +39,8 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
   const { login, register: registerUser } = useAuth();
   const { toast } = useToast();
   
-  // Common styles for form inputs
-  const inputStyles = "bg-[#2A2B31] border-[#3A3B41] focus:border-[#D7FF00] focus:ring-1 focus:ring-[#D7FF00] transition-all duration-300";
+  // Common styles for form inputs - increased font size on mobile to prevent zooming
+  const inputStyles = "bg-[#2A2B31] border-[#3A3B41] focus:border-[#D7FF00] focus:ring-1 focus:ring-[#D7FF00] transition-all duration-300 md:text-sm text-base touch-manipulation";
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(LoginSchema),
@@ -141,7 +141,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
           <span className="text-[#D7FF00]">REGISTER</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px] bg-[#1A1B21] text-white border-[#2A2B31] shadow-lg shadow-black/20 backdrop-blur-sm">
+      <DialogContent className="sm:max-w-[425px] bg-[#1A1B21] text-white border-[#2A2B31] shadow-lg shadow-black/20 backdrop-blur-sm touch-manipulation" style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}>
         <DialogHeader>
           <DialogTitle className="text-[#D7FF00]">
             {mode === "login" ? "Welcome Back!" : "Create an Account"}
@@ -155,7 +155,12 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
         
         {mode === "login" ? (
           <Form {...loginForm}>
-            <form onSubmit={loginForm.handleSubmit(onSubmit)} className="space-y-4">
+            <form 
+              onSubmit={loginForm.handleSubmit(onSubmit)} 
+              className="space-y-4" 
+              autoComplete="off"
+              onTouchStart={(e) => e.stopPropagation()}
+            >
               <FormField
                 control={loginForm.control}
                 name="username"
@@ -215,7 +220,12 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
           </Form>
         ) : (
           <Form {...registerForm}>
-            <form onSubmit={registerForm.handleSubmit(onSubmit)} className="space-y-4">
+            <form 
+              onSubmit={registerForm.handleSubmit(onSubmit)} 
+              className="space-y-4"
+              autoComplete="off"
+              onTouchStart={(e) => e.stopPropagation()}
+            >
               <FormField
                 control={registerForm.control}
                 name="email"

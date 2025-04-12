@@ -230,7 +230,17 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsFocused(true)}
           className={`pl-8 pr-7 bg-[#14151A] border-[#2A2B31] focus:border-[#D7FF00] focus-visible:ring-0 focus-visible:ring-offset-0 text-white placeholder:text-white font-medium shadow-none h-9 rounded-md ${isMobile ? 'w-full' : 'max-w-[160px]'}`}
-          style={{ transform: 'translateZ(0)' }} // Prevents layout shifts on mobile
+          style={{ 
+            transform: 'translateZ(0)', // Prevents layout shifts on mobile
+            fontSize: isMobile ? '16px' : undefined, // Ensure 16px font on mobile to prevent zoom
+            touchAction: 'manipulation' // Improve touch handling
+          }}
+          autoComplete="off" // Prevents autocomplete issues on mobile
+          // Handle click event to ensure proper focusing
+          onClick={(e) => {
+            e.stopPropagation();
+            inputRef.current?.focus();
+          }}
         />
         {query && (
           <button 

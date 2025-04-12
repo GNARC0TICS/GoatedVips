@@ -221,9 +221,16 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className={headerClasses.container}>
         <nav className={headerClasses.nav}>
           <div 
-            className={`md:hidden absolute left-0 right-0 top-16 bg-[#14151A] border-b border-[#2A2B31] transition-all duration-300 ${
+            id="mobile-search-dropdown"
+            className={`md:hidden fixed left-0 right-0 top-16 bg-[#14151A] border-b border-[#2A2B31] transition-all duration-300 z-50 ${
               mobileSearchOpen ? 'h-16 opacity-100' : 'h-0 opacity-0 pointer-events-none'
             }`}
+            style={{ 
+              transform: mobileSearchOpen ? 'translateY(0)' : 'translateY(-100%)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              willChange: 'transform, opacity'
+            }}
           >
             <div className="container mx-auto px-4 py-2 relative">
               <UserSearch isMobile={true} />
@@ -231,7 +238,14 @@ export function Layout({ children }: { children: ReactNode }) {
                 variant="ghost"
                 size="icon"
                 className="absolute right-4 top-1/2 transform -translate-y-1/2 h-8 w-8 flex items-center justify-center"
-                onClick={() => setMobileSearchOpen(false)}
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent event bubbling
+                  setMobileSearchOpen(false);
+                }}
+                style={{
+                  WebkitTapHighlightColor: 'transparent', // Remove tap highlight on mobile
+                  touchAction: 'manipulation' // Improve touch handling
+                }}
               >
                 <svg 
                   xmlns="http://www.w3.org/2000/svg" 
@@ -485,8 +499,15 @@ export function Layout({ children }: { children: ReactNode }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden h-8 w-8 flex items-center justify-center transform transition-transform duration-300 hover:scale-110"
-                onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+                className="md:hidden h-10 w-10 flex items-center justify-center transform transition-transform duration-300 hover:scale-110"
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent event bubbling
+                  setMobileSearchOpen(!mobileSearchOpen);
+                }}
+                style={{
+                  WebkitTapHighlightColor: 'transparent', // Remove tap highlight on mobile
+                  touchAction: 'manipulation' // Improve touch handling
+                }}
               >
                 <Search className="h-5 w-5 text-white hover:text-[#D7FF00] transition-colors duration-300" />
               </Button>

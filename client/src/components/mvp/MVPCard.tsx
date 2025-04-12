@@ -153,7 +153,22 @@ export function MVPCard({
               touchAction: 'manipulation' // Improve touch handling
             } as React.CSSProperties}
           >
-            <div className="flex items-center justify-between mb-3">
+            {/* Tier badge - positioned at the top right corner */}
+            {tierLevel && tierInfo && (
+              <div 
+                className="absolute top-2 right-2 flex items-center gap-1 bg-black/60 px-2 py-1 rounded-full text-xs z-10" 
+                style={{ color: tierInfo.color }}
+              >
+                <img 
+                  src={getTierIcon(tierLevel)} 
+                  alt={tierInfo.name}
+                  className="h-3 w-3" 
+                />
+                <span>{tierInfo.name}</span>
+              </div>
+            )}
+            
+            <div className="flex items-center mb-3">
               <div className="flex items-center gap-2">
                 <Trophy 
                   className="h-5 w-5" 
@@ -161,21 +176,6 @@ export function MVPCard({
                 />
                 <h3 className={textStyles.cardTitle}>{timeframe.title}</h3>
               </div>
-              
-              {/* Tier badge */}
-              {tierLevel && tierInfo && (
-                <div 
-                  className="flex items-center gap-1 bg-black/40 px-2 py-1 rounded-full text-xs" 
-                  style={{ color: tierInfo.color }}
-                >
-                  <img 
-                    src={getTierIcon(tierLevel)} 
-                    alt={tierInfo.name}
-                    className="h-3 w-3" 
-                  />
-                  <span>{tierInfo.name}</span>
-                </div>
-              )}
             </div>
 
             <div className="space-y-3">
