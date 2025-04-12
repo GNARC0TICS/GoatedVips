@@ -12,6 +12,7 @@ import {
   Bell,
   Settings,
   User,
+  Search,
   LogOut,
   ChevronDown,
   Gift,
@@ -44,10 +45,11 @@ import { UtilityPanelButton } from "./UtilityPanel";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import giftIcon from '/images/GIFT.png';
-import { RaceTimer } from "./RaceTimer"; // Added import for RaceTimer
-import { Toaster } from "./ui/toaster"; // Import for Toaster component
+import { RaceTimer } from "./RaceTimer";
+import { Toaster } from "./ui/toaster";
+import { SpeedIcon } from "@/components/icons/SpeedIcon";
 
-// --- Static Styles (Memoized as constants) ---
+
 const headerClasses = {
   container:
     "fixed top-0 left-0 right-0 z-50 bg-[#14151A]/80 backdrop-blur-xl border-b border-[#2A2B31]/50",
@@ -58,11 +60,7 @@ const headerClasses = {
   userSection: "flex items-center gap-2 md:gap-3",
 };
 
-const authSectionClasses = {
-  container: "container mx-auto flex justify-end mt-16 pt-2 px-4",
-  wrapper: "hidden md:flex items-center gap-3 z-40 absolute right-4",
-  buttons: "flex items-center gap-2",
-};
+
 
 const dropdownClasses = {
   content:
@@ -78,7 +76,6 @@ const footerClasses = {
   heading: "font-heading text-[#14151A] text-2xl font-bold",
 };
 
-// --- MobileNavLink Component ---
 type MobileNavLinkProps = {
   href: string;
   label: string | React.ReactNode;
@@ -112,7 +109,6 @@ const MobileNavLink = React.memo(function MobileNavLink({
   );
 });
 
-// --- NavLink Component ---
 type NavLinkProps = {
   href: string;
   label: string | React.ReactNode;
@@ -156,24 +152,22 @@ const NavLink = React.memo(function NavLink({ href, label, tooltip }: NavLinkPro
   );
 });
 
-// --- Main Layout Component ---
 export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const footerRef = useRef<HTMLElement>(null);
   const [isFooterVisible, setIsFooterVisible] = useState(false);
   const { toast } = useToast();
   const [openMobile, setOpenMobile] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: user } = useQuery<SelectUser>({ queryKey: ["/api/user"] });
   const isAuthenticated = !!user;
 
-  // Scroll to top on location change
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location]);
 
-  // Set up IntersectionObserver to detect footer visibility
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => setIsFooterVisible(entry.isIntersecting),
@@ -217,7 +211,6 @@ export function Layout({ children }: { children: ReactNode }) {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to logout. Please try again.",
-        variant: "destructive",
       });
     }
   }, [toast, queryClient, setLocation]);
@@ -227,12 +220,367 @@ export function Layout({ children }: { children: ReactNode }) {
       <ParticleBackground />
       <header className={headerClasses.container}>
         <nav className={headerClasses.nav}>
-          <div className="flex items-center gap-6">
-            <Link href="/">
-              <img src="/images/logo-neon.png" alt="GOATED" className={headerClasses.logo} />
-            </Link>
+          <div 
+            id="mobile-search-dropdown"
+            className={`md:hidden fixed left-0 right-0 top-16 bg-[#14151A] border-b border-[#2A2B31] transition-all duration-300 z-50 ${
+              mobileSearchOpen ? 'h-16 opacity-100' : 'h-0 opacity-0 pointer-events-none'
+            }`}
+            style={{ 
+              transform: mobileSearchOpen ? 'translateY(0)' : 'translateY(-100%)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              willChange: 'transform, opacity'
+            }}
+          >
+            <div className="container mx-auto px-4 py-2 relative">
+              <UserSearch isMobile={true} />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 h-8 w-8 flex items-center justify-center"
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent event bubbling
+                  setMobileSearchOpen(false);
+                }}
+                style={{
+                  WebkitTapHighlightColor: 'transparent', // Remove tap highlight on mobile
+                  touchAction: 'manipulation' // Improve touch handling
+                }}
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="18" 
+                  height="18" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  className="text-white hover:text-[#D7FF00] transition-colors duration-300"
+                >
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </Button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={headerClasses.menuButton}>
+              <Sheet open={openMobile} onOpenChange={setOpenMobile}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-all duration-300 hover:scale-110"
+                  >
+                    <Menu className="h-6 w-6 text-white hover:text-[#D7FF00] transition-colors duration-300" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent
+                  side="left"
+                  className="w-[300px] bg-[#14151A] border-r border-[#2A2B31] overflow-y-auto p-0"
+                >
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col gap-4 pt-8"
+                  >
+                    <div className="px-4 py-2 text-[#D7FF00] font-heading text-base font-bold">MENU</div>
+                    <MobileNavLink href="/" label="HOME" onClose={() => setOpenMobile(false)} isTitle={true} />
 
-            <div className={headerClasses.desktopNav}>
+                    <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">EVENTS</div>
+                    <MobileNavLink
+                      href="/wager-races"
+                      label={
+                        <div className="flex items-center justify-between w-full">
+                          <span>Monthly Race</span>
+                          <div className="ml-2 flex items-center gap-1">
+                            <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
+                            <span className="text-xs text-red-500">LIVE</span>
+                          </div>
+                        </div>
+                      }
+                      onClose={() => setOpenMobile(false)}
+                    />
+                    <MobileNavLink
+                      href="/challenges"
+                      label={
+                        <div className="flex items-center justify-between w-full">
+                          <span>Challenges</span>
+                          <div className="ml-2 flex items-center gap-1">
+                            <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                            <span className="text-xs text-green-500">ONGOING</span>
+                          </div>
+                        </div>
+                      }
+                      onClose={() => setOpenMobile(false)}
+                    />
+
+                    <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">GET STARTED</div>
+                    <MobileNavLink href="/how-it-works" label="Become an Affiliate" onClose={() => setOpenMobile(false)} />
+                    <MobileNavLink href="/vip-transfer" label="VIP Transfer" onClose={() => setOpenMobile(false)} />
+                    <MobileNavLink href="/tips-and-strategies" label="Tips & Strategies" onClose={() => setOpenMobile(false)} />
+                    <MobileNavLink href="/vip-program" label="VIP Program" onClose={() => setOpenMobile(false)} />
+
+                    <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">PROMOTIONS</div>
+                    <MobileNavLink href="/promotions" label="News & Promotions" onClose={() => setOpenMobile(false)} />
+                    <MobileNavLink href="/goated-token" label="Goated Airdrop" onClose={() => setOpenMobile(false)} />
+                    <MobileNavLink
+                      href="/bonus-codes"
+                      label={
+                        isAuthenticated ? (
+                          <div className="flex items-center gap-2">
+                            <img src={giftIcon} alt="Gift" className="h-4 w-4" />
+                            <span>Bonus Codes</span>
+                          </div>
+                        ) : (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger className="flex items-center gap-2 opacity-50 cursor-not-allowed">
+                                <span>Bonus Codes</span>
+                                <Lock className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent side="right">
+                                <p>Sign in to access bonus codes and rewards</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )
+                      }
+                      onClose={() => setOpenMobile(false)}
+                    />
+
+                    <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">LEADERBOARDS</div>
+                    <MobileNavLink
+                      href="/leaderboard?period=daily"
+                      label="Daily Leaderboard"
+                      onClose={() => setOpenMobile(false)}
+                    />
+                    <MobileNavLink
+                      href="/leaderboard?period=weekly"
+                      label="Weekly Leaderboard"
+                      onClose={() => setOpenMobile(false)}
+                    />
+                    <MobileNavLink
+                      href="/leaderboard?period=monthly"
+                      label="Monthly Leaderboard"
+                      onClose={() => setOpenMobile(false)}
+                    />
+                    <MobileNavLink
+                      href="/leaderboard?period=all-time"
+                      label="All Time Leaderboard"
+                      onClose={() => setOpenMobile(false)}
+                    />
+
+                    <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">SOCIALS</div>
+                    <MobileNavLink 
+                      href="https://t.me/xGoombas" 
+                      label={
+                        <div className="flex items-center gap-2">
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            width="16" 
+                            height="16" 
+                            viewBox="0 0 256 256"
+                            fill="currentColor"
+                          >
+                            <path d="M228.88 26.19a9 9 0 0 0-9.16-1.57L17.06 103.93a14.22 14.22 0 0 0 2.43 27.21L72 141.45V200a15.92 15.92 0 0 0 10 14.83a15.91 15.91 0 0 0 17.51-3.73l25.32-26.26L165 220a15.88 15.88 0 0 0 10.51 4a16.3 16.3 0 0 0 5-.79a15.85 15.85 0 0 0 10.67-11.63L231.77 35a9 9 0 0 0-2.89-8.81M78.15 126.35l-49.61-9.73l139.2-54.48ZM88 200v-47.48l24.79 21.74Zm87.53 8l-82.68-72.5l119-85.29Z" />
+                          </svg>
+                          Telegram Community
+                        </div>
+                      } 
+                      onClose={() => setOpenMobile(false)} 
+                    />
+
+                    <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">HELP & SUPPORT</div>
+                    <MobileNavLink href="/help" label="Help Center" onClose={() => setOpenMobile(false)} />
+                    <MobileNavLink href="/faq" label="FAQ" onClose={() => setOpenMobile(false)} />
+                    <MobileNavLink
+                      href="https://t.me/xGoombas"
+                      label="Contact Support"
+                      onClose={() => {
+                        setOpenMobile(false);
+                        window.open("https://t.me/xGoombas", "_blank");
+                      }}
+                    />
+
+                    {user?.isAdmin && (
+                      <>
+                        <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">ADMIN</div>
+                        <MobileNavLink href="/admin/user-management" label="User Management" onClose={() => setOpenMobile(false)} />
+                        <MobileNavLink href="/admin/wager-races" label="Wager Race Management" onClose={() => setOpenMobile(false)} />
+                        <MobileNavLink href="/admin/bonus-codes" label="Bonus Code Management" onClose={() => setOpenMobile(false)} />
+                        <MobileNavLink href="/admin/notifications" label="Notification Management" onClose={() => setOpenMobile(false)} />
+                        <MobileNavLink href="/admin/support" label="Support Management" onClose={() => setOpenMobile(false)} />
+                      </>
+                    )}
+
+                    <div className="mt-6 px-4 border-t border-[#2A2B31]/50 pt-6 space-y-3">
+                      {!user && (
+                        <div onClick={() => setOpenMobile(false)}>
+                          <AuthModal isMobile={true} />
+                        </div>
+                      )}
+
+                      <Button
+                        onClick={() => {
+                          setOpenMobile(false);
+                          window.open("https://www.goated.com/r/SPIN", "_blank");
+                        }}
+                        className="w-full bg-[#D7FF00] text-[#14151A] hover:bg-[#D7FF00]/90 transition-colors font-bold group"
+                      >
+                        <span className="flex items-center gap-1">
+                          PLAY NOW
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            width="20" 
+                            height="20" 
+                            viewBox="0 0 24 24"
+                            className="ml-1"
+                          >
+                            <path 
+                              fill="currentColor" 
+                              fillOpacity="0" 
+                              stroke="currentColor" 
+                              strokeDasharray="40" 
+                              strokeDashoffset="40" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              strokeWidth="2" 
+                              d="M8 6l10 6l-10 6Z"
+                            >
+                              <animate 
+                                fill="freeze" 
+                                attributeName="fill-opacity" 
+                                begin="0s" 
+                                dur="0.8s" 
+                                values="0;1" 
+                              />
+                              <animate 
+                                fill="freeze" 
+                                attributeName="stroke-dashoffset" 
+                                dur="0.8s" 
+                                values="40;0" 
+                              />
+                            </path>
+                          </svg>
+                        </span>
+                      </Button>
+
+                      {user && (
+                        <Button
+                          onClick={handleLogout}
+                          variant="destructive"
+                          className="w-full"
+                        >
+                          <LogOut className="h-4 w-4 mr-2" />
+                          Logout
+                        </Button>
+                      )}
+                    </div>
+                  </motion.div>
+                </SheetContent>
+              </Sheet>
+            </div>
+            <Link href="/">
+              <img src="/images/logo-neon.png" alt="GOATED" className={`${headerClasses.logo} ml-1`} />
+            </Link>
+            <div className="h-16 border-r border-[#2A2B31] ml-2" />
+
+            <div className="flex items-center gap-2">
+              {/* Desktop search: visible on medium screens and up */}
+              <div className="hidden md:block">
+                <UserSearch />
+              </div>
+
+              {/* Mobile search icon: visible only on small screens */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden h-10 w-10 flex items-center justify-center transform transition-transform duration-300 hover:scale-110"
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent event bubbling
+                  setMobileSearchOpen(!mobileSearchOpen);
+                }}
+                style={{
+                  WebkitTapHighlightColor: 'transparent', // Remove tap highlight on mobile
+                  touchAction: 'manipulation' // Improve touch handling
+                }}
+              >
+                <Search className="h-5 w-5 text-white hover:text-[#D7FF00] transition-colors duration-300" />
+              </Button>
+
+              <Link href="/crypto-swap">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-transform duration-300 hover:scale-110"
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 24 24"
+                    className="relative z-10"
+                    stroke="currentColor"
+                    fill="none"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M9.019 9A6.5 6.5 0 1 1 15 14.981" />
+                    <path d="M8.5 22a6.5 6.5 0 1 1 0-13a6.5 6.5 0 0 1 0 13M22 17a3 3 0 0 1-3 3h-2m0 0l2-2m-2 2l2 2M2 7a3 3 0 0 1 3-3h2m0 0L5 6m2-2L5 2" />
+                  </svg>
+                </Button>
+              </Link>
+              <Link href="https://t.me/xGoombas" target="_blank">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-transform duration-300 hover:scale-110"
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 256 256"
+                    className="relative z-10"
+                    fill="currentColor"
+                  >
+                    <path d="M228.88 26.19a9 9 0 0 0-9.16-1.57L17.06 103.93a14.22 14.22 0 0 0 2.43 27.21L72 141.45V200a15.92 15.92 0 0 0 10 14.83a15.91 15.91 0 0 0 17.51-3.73l25.32-26.26L165 220a15.88 15.88 0 0 0 10.51 4a16.3 16.3 0 0 0 5-.79a15.85 15.85 0 0 0 10.67-11.63L231.77 35a9 9 0 0 0-2.89-8.81M78.15 126.35l-49.61-9.73l139.2-54.48ZM88 200v-47.48l24.79 21.74Zm87.53 8l-82.68-72.5l119-85.29Z" />
+                  </svg>
+                </Button>
+              </Link>
+              <Link href="/wager-races">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-[#D7FF00] relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-all duration-300 hover:scale-110"
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 15 15"
+                    className="relative z-10"
+                    fill="currentColor"
+                  >
+                    <path d="M4.993 1.582a.5.5 0 1 0-.986-.164l-2 12a.5.5 0 1 0 .986.164l.67-4.02c.806.118 1.677.157 2.363.638a3.3 3.3 0 0 0 1.432.583c.966.146 1.83-.385 2.784-.234l1.289.194c.26.04.53-.16.569-.42l.884-5.934l.004-.004a.52.52 0 0 0-.427-.564l-1.289-.194c-.963-.143-1.829.373-2.783.23A2.8 2.8 0 0 1 7.3 3.38c-.739-.517-1.619-.603-2.486-.725zm-.59 3.538l.33-1.972c.599.082 1.233.129 1.788.369l-.295 1.965c-.57-.233-1.213-.278-1.822-.362m-.658 3.95l.33-1.974c.62.086 1.277.13 1.858.368l.3-1.976c.658.27 1.159.733 1.893.841l.3-1.98c.738.111 1.349-.177 2.058-.234l-.3 1.966c-.71.06-1.324.36-2.06.25l-.286 1.978c-.736-.11-1.238-.575-1.899-.844l-.3 1.976c-.595-.239-1.263-.281-1.894-.371m4.094-.76c.734.11 1.351-.192 2.061-.251l.284-1.978c.655-.06 1.325.111 1.968.209l-.28 1.976c-.644-.097-1.316-.269-1.971-.207l-.3 1.976c-.709.048-1.335.36-2.062.25z" />
+                  </svg>
+                </Button>
+              </Link>
+              <UtilityPanelButton />
+              {!user && (
+                <div onClick={() => setOpenMobile(false)}>
+                  <AuthModal isMobile={true} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className={headerClasses.desktopNav}>
               <NavLink href="/" label="HOME" />
               <div className="relative group">
                 <Button
@@ -431,245 +779,17 @@ export function Layout({ children }: { children: ReactNode }) {
                 </div>
               )}
             </div>
-            <div className={headerClasses.menuButton}>
-              <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="relative overflow-hidden group"
-                  >
-                    <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-                    <Menu className="h-6 w-6 text-white relative z-10 group-hover:text-[#D7FF00] transition-colors duration-300" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent
-                  side="left"
-                  className="w-[300px] bg-[#14151A] border-r border-[#2A2B31] overflow-y-auto p-0"
-                >
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="flex flex-col gap-4 pt-8"
-                  >
-                    <div className="px-4 py-2 text-[#D7FF00] font-heading text-base font-bold">MENU</div>
-                    <MobileNavLink href="/" label="HOME" onClose={() => setOpenMobile(false)} isTitle={true} />
-
-                    <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">EVENTS</div>
-                    <MobileNavLink
-                      href="/wager-races"
-                      label={
-                        <div className="flex items-center justify-between w-full">
-                          <span>Monthly Race</span>
-                          <div className="ml-2 flex items-center gap-1">
-                            <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
-                            <span className="text-xs text-red-500">LIVE</span>
-                          </div>
-                        </div>
-                      }
-                      onClose={() => setOpenMobile(false)}
-                    />
-                    <MobileNavLink
-                      href="/challenges"
-                      label={
-                        <div className="flex items-center justify-between w-full">
-                          <span>Challenges</span>
-                          <div className="ml-2 flex items-center gap-1">
-                            <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-                            <span className="text-xs text-green-500">ONGOING</span>
-                          </div>
-                        </div>
-                      }
-                      onClose={() => setOpenMobile(false)}
-                    />
-
-                    <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">GET STARTED</div>
-                    <MobileNavLink href="/how-it-works" label="Become an Affiliate" onClose={() => setOpenMobile(false)} />
-                    <MobileNavLink href="/vip-transfer" label="VIP Transfer" onClose={() => setOpenMobile(false)} />
-                    <MobileNavLink href="/tips-and-strategies" label="Tips & Strategies" onClose={() => setOpenMobile(false)} />
-                    <MobileNavLink href="/vip-program" label="VIP Program" onClose={() => setOpenMobile(false)} />
-
-                    <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">PROMOTIONS</div>
-                    <MobileNavLink href="/promotions" label="News & Promotions" onClose={() => setOpenMobile(false)} />
-                    <MobileNavLink href="/goated-token" label="Goated Airdrop" onClose={() => setOpenMobile(false)} />
-                    <MobileNavLink
-                      href="/bonus-codes"
-                      label={
-                        isAuthenticated ? (
-                          <div className="flex items-center gap-2">
-                            <img src={giftIcon} alt="Gift" className="h-4 w-4" />
-                            <span>Bonus Codes</span>
-                          </div>
-                        ) : (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger className="flex items-center gap-2 opacity-50 cursor-not-allowed">
-                                <span>Bonus Codes</span>
-                                <Lock className="h-4 w-4" />
-                              </TooltipTrigger>
-                              <TooltipContent side="right">
-                                <p>Sign in to access bonus codes and rewards</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )
-                      }
-                      onClose={() => setOpenMobile(false)}
-                    />
-
-                    <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">LEADERBOARDS</div>
-                    <MobileNavLink
-                      href="/leaderboard?period=daily"
-                      label="Daily Leaderboard"
-                      onClose={() => setOpenMobile(false)}
-                    />
-                    <MobileNavLink
-                      href="/leaderboard?period=weekly"
-                      label="Weekly Leaderboard"
-                      onClose={() => setOpenMobile(false)}
-                    />
-                    <MobileNavLink
-                      href="/leaderboard?period=monthly"
-                      label="Monthly Leaderboard"
-                      onClose={() => setOpenMobile(false)}
-                    />
-                    <MobileNavLink
-                      href="/leaderboard?period=all-time"
-                      label="All Time Leaderboard"
-                      onClose={() => setOpenMobile(false)}
-                    />
-
-                    <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">SOCIALS</div>
-                    <MobileNavLink href="/telegram" label="Telegram Community" onClose={() => setOpenMobile(false)} />
-
-                    <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">HELP & SUPPORT</div>
-                    <MobileNavLink href="/help" label="Help Center" onClose={() => setOpenMobile(false)} />
-                    <MobileNavLink href="/faq" label="FAQ" onClose={() => setOpenMobile(false)} />
-                    <MobileNavLink
-                      href="https://t.me/xGoombas"
-                      label="Contact Support"
-                      onClose={() => {
-                        setOpenMobile(false);
-                        window.open("https://t.me/xGoombas", "_blank");
-                      }}
-                    />
-
-                    {user?.isAdmin && (
-                      <>
-                        <div className="mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6">ADMIN</div>
-                        <MobileNavLink href="/admin/user-management" label="User Management" onClose={() => setOpenMobile(false)} />
-                        <MobileNavLink href="/admin/wager-races" label="Wager Race Management" onClose={() => setOpenMobile(false)} />
-                        <MobileNavLink href="/admin/bonus-codes" label="Bonus Code Management" onClose={() => setOpenMobile(false)} />
-                        <MobileNavLink href="/admin/notifications" label="Notification Management" onClose={() => setOpenMobile(false)} />
-                        <MobileNavLink href="/admin/support" label="Support Management" onClose={() => setOpenMobile(false)} />
-                      </>
-                    )}
-
-                    <div className="mt-6 px-4 border-t border-[#2A2B31]/50 pt-6 space-y-3">
-                      {/* Auth controls if not logged in */}
-                      {!user && (
-                        <div onClick={() => setOpenMobile(false)}>
-                          <AuthModal isMobile={true} />
-                        </div>
-                      )}
-
-                      {/* Play button */}
-                      <Button
-                        onClick={() => {
-                          setOpenMobile(false);
-                          window.open("https://www.goated.com/r/SPIN", "_blank");
-                        }}
-                        className="w-full bg-[#D7FF00] text-[#14151A] hover:bg-[#D7FF00]/90 transition-colors font-bold group"
-                      >
-                        <span className="flex items-center gap-1">
-                          PLAY NOW
-                          <svg 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            width="20" 
-                            height="20" 
-                            viewBox="0 0 24 24"
-                            className="ml-1"
-                          >
-                            <path 
-                              fill="currentColor" 
-                              fillOpacity="0" 
-                              stroke="currentColor" 
-                              strokeDasharray="40" 
-                              strokeDashoffset="40" 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth="2" 
-                              d="M8 6l10 6l-10 6Z"
-                            >
-                              <animate 
-                                fill="freeze" 
-                                attributeName="fill-opacity" 
-                                begin="0s" 
-                                dur="0.8s" 
-                                values="0;1" 
-                              />
-                              <animate 
-                                fill="freeze" 
-                                attributeName="stroke-dashoffset" 
-                                dur="0.8s" 
-                                values="40;0" 
-                              />
-                            </path>
-                          </svg>
-                        </span>
-                      </Button>
-
-                      {/* Logout if logged in */}
-                      {user && (
-                        <Button
-                          onClick={handleLogout}
-                          variant="destructive"
-                          className="w-full"
-                        >
-                          <LogOut className="h-4 w-4 mr-2" />
-                          Logout
-                        </Button>
-                      )}
-                    </div>
-                  </motion.div>
-                </SheetContent>
-              </Sheet>
-            </div>
-          </div>
-
           <div className={headerClasses.userSection}>
-            {/* User search component - Improved visibility */}
-            <div className="w-full max-w-[170px]">
-              <UserSearch />
-            </div>
 
-            {/* Crypto Swap Button */}
-            <Link href="/crypto-swap">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-[#D7FF00] hover:text-white relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
-              >
-                <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
-                <Repeat className="h-4 w-4 md:h-5 md:w-5 relative z-10" />
-              </Button>
-            </Link>
-
-            {/* Gift Button */}
-            <UtilityPanelButton />
-
-            {/* Admin Button - Only show when user is admin */}
             {user?.isAdmin && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-[#D7FF00] hover:text-white relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center group"
+                    className="relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-all duration-300 hover:scale-110"
                   >
-                    <div className="absolute inset-0 bg-[#D7FF00]/10 transform scale-0 group-hover:scale-100 transition-transform duration-300 rounded-lg" />
-                    <Settings className="h-4 w-4 md:h-5 md:w-5 relative z-10" />
+                    <Settings className="h-4 w-4 md:h-5 md:w-5 text-white hover:text-[#D7FF00] transition-colors duration-300" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56 bg-[#1A1B21] border-[#2A2B31]">
@@ -699,9 +819,6 @@ export function Layout({ children }: { children: ReactNode }) {
               </DropdownMenu>
             )}
 
-            {/* Authentication controls are now moved below the header */}
-
-            {/* User Profile Button - Only show when logged in */}
             {user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -769,39 +886,12 @@ export function Layout({ children }: { children: ReactNode }) {
         </nav>
       </header>
 
-      {/* Auth Section - Desktop Only */}
-      <div className={authSectionClasses.container}>
-        <div className={authSectionClasses.wrapper}>
-          {/* PLAY button - always visible */}
-          <div className="hidden lg:flex items-center gap-2 ml-auto">
-            {isAuthenticated ? (
-              <Link href="/dashboard">
-                <Button className="bg-[#D7FF00] text-black hover:bg-[#D7FF00]/90">
-                  Dashboard
-                </Button>
-              </Link>
-            ) : (
-              <>
-                <Link href="/login">
-                  <Button variant="outline" className="border-[#2A2B31] hover:bg-[#2A2B31]/50 hover:text-white">
-                    Login / Register
-                  </Button>
-                </Link>
-                <Link href="/play">
-                  <Button className="bg-[#D7FF00] text-black hover:bg-[#D7FF00]/90 uppercase font-heading">
-                    Play Now
-                  </Button>
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      
 
       <main className="flex-1">
         {children}
       </main>
-      <RaceTimer /> {/* Added RaceTimer component */}
+      <RaceTimer />
       <ScrollToTop />
       <Toaster />
       <footer ref={footerRef} className={footerClasses.wrapper}>

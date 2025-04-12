@@ -135,6 +135,31 @@ export const textStyles = {
   info: "text-blue-400"
 };
 
+export const headerClasses = {
+  container:
+    "fixed top-0 left-0 right-0 z-50 bg-[#14151A]/80 backdrop-blur-xl border-b border-[#2A2B31]/50",
+  nav: "container mx-auto h-16 px-4 flex items-center justify-between",
+  logo: "h-8 w-auto relative transition-transform duration-300 hover:scale-105",
+  menuButton: "md:hidden relative overflow-hidden group",
+  desktopNav: "hidden md:flex items-center space-x-4",
+  userSection: "flex items-center gap-2 md:gap-3",
+};
+
+export const footerClasses = {
+  wrapper: "bg-[#D7FF00] relative mt-auto",
+  container: "container mx-auto px-4 py-16",
+  grid: "grid grid-cols-1 md:grid-cols-2 gap-12",
+  heading: "font-heading text-[#14151A] text-2xl font-bold",
+  bottomBar: "bg-[#14151A] text-[#8A8B91] text-sm py-6",
+};
+
+export const dropdownClasses = {
+  content:
+    "w-56 bg-[#1A1B21]/95 backdrop-blur-xl border border-[#2A2B31] rounded-xl shadow-2xl py-2 px-1",
+  item:
+    "px-4 py-2.5 font-bold text-white hover:text-[#D7FF00] hover:bg-[#2A2B31]/50 rounded-lg transition-all duration-200 cursor-pointer",
+};
+
 // Helper function to convert hex to RGB for shadow generation
 function hexToRgb(hex: string): string {
   // Remove the # if present
