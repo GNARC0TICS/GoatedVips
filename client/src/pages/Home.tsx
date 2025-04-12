@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { CryptoSwapHomeWidget } from "@/components/CryptoSwapHomeWidget";
 import { FeatureCarousel } from "@/components/FeatureCarousel";
-import { MVPCards } from "@/components/MVPCards";
+import { MVPCards } from "@/components/mvp";
 import { RaceTimer } from "@/components/RaceTimer";
 import { BonusCodeHeroCard } from "@/components/BonusCodeHeroCard";
 import {

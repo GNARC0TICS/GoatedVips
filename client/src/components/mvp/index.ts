@@ -1,0 +1,9 @@
+/**
+ * MVP Components Export
+ * 
+ * This file provides a single entry point for importing MVP-related components.
+ * Using this index file simplifies imports and makes refactoring easier.
+ */
+
+export * from './MVPCard';
+export * from './MVPCards';
