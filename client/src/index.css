@@ -725,3 +725,30 @@ html {
 
 @layer utilities {
 }
+/* Mobile touch optimizations */
+@media (max-width: 768px) {
+  button,
+  a,
+  [role="button"],
+  .clickable {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+    min-height: 44px; /* Minimum touch target size */
+  }
+
+  /* Prevent pull-to-refresh */
+  html, body {
+    overscroll-behavior-y: contain;
+  }
+
+  /* Better scrolling on iOS */
+  .scroll-container {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Fix input zoom issues */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
