@@ -2,15 +2,17 @@ import passport from "passport";
 import { IVerifyOptions, Strategy as LocalStrategy } from "passport-local";
 import { type Express } from "express";
 import session from "express-session";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
-import { promisify } from "util";
+import { randomBytes } from "crypto";
 import { users, insertUserSchema, type SelectUser } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import express from 'express';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
-
-const scryptAsync = promisify(scrypt);
+import { 
+  preparePassword, 
+  verifyPassword, 
+  AUTH_ERROR_MESSAGES
+} from "./utils/auth-utils";
 
 // Rate limiter for registration and login attempts
 const authLimiter = new RateLimiterMemory({
@@ -51,15 +53,23 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        // For admin login
+        // For admin login 
+        // Note: We need to provide all required User fields for TypeScript
         if (username === process.env.ADMIN_USERNAME) {
           if (password === process.env.ADMIN_PASSWORD) {
-            return done(null, {
+            // Create a minimal admin user - using type casting to bypass TypeScript
+            // since this is an in-memory object only used for authentication
+            const adminUser = {
               id: 1,
-              username: process.env.ADMIN_USERNAME,
+              username: process.env.ADMIN_USERNAME || 'admin',
+              password: '', // Password already verified
+              email: `${process.env.ADMIN_USERNAME || 'admin'}@admin.local`,
               isAdmin: true,
-              email: `${process.env.ADMIN_USERNAME}@admin.local`
-            });
+              createdAt: new Date(),
+              emailVerified: true
+            } as unknown as Express.User;
+            
+            return done(null, adminUser);
           } else {
             return done(null, false, { message: "Invalid admin password" });
           }
@@ -84,12 +94,13 @@ export function setupAuth(app: Express) {
           .limit(1);
 
         if (!user) {
-          return done(null, false, { message: "Invalid username or password" });
+          return done(null, false, { message: AUTH_ERROR_MESSAGES.INVALID_CREDENTIALS });
         }
 
-        const isMatch = await comparePasswords(sanitizedPassword, user.password);
+        // Using the centralized password verification utility
+        const isMatch = await verifyPassword(sanitizedPassword, user.password);
         if (!isMatch) {
-          return done(null, false, { message: "Invalid username or password" });
+          return done(null, false, { message: AUTH_ERROR_MESSAGES.INVALID_CREDENTIALS });
         }
 
         return done(null, user);
@@ -139,8 +150,8 @@ export function setupAuth(app: Express) {
         });
       }
 
-      // Hash password
-      const hashedPassword = await hashPassword(password);
+      // Prepare password for storage (cleartext for testing as requested)
+      const preparedPassword = await preparePassword(password);
 
       // Create user with email verification token
       const emailVerificationToken = randomBytes(32).toString('hex');
@@ -148,7 +159,7 @@ export function setupAuth(app: Express) {
         .insert(users)
         .values({
           username: sanitizedUsername,
-          password: hashedPassword,
+          password: preparedPassword,
           email: email.toLowerCase(),
           isAdmin: false,
           emailVerificationToken,
@@ -312,20 +323,4 @@ export function setupAuth(app: Express) {
   });
 }
 
-// Password utilities
-export async function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
-}
-
-async function comparePasswords(supplied: string, stored: string) {
-  const [hashedPassword, salt] = stored.split(".");
-  const hashedPasswordBuf = Buffer.from(hashedPassword, "hex");
-  const suppliedPasswordBuf = (await scryptAsync(
-    supplied,
-    salt,
-    64,
-  )) as Buffer;
-  return timingSafeEqual(hashedPasswordBuf, suppliedPasswordBuf);
-}
+// Password utilities are now centralized in utils/auth-utils.ts

@@ -18,6 +18,99 @@ flowchart TD
     GoatedAPI --> |External Requests| ExternalAPI[External Goated.com API]
 ```
 
+## Authentication Patterns
+
+The platform implements a multi-faceted authentication system with distinct patterns for regular users and administrators.
+
+### Unified Authentication Pattern
+
+```mermaid
+flowchart TD
+    AuthRequest[Authentication Request] --> PassportJS[Passport.js]
+    PassportJS --> UserType{User Type?}
+    UserType -->|Regular User| DB[Database Lookup]
+    UserType -->|Admin| EnvCheck[Environment Variables]
+    
+    DB --> ValidatePass[Password Validation]
+    EnvCheck --> AdminValidate[Credential Validation]
+    
+    ValidatePass --> UserSession[Create User Session]
+    AdminValidate --> AdminSession[Create Admin Session]
+    
+    UserSession --> TokenGeneration[JWT Token]
+    AdminSession --> SessionFlag[Admin Session Flag]
+    
+    TokenGeneration --> ResponseSuccess[Success Response]
+    SessionFlag --> ResponseSuccess
+```
+
+### Authentication Service Layer
+
+The system implements a service layer pattern for authentication with:
+
+1. **Centralized Authentication Utilities**
+   - Unified password handling in `server/utils/auth-utils.ts`
+   - Standardized error messages for consistency
+   - Token extraction utilities
+
+2. **Authentication Middleware**
+   - Route protection for both regular and admin routes
+   - Token validation and user attachment
+   - Domain-specific routing integration
+
+3. **Frontend Auth Context**
+   - React Context API for global auth state
+   - React Query integration for data fetching
+   - Session management through hooks
+
+### Authentication Flow Patterns
+
+#### Regular User Authentication
+
+1. **Login Flow**: Username/password validation → JWT token → session storage
+2. **Session Validation**: Extract token → verify JWT → attach user to request
+3. **Route Protection**: Check authentication → allow/deny access
+
+#### Admin Authentication
+
+1. **Domain-based Routing**: Check domain (goombas.net) → route to admin endpoints
+2. **Admin Validation**: Check admin credentials → set isAdmin flag in session
+3. **Admin Route Protection**: Verify isAdmin flag → allow/deny admin access
+
+## User Profile Patterns
+
+### Profile Service Pattern
+
+The platform implements a centralized profile service pattern with:
+
+1. **Profile Service Component**
+   - Centralized profile data management
+   - Cache management with TTL
+   - Permission validation
+
+2. **Data Flow Patterns**
+   - Cache-first retrieval strategy
+   - Prefetching capabilities for bulk operations
+   - Proper error handling
+
+3. **Profile Ownership Pattern**
+   - Robust ID handling (numeric and string)
+   - Permission checking through isProfileOwner
+   - Admin override capabilities
+
+### Profile Type Validation Pattern
+
+```mermaid
+flowchart TD
+    RawData[Raw Profile Data] --> Validation[Zod Schema Validation]
+    Validation --> Schema{Valid Schema?}
+    Schema -->|Yes| TypedData[Typed Profile Data]
+    Schema -->|No| ErrorHandling[Error Response]
+    
+    TypedData --> Cache[Update Cache]
+    TypedData --> ReturnData[Return Data to Client]
+```
+
 ## API Service Architecture Pattern
 
 The platform implements a two-service architecture pattern for handling API communication:
@@ -53,6 +146,11 @@ flowchart LR
     AdminRouter --> AdminAuth[Admin Auth Middleware]
     PublicRouter --> PublicAuth[Public Auth Middleware]
 ```
+
+### Implementation:
+- `domain-handler.ts`: Middleware that identifies the domain and sets request properties
+- `domain-router.ts`: Routes requests to appropriate handlers based on domain
+- Client-side domain detection via `domain-utils.ts`
 
 ### Implementation:
 - `domain-handler.ts`: Middleware that identifies the domain and sets request properties

@@ -4,6 +4,7 @@ import { verifyToken } from "../config/auth";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { users } from "@db/schema";
+import { extractTokenFromRequest, AUTH_ERROR_MESSAGES } from "../utils/auth-utils";
 
 // Type definitions
 declare global {
@@ -13,13 +14,6 @@ declare global {
     }
   }
 }
-
-// Constants
-const ERROR_MESSAGES = {
-  AUTH_REQUIRED: "Authentication required",
-  INVALID_TOKEN: "Invalid authentication token",
-  USER_NOT_FOUND: "User not found"
-} as const;
 
 /**
  * Authentication middleware
@@ -31,34 +25,34 @@ export const requireAuth = async (
   next: NextFunction,
 ) => {
   try {
-    const token = extractToken(req);
+    // Use centralized token extraction utility
+    const token = extractTokenFromRequest(req);
     
     if (!token) {
-      return res.status(401).json({ message: ERROR_MESSAGES.AUTH_REQUIRED });
+      return res.status(401).json({ 
+        status: "error", 
+        message: AUTH_ERROR_MESSAGES.AUTH_REQUIRED 
+      });
     }
 
     const user = await validateAndGetUser(token);
     
     if (!user) {
-      return res.status(401).json({ message: ERROR_MESSAGES.USER_NOT_FOUND });
+      return res.status(401).json({ 
+        status: "error", 
+        message: AUTH_ERROR_MESSAGES.USER_NOT_FOUND 
+      });
     }
 
     req.user = user;
     next();
   } catch (error) {
-    return res.status(401).json({ message: ERROR_MESSAGES.INVALID_TOKEN });
+    return res.status(401).json({ 
+      status: "error", 
+      message: AUTH_ERROR_MESSAGES.INVALID_TOKEN 
+    });
   }
 };
-
-/**
- * Extract token from request
- * Checks both cookie and Authorization header
- */
-function extractToken(req: Request): string | null {
-  const sessionToken = req.cookies?.token;
-  const authHeader = req.headers.authorization;
-  return sessionToken || (authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null);
-}
 
 /**
  * Validate token and fetch associated user
