@@ -116,7 +116,7 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
 
   useEffect(() => {
     async function searchUsers() {
-      if (!debouncedQuery || debouncedQuery.length < 3) {
+      if (!debouncedQuery || debouncedQuery.length < 2) {
         setResults([]);
         setTotalResults(0);
         setHasMoreResults(false);
@@ -135,7 +135,7 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
       }
       
       try {
-        const response = await fetch(`/api/users/search?q=${encodeURIComponent(debouncedQuery)}&page=${currentPage}&limit=30`);
+        const response = await fetch(`/api/users/search?username=${encodeURIComponent(debouncedQuery)}&page=${currentPage}&limit=30`);
         
         if (!response.ok) {
           throw new Error("Failed to search users");
