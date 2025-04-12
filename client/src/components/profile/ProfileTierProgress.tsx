@@ -1,10 +1,13 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getTierFromWager, getTierInfo, getNextTierInfo, getTierProgressPercentage } from '@/lib/tier-utils';
 import { UserProfile } from '@/services/profileService';
 import { cn } from '@/lib/utils';
 import { Info } from 'lucide-react';
+import { colors } from '@/lib/style-constants';
+import { fadeIn, fadeInUp } from '@/lib/animation-presets';
 
 interface ProfileTierProgressProps {
   profile: UserProfile;
@@ -60,9 +63,16 @@ export function ProfileTierProgress({
   };
   
   return (
-    <div className={cn('space-y-2', className)}>
+    <motion.div 
+      className={cn('space-y-2', className)}
+      {...fadeIn}
+    >
       {showLabel && (
-        <div className="flex items-center justify-between text-xs">
+        <motion.div 
+          className="flex items-center justify-between text-xs"
+          {...fadeInUp}
+          transition={{ ...fadeInUp.transition, delay: 0.1 }}
+        >
           <div className="flex items-center gap-1">
             <span className="text-[#8A8B91]">Tier Status:</span>
             <span className={cn("font-medium", currentTierInfo.color)}>
@@ -90,36 +100,44 @@ export function ProfileTierProgress({
               Next: <span className={cn("font-medium", nextTierInfo.color)}>{nextTierInfo.name}</span>
             </span>
           )}
-        </div>
+        </motion.div>
       )}
       
-      <div>
+      <motion.div
+        {...fadeInUp}
+        transition={{ ...fadeInUp.transition, delay: 0.2 }}
+      >
         <Progress
           value={progressPercentage}
           className="h-2"
-          // Use Progress component as is in your UI library - adapt as needed
           style={{
-            backgroundColor: '#1A1B21', // Dark background
-            borderRadius: '9999px', // Rounded
+            backgroundColor: colors.backgrounds.cardDark, 
+            borderRadius: '9999px',
             overflow: 'hidden'
           }}
         >
-          <div 
-            className="h-full transition-all"
+          <motion.div 
+            className="h-full"
+            initial={{ width: '0%' }}
+            animate={{ width: `${progressPercentage}%` }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
             style={{ 
-              width: `${progressPercentage}%`,
               backgroundColor: getProgressColor(currentTierInfo.color)
             }}
           />
         </Progress>
-      </div>
+      </motion.div>
       
       {nextTierInfo && (
-        <div className="flex items-center justify-between text-xs text-[#8A8B91]">
+        <motion.div 
+          className="flex items-center justify-between text-xs text-[#8A8B91]"
+          {...fadeInUp}
+          transition={{ ...fadeInUp.transition, delay: 0.3 }}
+        >
           <span>{formatWager(totalWager)} Wagered</span>
           <span>Goal: {formatWager(nextTierInfo.minWager)}</span>
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
