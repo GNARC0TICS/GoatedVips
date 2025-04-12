@@ -157,7 +157,7 @@ export function RaceTimer() {
   }, []);
 
   return (
-    <div className="fixed top-1/2 right-0 transform -translate-y-1/2 z-50">
+    <div className="fixed md:top-1/2 top-20 right-0 md:transform md:-translate-y-1/2 z-50">
       <AnimatePresence>
         <motion.div
           initial={{ x: "100%" }}
