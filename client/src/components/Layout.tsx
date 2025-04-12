@@ -233,7 +233,7 @@ export function Layout({ children }: { children: ReactNode }) {
               <UserSearch isMobile={true} />
             </div>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center gap-2">
             <div className={headerClasses.menuButton}>
               <Sheet open={openMobile} onOpenChange={setOpenMobile}>
                 <SheetTrigger asChild>
@@ -452,13 +452,13 @@ export function Layout({ children }: { children: ReactNode }) {
                 </SheetContent>
               </Sheet>
             </div>
-            <Link href="/" className="flex items-center">
-              <img src="/images/logo-neon.png" alt="GOATED" className={`${headerClasses.logo} mx-4`} />
+            <Link href="/">
+              <img src="/images/logo-neon.png" alt="GOATED" className={`${headerClasses.logo} ml-1`} />
             </Link>
-            <div className="h-16 border-r border-[#2A2B31]" />
+            <div className="h-16 border-r border-[#2A2B31] ml-2" />
 
-            <div className="flex items-center gap-4 ml-4">
-              <div className="hidden md:block w-[280px]">
+            <div className="flex items-center gap-2">
+              <div className="md:block">
                 <UserSearch />
               </div>
               <Link href="/crypto-swap">
