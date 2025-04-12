@@ -143,6 +143,27 @@ export const headerClasses = {
   menuButton: "md:hidden relative overflow-hidden group",
   desktopNav: "hidden md:flex items-center space-x-4",
   userSection: "flex items-center gap-2 md:gap-3",
+  mobileSearchDropdown: "md:hidden fixed left-0 right-0 top-16 bg-[#14151A] border-b border-[#2A2B31] transition-all duration-300 z-50",
+  mobileSearchContainer: "container mx-auto px-4 py-2 relative",
+  mobileSearchButton: "md:hidden h-10 w-10 flex items-center justify-center transform transition-transform duration-300 hover:scale-110",
+  mobileCloseButton: "absolute right-4 top-1/2 transform -translate-y-1/2 h-8 w-8 flex items-center justify-center",
+};
+
+export const mobileClasses = {
+  navContainer: "w-[300px] bg-[#14151A] border-r border-[#2A2B31] overflow-y-auto p-0",
+  navContent: "flex flex-col gap-4 pt-8",
+  sectionTitle: "px-4 py-2 text-[#D7FF00] font-heading text-base font-bold",
+  sectionDivider: "mt-6 px-4 py-2 text-[#D7FF00] font-heading text-sm font-bold border-t border-[#2A2B31]/50 pt-6",
+  actionSection: "mt-6 px-4 border-t border-[#2A2B31]/50 pt-6 space-y-3",
+  linkActive: "bg-[#D7FF00]/10 text-[#D7FF00]",
+  linkInactive: "text-white hover:bg-[#2A2B31]",
+  linkText: "px-4 py-2.5 rounded-lg transition-colors duration-200 cursor-pointer",
+  badge: {
+    live: "ml-2 flex items-center gap-1 text-xs text-red-500",
+    ongoing: "ml-2 flex items-center gap-1 text-xs text-green-500",
+    new: "ml-2 flex items-center gap-1 text-xs text-blue-500",
+    indicator: "h-2 w-2 rounded-full animate-pulse"
+  }
 };
 
 export const footerClasses = {

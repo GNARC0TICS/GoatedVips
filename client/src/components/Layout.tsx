@@ -1,16 +1,17 @@
-import React, { ReactNode, useState, useEffect } from "react";
+import React, { ReactNode, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SelectUser } from "@db/schema";
+import { useToast } from "@/hooks/use-toast";
 
+// Component imports
+import { Header } from "./Header";
+import { Footer } from "./Footer";
 import { ParticleBackground } from "./ParticleBackground";
 import { RaceTimer } from "./RaceTimer";
 import { Toaster } from "./ui/toaster";
 import { ScrollToTop } from "./ScrollToTop";
-import { Header } from "./Header";
-import { Footer } from "./Footer";
 import { AuthSection } from "./AuthSection";
-import { useToast } from "@/hooks/use-toast";
 
 type LayoutProps = {
   children: ReactNode;
@@ -22,6 +23,7 @@ export function Layout({ children }: LayoutProps) {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
+  // Fetch current user data
   const { data: user } = useQuery<SelectUser>({ queryKey: ["/api/user"] });
   const isAuthenticated = !!user;
 
@@ -30,6 +32,7 @@ export function Layout({ children }: LayoutProps) {
     window.scrollTo(0, 0);
   }, [location]);
 
+  // Logout handler
   const handleLogout = async () => {
     try {
       const response = await fetch("/api/logout", {
@@ -64,8 +67,10 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#14151A]">
+      {/* Background elements */}
       <ParticleBackground />
       
+      {/* Header - Main navigation with optimized mobile menu */}
       <Header 
         isAuthenticated={isAuthenticated} 
         user={user} 
@@ -75,13 +80,17 @@ export function Layout({ children }: LayoutProps) {
       {/* Auth Section - Desktop Only */}
       <AuthSection isAuthenticated={isAuthenticated} />
 
+      {/* Main content area */}
       <main className="flex-1">
         {children}
       </main>
       
+      {/* Global UI elements */}
       <RaceTimer />
       <ScrollToTop />
       <Toaster />
+      
+      {/* Footer with responsive grid */}
       <Footer />
     </div>
   );

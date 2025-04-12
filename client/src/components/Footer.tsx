@@ -1,18 +1,19 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { footerClasses } from "@/lib/style-constants";
+import { motion } from "framer-motion";
 
-type FooterProps = {};
-
-export function Footer({}: FooterProps) {
+export function Footer() {
   const footerRef = useRef<HTMLElement>(null);
   const [isFooterVisible, setIsFooterVisible] = useState(false);
 
+  // Track footer visibility for animations
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => setIsFooterVisible(entry.isIntersecting),
       { threshold: 0.1 }
     );
+    
     if (footerRef.current) {
       observer.observe(footerRef.current);
       return () => {
@@ -26,7 +27,11 @@ export function Footer({}: FooterProps) {
       <div className="absolute inset-0 bg-gradient-to-b from-[#D7FF00]/20 to-transparent pointer-events-none" />
       <div className={footerClasses.container}>
         <div className={footerClasses.grid}>
-          <div>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={isFooterVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ delay: 0.2 }}
+          >
             <div className="flex items-center gap-3 mb-4">
               <h4 className={footerClasses.heading}>
                 Ready to get Goated?
@@ -56,8 +61,13 @@ export function Footer({}: FooterProps) {
             >
               Sign Up Now
             </Button>
-          </div>
-          <div>
+          </motion.div>
+          
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={isFooterVisible ? { opacity: 1, y: 0 } : {}}
+            transition={{ delay: 0.4 }}
+          >
             <div className="flex items-center gap-2 mb-4">
               <h4 className={footerClasses.heading}>
                 Stay Updated
@@ -88,9 +98,10 @@ export function Footer({}: FooterProps) {
                 Subscribe
               </Button>
             </form>
-          </div>
+          </motion.div>
         </div>
       </div>
+      
       <div className={footerClasses.bottomBar}>
         <div className="container mx-auto px-4 text-center">
           <div className="flex flex-col items-center gap-4 mb-6">
@@ -122,7 +133,7 @@ export function Footer({}: FooterProps) {
             </div>
           </div>
           <p className="mb-2">
-            © 2024 GoatedVips.gg. All rights reserved.
+            © {new Date().getFullYear()} GoatedVips.gg. All rights reserved.
           </p>
           <p className="mb-2">
             Disclaimer: This website is an independent platform and is not affiliated with, endorsed by, or officially connected to Goated.com.
