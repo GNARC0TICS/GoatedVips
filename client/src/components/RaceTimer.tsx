@@ -44,6 +44,12 @@ export function RaceTimer() {
   const [isAnimationReady, setIsAnimationReady] = useState(false);
   const { toast } = useToast();
 
+  // Handle click on speed icon
+  const handleSpeedIconClick = useCallback(() => {
+    setIsContentVisible(prev => !prev);
+    setHasSeenNotification(true);
+  }, []);
+
   // API request function - memoized to prevent unnecessary recreations
   const fetchRaceData = useCallback(async (endpoint: string): Promise<RaceData> => {
     try {
@@ -184,7 +190,7 @@ export function RaceTimer() {
             className="order-first"
           >
             <button
-              onClick={handleNotificationClick}
+              onClick={handleSpeedIconClick}
               aria-label={isContentVisible ? "Hide race timer" : "Show race timer"}
               className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-3 flex items-center justify-center hover:bg-[#1A1B21] transition-colors group relative"
             >
@@ -225,7 +231,7 @@ export function RaceTimer() {
               <div className="flex justify-between items-center mt-2">
                 <span className="text-[#8A8B91] text-sm">
                   {raceData && raceData.startDate 
-                    ? new Date(raceData.startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) 
+                    ? new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) 
                     : isLoading ? 'Loading...' : error ? 'Error loading data' : ''}
                 </span>
                 <button 
