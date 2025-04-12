@@ -223,17 +223,17 @@ const getTrophyIcon = (rank: number) => {
         // First 2 characters visible, then asterisks, last character visible
         const firstPart = username.substring(0, 2);
         const lastPart = username.substring(username.length - 1);
-        const middlePart = '*'.repeat(Math.min(3, username.length - 3)); // At least 3 asterisks
+        const middlePart = '*'.repeat(Math.max(0, Math.min(3, username.length - 3))); // At least 3 asterisks, ensure non-negative
         return `${firstPart}${middlePart}${lastPart}`;
       }
       
       // More anonymization for regular positions
       if (username.length <= 3) {
-        return `${username[0]}${'*'.repeat(username.length - 1)}`;
+        return `${username[0]}${'*'.repeat(Math.max(0, username.length - 1))}`;
       }
       
       // First character visible, then asterisks
-      return `${username[0]}${'*'.repeat(Math.min(4, username.length - 1))}`;
+      return `${username[0]}${'*'.repeat(Math.max(0, Math.min(4, username.length - 1)))}`;
     };
   }, []);
 
