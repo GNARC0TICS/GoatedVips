@@ -99,12 +99,39 @@ The platform implements a sophisticated two-service architecture to handle API i
   "status": "success", // or "error"
   "data": {
     // Response data specific to endpoint
-  },
-  "metadata": {
-    "lastUpdated": "2025-04-12T03:53:45.362Z",
-    "source": "goated_api", // or "platform_db"
-    "cacheStatus": "fresh" // or "stale"
-  },
+    // For example, wager race data:
+    "id": "202504",
+    "status": "live",
+    "startDate": "2025-04-01T00:00:00.000Z",
+    "endDate": "2025-04-30T00:00:00.000Z",
+    "prizePool": 500,
+    "participants": [
+      {
+        "uid": "f5w3IYWYL79E8HntQuPs",
+        "name": "nostalgicgareth",
+        "wagered": 74200.67073880868,
+        "position": 1
+      },
+      // More participants...
+    ],
+    "totalWagered": 341551.1463654385,
+    "participantCount": 2218,
+    "metadata": {
+      "transitionEnds": "2025-05-01T00:00:00.000Z",
+      "nextRaceStarts": "2025-05-01T00:00:00.000Z",
+      "prizeDistribution": [0.5, 0.3, 0.1, 0.05, 0.05]
+    }
+  }
+}
+```
+
+### API Response with Pagination
+For endpoints that support pagination:
+```json
+{
+  "results": [
+    // Array of results
+  ],
   "pagination": {
     "page": 1,
     "limit": 30,
