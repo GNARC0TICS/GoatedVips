@@ -193,9 +193,9 @@ export function getTierIcon(tier: TierLevel): string {
     silver: "/images/Goated Emblems/silver.8e3ec67f.svg",
     gold: "/images/Goated Emblems/gold.1c810178.svg",
     platinum: "/images/Goated Emblems/platinum.d258f583.svg",
-    diamond: "/images/Goated Emblems/diamond.svg",
+    diamond: "/images/Goated Emblems/diamond.ddf47a1e.svg",
     master: "/images/Goated Emblems/pearl.1815809f.svg", // Using pearl as master
-    legend: "/images/Goated Emblems/legend.svg"
+    legend: "/images/Goated Emblems/emerald.46bd38eb.svg" // Using emerald as legend
   };
   
   return tierIcons[tier];

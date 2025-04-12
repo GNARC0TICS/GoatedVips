@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { queryClient } from "@/lib/queryClient";
@@ -22,6 +22,8 @@ import {
   TrendingUp,
   ArrowRight,
   User,
+  Diamond,
+  Zap,
 } from "lucide-react";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { useLeaderboard } from "@/hooks/use-leaderboard";
@@ -121,10 +123,15 @@ export default function WagerRaces() {
   // Auto-show completed race when race ends
   useEffect(() => {
     const now = new Date();
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    // For April 2025, let's set the end date to April 30
+    const endOfMonth = new Date(2025, 3, 30, 23, 59, 59); // April 30, 2025
 
+    // Only show as completed if we're past April 30, 2025
     if (now >= endOfMonth && !showCompletedRace) {
       setShowCompletedRace(true);
+    } else {
+      // Make sure it's not showing as completed if we're not at the end date
+      setShowCompletedRace(false);
     }
   }, []);
 
@@ -213,27 +220,11 @@ const getTrophyIcon = (rank: number) => {
     return Math.round(prizePool * (prizeDistribution[rank] || 0) * 100) / 100;
   };
   
-  // Anonymize usernames for privacy while preserving some recognition
+  // Display full usernames
   const getAnonymizedName = useMemo(() => {
     return (username: string, position?: number) => {
       if (!username) return "Unknown";
-      
-      // Special handling for top 3 positions - less anonymization
-      if (position && position <= 3) {
-        // First 2 characters visible, then asterisks, last character visible
-        const firstPart = username.substring(0, 2);
-        const lastPart = username.substring(username.length - 1);
-        const middlePart = '*'.repeat(Math.max(0, Math.min(3, username.length - 3))); // At least 3 asterisks, ensure non-negative
-        return `${firstPart}${middlePart}${lastPart}`;
-      }
-      
-      // More anonymization for regular positions
-      if (username.length <= 3) {
-        return `${username[0]}${'*'.repeat(Math.max(0, username.length - 1))}`;
-      }
-      
-      // First character visible, then asterisks
-      return `${username[0]}${'*'.repeat(Math.max(0, Math.min(4, username.length - 1)))}`;
+      return username;
     };
   }, []);
 
@@ -346,8 +337,8 @@ const getTrophyIcon = (rank: number) => {
                         <CountdownTimer
                           endDate={new Date(
                             2025, // Fixed year to 2025
-                            2,    // March (0-indexed, so 2 is March)
-                            31,   // End of March
+                            3,    // April (0-indexed, so 3 is April)
+                            30,   // End of April
                           ).toISOString()}
                           large={true}
                           onComplete={() => setShowCompletedRace(true)}
@@ -364,8 +355,8 @@ const getTrophyIcon = (rank: number) => {
                         <CountdownTimer
                           endDate={new Date(
                             2025, // Fixed year to 2025
-                            3,    // April (0-indexed, so 3 is April)
-                            1,    // First day of April
+                            4,    // May (0-indexed, so 4 is May)
+                            1,    // First day of May
                           ).toISOString()}
                           large={true}
                         />
@@ -448,7 +439,7 @@ const getTrophyIcon = (rank: number) => {
                   </div>
                   <div className="text-center">
                     <QuickProfile userId={top10Players[1]?.uid} username={top10Players[1]?.name}>
-                      <p className="text-base md:text-lg font-bold truncate text-white/90 cursor-pointer hover:text-[#D7FF00] transition-colors">
+                      <p className="text-base md:text-lg font-bold truncate max-w-[100px] md:max-w-[140px] mx-auto text-white/90 cursor-pointer hover:text-[#D7FF00] transition-colors">
                         {getAnonymizedName(top10Players[1]?.name || "-", 2)}
                       </p>
                     </QuickProfile>
@@ -490,7 +481,7 @@ const getTrophyIcon = (rank: number) => {
                   </div>
                   <div className="text-center">
                   <QuickProfile userId={top10Players[0]?.uid} username={top10Players[0]?.name}>
-                    <p className="text-xl font-bold truncate text-white cursor-pointer hover:text-[#D7FF00] transition-colors">
+                    <p className="text-xl font-bold truncate max-w-[120px] md:max-w-[180px] mx-auto text-white cursor-pointer hover:text-[#D7FF00] transition-colors">
                       {getAnonymizedName(top10Players[0]?.name || "-", 1)}
                     </p>
                   </QuickProfile>
@@ -532,7 +523,7 @@ const getTrophyIcon = (rank: number) => {
                   </div>
                   <div className="text-center">
                     <QuickProfile userId={top10Players[2]?.uid} username={top10Players[2]?.name}>
-                      <p className="text-base md:text-lg font-bold truncate text-white/90 cursor-pointer hover:text-[#D7FF00] transition-colors">
+                      <p className="text-base md:text-lg font-bold truncate max-w-[100px] md:max-w-[140px] mx-auto text-white/90 cursor-pointer hover:text-[#D7FF00] transition-colors">
                         {getAnonymizedName(top10Players[2]?.name || "-", 3)}
                       </p>
                     </QuickProfile>
@@ -597,9 +588,12 @@ const getTrophyIcon = (rank: number) => {
                     <TableCell className="font-sans text-white">
                       <QuickProfile userId={player.uid} username={player.name}>
                         <div className="flex items-center gap-2 cursor-pointer min-w-0">
-                          {/*Removed Tier Icon*/}
                           <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-[#D7FF00]/70" />
+                            <img 
+                              src={getTierIcon(getTierFromWager(player.wagered?.all_time || 0))} 
+                              alt="Tier" 
+                              className="h-4 w-4"
+                            />
                             <span className="truncate">{getAnonymizedName(player.name, index + 1)}</span>
                           </div>
                         </div>
@@ -627,6 +621,23 @@ const getTrophyIcon = (rank: number) => {
                 ))}
               </TableBody>
             </Table>
+            
+            {/* Total Wagered Summary */}
+            <div className="p-6 bg-[#1A1B21]/80 border-t border-[#2A2B31]">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-[#8A8B91] font-heading text-sm mb-1">TOTAL WAGERED THIS MONTH</h4>
+                  <p className="text-2xl font-bold text-[#D7FF00]">
+                    ${top10Players.reduce((sum: number, player: LeaderboardEntry) => 
+                      sum + getWagerAmount(player), 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 text-white/70">
+                  <TrendingUp className="h-5 w-5 text-[#D7FF00]" />
+                  <span className="text-sm">Last updated {metadata?.lastUpdated ? getLastUpdateTime(metadata.lastUpdated) : 'recently'}</span>
+                </div>
+              </div>
+            </div>
           </motion.div>
         </div>
       </div>
