@@ -33,12 +33,12 @@ export default function CryptoSwap() {
           </p>
         </motion.div>
         
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-lg mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="w-full p-4 md:p-6 relative"
+            className="w-full relative"
           >
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-[#1A1C23]/80 backdrop-blur-sm z-10 rounded-xl">
