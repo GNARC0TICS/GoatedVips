@@ -12,14 +12,17 @@ export function MobileSearchDropdown({ isOpen, onClose }: MobileSearchDropdownPr
   return (
     <div
       id="mobile-search-dropdown"
-      className={`md:hidden fixed left-0 right-0 top-16 bg-[#14151A] border-b border-[#2A2B31] transition-all duration-300 z-50 ${
+      className={`md:hidden fixed left-0 right-0 top-16 bg-[#14151A] border-b border-[#2A2B31] transition-all duration-300 z-[200] ${
         isOpen ? 'h-16 opacity-100' : 'h-0 opacity-0 pointer-events-none'
       }`}
       style={{
         transform: isOpen ? 'translateY(0)' : 'translateY(-100%)',
         backfaceVisibility: 'hidden',
         WebkitBackfaceVisibility: 'hidden',
-        willChange: 'transform, opacity'
+        willChange: 'transform, opacity',
+        touchAction: 'manipulation',
+        WebkitTapHighlightColor: 'transparent',
+        userSelect: 'none'
       }}
     >
       <div className="container mx-auto px-4 py-2 relative">

@@ -730,25 +730,68 @@ html {
   button,
   a,
   [role="button"],
-  .clickable {
+  .clickable,
+  .nav-link,
+  .dropdown-item,
+  [data-radix-collection-item],
+  .interactive {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
     cursor: pointer;
-    min-height: 44px; /* Minimum touch target size */
+    min-height: 44px; /* Minimum touch target size per Apple HIG guidelines */
+    min-width: 44px; /* Minimum touch target width per Apple HIG guidelines */
   }
 
   /* Prevent pull-to-refresh */
   html, body {
     overscroll-behavior-y: contain;
-  }
-
-  /* Better scrolling on iOS */
-  .scroll-container {
     -webkit-overflow-scrolling: touch;
   }
 
+  /* Increase hit target size for all interactive elements */
+  .interactive-area {
+    padding: 8px;
+    margin: -8px;
+  }
+
+  /* Better scrolling on iOS */
+  .scroll-container,
+  [data-radix-scroll-area-viewport],
+  [role="dialog"],
+  [data-radix-popper-content-wrapper],
+  .overflow-y-auto,
+  .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
   /* Fix input zoom issues */
-  input, select, textarea {
-    font-size: 16px !important;
+  input, 
+  select, 
+  textarea, 
+  .input, 
+  [contenteditable="true"] {
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+    max-height: none !important; /* Prevent iOS height constraints */
+  }
+  
+  /* Improve touch area for icons */
+  svg, 
+  img, 
+  .icon, 
+  .icon-wrapper {
+    pointer-events: none; /* Make parent element handle the click */
+  }
+  
+  /* Improve menu tap targets */
+  [data-radix-menu-content],
+  [data-radix-dropdown-menu-content] {
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Fix position:fixed elements on iOS */
+  .fixed {
+    transform: translateZ(0);
   }
 }
