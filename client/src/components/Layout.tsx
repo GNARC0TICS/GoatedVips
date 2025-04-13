@@ -13,11 +13,12 @@ import { Toaster } from "./ui/toaster";
 import { ScrollToTop } from "./ScrollToTop";
 import { AuthSection } from "./AuthSection";
 
-type LayoutProps = {
-  children: ReactNode;
-};
+interface LayoutProps {
+  children: React.ReactNode;
+  hideAuthButton?: boolean;
+}
 
-export function Layout({ children }: LayoutProps) {
+export function Layout({ children, hideAuthButton }: LayoutProps) {
   const [location] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -69,27 +70,27 @@ export function Layout({ children }: LayoutProps) {
     <div className="min-h-screen flex flex-col bg-[#14151A]">
       {/* Background elements */}
       <ParticleBackground />
-      
+
       {/* Header - Main navigation with optimized mobile menu */}
       <Header 
         isAuthenticated={isAuthenticated} 
         user={user} 
         handleLogout={handleLogout} 
       />
-      
+
       {/* Auth Section - Desktop Only */}
-      <AuthSection isAuthenticated={isAuthenticated} />
+      {!hideAuthButton && <AuthSection isAuthenticated={isAuthenticated} />}
 
       {/* Main content area */}
       <main className="flex-1">
         {children}
       </main>
-      
+
       {/* Global UI elements */}
       <RaceTimer />
       <ScrollToTop />
       <Toaster />
-      
+
       {/* Footer with responsive grid */}
       <Footer />
     </div>

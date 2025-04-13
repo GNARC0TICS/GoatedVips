@@ -17,7 +17,7 @@ export default function CryptoSwap() {
   }, []);
   
   return (
-    <Layout>
+    <Layout hideAuthButton>
       <div className="container mx-auto px-4 py-8 pb-24">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
