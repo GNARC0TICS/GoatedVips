@@ -396,25 +396,25 @@ async function initializeServer() {
     // Initialize scheduled data synchronization tasks
     const { initializeDataSyncTasks } = await import('./tasks/dataSyncTasks');
     initializeDataSyncTasks();
-    
+
     // Run an immediate profile sync to ensure all user profiles are created
     try {
       log("info", "Starting immediate data sync...");
-      
+
       // Set a timeout to ensure server startup isn't blocked
       // Use a longer timeout to match our API timeout settings
       const syncPromise = Promise.race([
         syncUserProfiles(),
         new Promise((_, reject) => setTimeout(() => reject(new Error("Initial sync timeout - continuing with server startup")), 15000))
       ]);
-      
+
       try {
         await syncPromise;
       } catch (error) {
         const timeoutError = error as Error;
         log("warn", `${timeoutError.message}`);
       }
-      
+
       // Also update wager data
       const goatedApiService = (await import('./services/goatedApiService')).default;
       const wagerCount = await goatedApiService.updateAllWagerData();
@@ -728,6 +728,8 @@ async function setupVite(app: express.Application, server: any) {
     }
   });
 }
+
+import { telegramBotService } from './services/telegramBotService';
 
 // Initialize server
 initializeServer().catch((error) => {
