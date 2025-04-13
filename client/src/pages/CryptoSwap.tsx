@@ -18,7 +18,7 @@ export default function CryptoSwap() {
   
   return (
     <Layout hideAuthButton>
-      <div className="container mx-auto px-4 py-8 pb-24">
+      <div className="container mx-auto px-4 py-16 min-h-screen">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -28,12 +28,12 @@ export default function CryptoSwap() {
           <h1 className="text-3xl md:text-4xl font-heading text-white mb-4 text-center uppercase tracking-wider">
             <span className="text-white">CRYPTO</span> <span className="text-[#D7FF00]">SWAP</span>
           </h1>
-          <p className="text-gray-400 text-center mb-8 max-w-2xl mx-auto">
+          <p className="text-gray-400 text-center mb-12 max-w-2xl mx-auto">
             Quickly and securely exchange between cryptocurrencies with our integrated swap service.
           </p>
         </motion.div>
         
-        <div className="max-w-lg mx-auto">
+        <div className="max-w-lg mx-auto bg-transparent">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
