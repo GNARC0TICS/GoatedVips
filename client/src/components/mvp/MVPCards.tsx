@@ -236,7 +236,8 @@ export function MVPCards() {
 
   return (
     <motion.div 
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-0 max-w-5xl mx-auto perspective-1000 px-0"
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto perspective-1000 px-4"
+      style={{ isolation: 'isolate' }}
       {...staggeredAnimation.container}
     >
       {/* MVP Cards for each time period */}
@@ -244,7 +245,8 @@ export function MVPCards() {
         <motion.div
           key={timeframe.period}
           {...staggeredAnimation.item}
-          className="p-2 md:p-3"
+          className="relative"
+          style={{ zIndex: openCard === timeframe.period ? 50 : 1 }}
         >
           <MVPCard 
             timeframe={timeframe}
@@ -260,7 +262,8 @@ export function MVPCards() {
       <motion.div
         {...fadeInUp}
         transition={{ ...fadeInUp.transition, delay: 0.3 }}
-        className="p-2 md:p-3"
+        className="relative"
+        style={{ zIndex: 1 }}
       >
         <div className="relative w-full h-[200px]">
           <div className="relative h-full">
