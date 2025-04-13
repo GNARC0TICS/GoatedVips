@@ -28,6 +28,12 @@ export interface TierInfo {
   benefits: string[];
   // Glass morphism properties
   glassGradient?: string;
+  // Enhanced visual properties
+  backgroundPattern?: string;   // Path to subtle background pattern
+  accentGradient?: string;      // CSS gradient for accents
+  animationPreset?: string;     // Key for animation set
+  nextMilestone?: number;       // Next significant milestone
+  shadowColor?: string;         // Color for glowing effects
 }
 
 /**
@@ -49,7 +55,11 @@ export const TIERS: Record<TierLevel, TierInfo> = {
       "Level Up Bonus",
       "Weekly Bonus"
     ],
-    glassGradient: "linear-gradient(135deg, rgba(217, 119, 6, 0.15), rgba(180, 83, 9, 0.1))"
+    glassGradient: "linear-gradient(135deg, rgba(217, 119, 6, 0.15), rgba(180, 83, 9, 0.1))",
+    backgroundPattern: "/images/patterns/bronze-pattern.svg",
+    accentGradient: "linear-gradient(135deg, #D97706, #92400E)",
+    animationPreset: "bronze",
+    shadowColor: "rgba(217, 119, 6, 0.5)"
   },
   silver: {
     name: "Silver",
@@ -64,7 +74,11 @@ export const TIERS: Record<TierLevel, TierInfo> = {
       "Monthly Bonus",
       "Bonus Increase"
     ],
-    glassGradient: "linear-gradient(135deg, rgba(148, 163, 184, 0.15), rgba(100, 116, 139, 0.1))"
+    glassGradient: "linear-gradient(135deg, rgba(148, 163, 184, 0.15), rgba(100, 116, 139, 0.1))",
+    backgroundPattern: "/images/patterns/silver-pattern.svg",
+    accentGradient: "linear-gradient(135deg, #94A3B8, #64748B)",
+    animationPreset: "silver",
+    shadowColor: "rgba(148, 163, 184, 0.5)"
   },
   gold: {
     name: "Gold",
@@ -79,7 +93,11 @@ export const TIERS: Record<TierLevel, TierInfo> = {
       "Referral Increase",
       "Loss Back Bonus"
     ],
-    glassGradient: "linear-gradient(135deg, rgba(234, 179, 8, 0.15), rgba(202, 138, 4, 0.1))"
+    glassGradient: "linear-gradient(135deg, rgba(234, 179, 8, 0.15), rgba(202, 138, 4, 0.1))",
+    backgroundPattern: "/images/patterns/gold-pattern.svg",
+    accentGradient: "linear-gradient(135deg, #EAB308, #CA8A04)",
+    animationPreset: "gold",
+    shadowColor: "rgba(234, 179, 8, 0.5)"
   },
   platinum: {
     name: "Platinum",
@@ -94,7 +112,11 @@ export const TIERS: Record<TierLevel, TierInfo> = {
       "Higher bonuses",
       "Premium rewards"
     ],
-    glassGradient: "linear-gradient(135deg, rgba(96, 165, 250, 0.15), rgba(59, 130, 246, 0.1))"
+    glassGradient: "linear-gradient(135deg, rgba(96, 165, 250, 0.15), rgba(59, 130, 246, 0.1))",
+    backgroundPattern: "/images/patterns/platinum-pattern.svg",
+    accentGradient: "linear-gradient(135deg, #60A5FA, #3B82F6)",
+    animationPreset: "platinum",
+    shadowColor: "rgba(96, 165, 250, 0.5)"
   },
   diamond: {
     name: "Diamond",
@@ -109,7 +131,11 @@ export const TIERS: Record<TierLevel, TierInfo> = {
       "VIP Host",
       "Exclusive perks"
     ],
-    glassGradient: "linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgba(6, 182, 212, 0.1))"
+    glassGradient: "linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgba(6, 182, 212, 0.1))",
+    backgroundPattern: "/images/patterns/diamond-pattern.svg",
+    accentGradient: "linear-gradient(135deg, #22D3EE, #06B6D4)",
+    animationPreset: "diamond",
+    shadowColor: "rgba(34, 211, 238, 0.5)"
   },
   master: {
     name: "Master",
@@ -124,7 +150,11 @@ export const TIERS: Record<TierLevel, TierInfo> = {
       "Elite VIP events",
       "Highest cashback rates"
     ],
-    glassGradient: "linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(126, 34, 206, 0.1))"
+    glassGradient: "linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(126, 34, 206, 0.1))",
+    backgroundPattern: "/images/patterns/master-pattern.svg",
+    accentGradient: "linear-gradient(135deg, #A855F7, #7E22CE)",
+    animationPreset: "master",
+    shadowColor: "rgba(168, 85, 247, 0.5)"
   },
   legend: {
     name: "Legend",
@@ -140,7 +170,11 @@ export const TIERS: Record<TierLevel, TierInfo> = {
       "Tailor-made promotions",
       "Unlimited privileges"
     ],
-    glassGradient: "linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(225, 29, 72, 0.1))"
+    glassGradient: "linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(225, 29, 72, 0.1))",
+    backgroundPattern: "/images/patterns/legend-pattern.svg",
+    accentGradient: "linear-gradient(135deg, #F43F5E, #E11D48)",
+    animationPreset: "legend",
+    shadowColor: "rgba(244, 63, 94, 0.5)"
   }
 };
 

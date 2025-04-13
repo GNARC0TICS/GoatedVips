@@ -111,7 +111,27 @@ export const cardStyles = {
   base: "relative p-4 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm transition-all duration-300 shadow-lg",
   interactive: "transform transition-all duration-300 hover:scale-[1.02]",
   hover: "relative p-4 rounded-xl border border-[var(--hover-border-color,#2A2B31)] bg-[#1A1B21]/50 backdrop-blur-sm transition-all duration-300 shadow-lg hover:shadow-[var(--hover-shadow-color,#00000040)] hover:border-[var(--hover-border-color,#2A2B31)]",
-  dialog: "bg-[#1A1B21] border-[#2A2B31] max-w-[95vw] md:max-w-2xl w-full mx-4 md:mx-0"
+  dialog: "bg-[#1A1B21] border-[#2A2B31] max-w-[95vw] md:max-w-2xl w-full mx-4 md:mx-0",
+  // New profile card styles
+  profileCard: {
+    base: "relative overflow-hidden border shadow-xl",
+    sm: "w-full max-w-[280px]", 
+    md: "w-full max-w-[340px]",
+    lg: "w-full max-w-[400px]",
+    xl: "w-full max-w-[480px]",
+    responsive: "w-full max-w-full sm:max-w-[340px] md:max-w-[380px] lg:max-w-[400px]"
+  },
+  profileStatsGrid: {
+    base: "grid gap-2",
+    twoCol: "grid-cols-2",
+    threeCol: "grid-cols-3",
+    fourCol: "grid-cols-2 sm:grid-cols-4",
+    adaptive: "grid-cols-2 sm:grid-cols-2 md:grid-cols-4"
+  },
+  tierCard: {
+    base: "relative overflow-hidden border rounded-lg",
+    glow: "shadow-[0_0_15px_rgba(var(--tier-color-rgb),0.2)]"
+  }
 };
 
 export const buttonStyles = {
