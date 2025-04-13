@@ -34,7 +34,7 @@ export function FeatureCard({
     if (isLocked || !href) {
       return <>{children}</>;
     }
-    return <Link href={href}><div className="block">{children}</div></Link>;
+    return <Link href={href} className="block w-full">{children}</Link>;
   };
 
   return (
