@@ -358,8 +358,7 @@ export function MVPCards() {
                   </div>
 
                   {/* Call to action */}
-                  <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-center">
-                    <h3 className="text-lg font-heading text-white mb-2">Ready to Compete?</h3>
+                  <div className="absolute inset-x-0 top-0 p-4 bg-gradient-to-b from-black/80 to-transparent text-center">
                     <p className="text-sm text-[#D7FF00] mb-3">Sign in to track your stats</p>
                     <Link href="/auth">
                       <Button 
