@@ -8,7 +8,6 @@ import { motion } from 'framer-motion';
 export default function CryptoSwap() {
   const [isLoading, setIsLoading] = useState(true);
 
-  // Set loading to false after timeout to ensure widget has time to load
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
