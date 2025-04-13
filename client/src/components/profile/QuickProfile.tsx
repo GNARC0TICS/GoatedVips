@@ -51,8 +51,16 @@ export function QuickProfile({
         <DialogTrigger asChild>
           <button 
             className="cursor-pointer inline-block text-inherit bg-transparent border-0 p-0 m-0" 
-            style={{ font: 'inherit' }}
-            onClick={() => setIsOpen(true)}
+            style={{ 
+              font: 'inherit',
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation',
+              userSelect: 'none'
+            }}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent event bubbling
+              setIsOpen(true);
+            }}
           >
             {children}
           </button>
