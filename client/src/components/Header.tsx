@@ -50,7 +50,7 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
                   isAuthenticated={isAuthenticated} 
                   handleLogout={handleLogout} 
                 />
-                
+
                 <div className="mt-6 px-4 border-t border-[#2A2B31]/50 pt-6 space-y-3">
                   {/* Mobile auth section */}
                   {!user && (
@@ -111,10 +111,18 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
               <img 
                 src="/images/logo-neon.png" 
                 alt="GOATED" 
-                className={headerClasses.logo}
+                className={`hidden md:block ${headerClasses.logo}`}
                 loading="eager" // Prioritize logo loading
                 width="auto"
                 height="32"
+              />
+              <img 
+                src="/images/Goated Logo - Yellow.png" 
+                alt="GOATED" 
+                className="block md:hidden h-6 w-auto ml-1"
+                loading="eager"
+                width="auto"
+                height="24"
               />
             </div>
           </Link>
@@ -214,7 +222,7 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
         </div>
         <div className={headerClasses.userSection}>
           {user?.isAdmin && <AdminMenu />}
-          
+
           {/* Use the centralized AuthSection component */}
           <AuthSection 
             user={user} 
