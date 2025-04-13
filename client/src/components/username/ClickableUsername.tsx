@@ -28,20 +28,33 @@ export function ClickableUsername({
 }: ClickableUsernameProps) {
   // Stop propagation to prevent unwanted parent clicks
   const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    e.preventDefault(); // Prevent default browser behavior
+    e.stopPropagation(); // Stop event bubbling
     if (onClick) onClick(e);
+  };
+  
+  // Mobile-friendly styles
+  const mobileStyles = {
+    WebkitTapHighlightColor: 'transparent',
+    touchAction: 'manipulation',
+    userSelect: 'none' as 'none', // Type assertion to fix TS error
   };
   
   // Default rendering with QuickProfile popup
   if (withQuickProfile) {
     return (
       <QuickProfile userId={userId} username={username}>
-        <span 
-          className={`username-trigger ${className}`}
+        <button 
+          type="button"
+          className={`username-trigger ${className} inline-block text-inherit bg-transparent border-0 p-0 m-0`}
           onClick={handleClick}
+          onTouchStart={(e) => e.stopPropagation()} // Ensure touch events don't propagate
+          style={mobileStyles}
+          role="button"
+          aria-label={`View ${username}'s profile`}
         >
           {username}
-        </span>
+        </button>
       </QuickProfile>
     );
   }
@@ -52,6 +65,10 @@ export function ClickableUsername({
       <a 
         className={className}
         onClick={handleClick}
+        onTouchStart={(e) => e.stopPropagation()} // Ensure touch events don't propagate
+        style={mobileStyles}
+        role="button"
+        aria-label={`View ${username}'s profile`}
       >
         {username}
       </a>

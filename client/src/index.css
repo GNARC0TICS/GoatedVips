@@ -794,4 +794,20 @@ html {
   .fixed {
     transform: translateZ(0);
   }
+  
+  /* Enhanced username click target in MVP cards */
+  .username-trigger {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+    z-index: 10; /* Ensure username is above other elements */
+    padding: 4px;
+    margin: -4px;
+  }
+  
+  /* Add touch-action utility class */
+  .touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
 }

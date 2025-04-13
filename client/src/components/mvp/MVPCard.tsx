@@ -205,7 +205,11 @@ export function MVPCard({
                 
                 {/* Username with ClickableUsername component */}
                 <div className="flex-grow min-w-0">
-                  <div onClick={(e) => e.stopPropagation()}>
+                  <div 
+                    onClick={(e) => e.stopPropagation()} 
+                    onTouchStart={(e) => e.stopPropagation()}
+                    className="touch-manipulation"
+                  >
                     <ClickableUsername
                       userId={mvp.uid}
                       username={mvp.username}

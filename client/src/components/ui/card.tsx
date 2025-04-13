@@ -13,7 +13,7 @@ const Card = React.forwardRef<
     ...(isClickable ? {
       WebkitTapHighlightColor: 'transparent',
       touchAction: 'manipulation',
-      userSelect: 'none'
+      userSelect: 'none' as 'none' // Type assertion to fix TypeScript error
     } : {}),
     ...(style || {})
   };
