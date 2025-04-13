@@ -3,98 +3,14 @@ import { ArrowLeft } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
+// Import tier data from centralized definitions
+import { TIERS_ARRAY as tiers } from '@/data/tier-definitions';
+
+// For TypeScript - interface for level structure
 interface TierLevel {
   level: string;
   xpRequired: string;
 }
-
-const tiers = [
-  {
-    name: "COPPER",
-    icon: "/images/Goated Emblems/copper.548d79cf.svg",
-    levels: [{ level: "Copper 1", xpRequired: "0" }],
-  },
-  {
-    name: "BRONZE",
-    icon: "/images/Goated Emblems/bronze.e6ea941b.svg",
-    levels: [
-      { level: "Bronze 1", xpRequired: "1,000" },
-      { level: "Bronze 2", xpRequired: "2,000" },
-      { level: "Bronze 3", xpRequired: "3,000" },
-      { level: "Bronze 4", xpRequired: "4,000" },
-    ],
-  },
-  {
-    name: "SILVER",
-    icon: "/images/Goated Emblems/silver.8e3ec67f.svg",
-    levels: [
-      { level: "Silver 1", xpRequired: "10,000" },
-      { level: "Silver 2", xpRequired: "20,000" },
-      { level: "Silver 3", xpRequired: "30,000" },
-      { level: "Silver 4", xpRequired: "40,000" },
-    ],
-  },
-  {
-    name: "GOLD",
-    icon: "/images/Goated Emblems/gold.1c810178.svg",
-    levels: [
-      { level: "Gold 1", xpRequired: "100,000" },
-      { level: "Gold 2", xpRequired: "150,000" },
-      { level: "Gold 3", xpRequired: "200,000" },
-      { level: "Gold 4", xpRequired: "250,000" },
-    ],
-  },
-  {
-    name: "PLATINUM",
-    icon: "/images/Goated Emblems/platinum.d258f583.svg",
-    levels: [
-      { level: "Platinum 1", xpRequired: "450,000" },
-      { level: "Platinum 2", xpRequired: "600,000" },
-      { level: "Platinum 3", xpRequired: "750,000" },
-      { level: "Platinum 4", xpRequired: "900,000" },
-    ],
-  },
-  {
-    name: "PEARL",
-    icon: "/images/Goated Emblems/pearl.1815809f.svg",
-    levels: [
-      { level: "Pearl 1", xpRequired: "1,500,000" },
-      { level: "Pearl 2", xpRequired: "1,650,000" },
-      { level: "Pearl 3", xpRequired: "1,800,000" },
-      { level: "Pearl 4", xpRequired: "2,000,000" },
-    ],
-  },
-  {
-    name: "SAPPHIRE",
-    icon: "/images/Goated Emblems/sapphire.91e6756b.svg",
-    levels: [
-      { level: "Sapphire 1", xpRequired: "3,000,000" },
-      { level: "Sapphire 2", xpRequired: "3,750,000" },
-      { level: "Sapphire 3", xpRequired: "4,500,000" },
-      { level: "Sapphire 4", xpRequired: "5,250,000" },
-    ],
-  },
-  {
-    name: "EMERALD",
-    icon: "/images/Goated Emblems/emerald.46bd38eb.svg",
-    levels: [
-      { level: "Emerald 1", xpRequired: "7,000,000" },
-      { level: "Emerald 2", xpRequired: "9,000,000" },
-      { level: "Emerald 3", xpRequired: "11,000,000" },
-      { level: "Emerald 4", xpRequired: "13,000,000" },
-    ],
-  },
-  {
-    name: "DIAMOND",
-    icon: "/images/Goated Emblems/diamond.ddf47a1e.svg",
-    levels: [
-      { level: "Diamond 1", xpRequired: "20,000,000" },
-      { level: "Diamond 2", xpRequired: "25,000,000" },
-      { level: "Diamond 3", xpRequired: "30,000,000" },
-      { level: "Diamond 4", xpRequired: "35,000,000" },
-    ],
-  },
-];
 
 const benefits = [
   { name: "Instant Rakeback", startingTier: "BRONZE" },

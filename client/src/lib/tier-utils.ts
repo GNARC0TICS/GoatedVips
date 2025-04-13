@@ -1,13 +1,18 @@
 import { 
-  TrendingUp, 
-  Award, 
-  Crown, 
-  Diamond, 
-  Star, 
-  Zap, 
-  Trophy 
+  TrendingUp 
 } from "lucide-react";
 
+import {
+  TIERS_BY_KEY,
+  TierDefinition,
+  getTierFromWager as getOriginalTierFromWager,
+  getNextTierInfo as getOriginalNextTierInfo,
+  getTierKeyFromWager,
+  getNextTierProgress as getOriginalNextTierProgress,
+  getTierProgressPercentage as getOriginalTierProgressPercentage
+} from '@/data/tier-definitions';
+
+// Legacy type definitions for backwards compatibility
 export type TierLevel = 
   | "bronze" 
   | "silver" 
@@ -17,166 +22,40 @@ export type TierLevel =
   | "master" 
   | "legend";
 
+// Map legacy TierInfo interface to new TierDefinition type for backwards compatibility
 export interface TierInfo {
   name: string;
   color: string;
-  colorClass: string; // Base color name for Tailwind classes (amber, slate, yellow, etc.)
-  hexColor: string;   // Hex color code for custom styling
+  colorClass: string;
+  hexColor: string;
   icon: typeof TrendingUp;
+  iconPath: string; // Add iconPath to match TierDefinition
   minWager: number;
   maxWager: number | null;
   benefits: string[];
-  // Glass morphism properties
   glassGradient?: string;
-  // Enhanced visual properties
-  backgroundPattern?: string;   // Path to subtle background pattern
-  accentGradient?: string;      // CSS gradient for accents
-  animationPreset?: string;     // Key for animation set
-  nextMilestone?: number;       // Next significant milestone
-  shadowColor?: string;         // Color for glowing effects
+  backgroundPattern?: string;
+  accentGradient?: string;
+  animationPreset?: string;
+  nextMilestone?: number;
+  shadowColor?: string;
 }
 
 /**
  * Tier system configuration
- * Maps tier levels to their respective information based on the VIP Program
- * Updated to match actual tier thresholds from the VipProgram page
+ * Now uses centralized definitions from tier-definitions.ts
  */
 export const TIERS: Record<TierLevel, TierInfo> = {
-  bronze: {
-    name: "Bronze",
-    color: "text-amber-600",
-    colorClass: "amber",
-    hexColor: "#D97706",
-    icon: TrendingUp,
-    minWager: 1000, // Bronze 1
-    maxWager: 9999,
-    benefits: [
-      "Instant Rakeback",
-      "Level Up Bonus",
-      "Weekly Bonus"
-    ],
-    glassGradient: "linear-gradient(135deg, rgba(217, 119, 6, 0.15), rgba(180, 83, 9, 0.1))",
-    backgroundPattern: "/images/patterns/bronze-pattern.svg",
-    accentGradient: "linear-gradient(135deg, #D97706, #92400E)",
-    animationPreset: "bronze",
-    shadowColor: "rgba(217, 119, 6, 0.5)"
-  },
-  silver: {
-    name: "Silver",
-    color: "text-slate-400",
-    colorClass: "slate",
-    hexColor: "#94A3B8",
-    icon: Star,
-    minWager: 10000, // Silver 1
-    maxWager: 99999,
-    benefits: [
-      "All Bronze benefits",
-      "Monthly Bonus",
-      "Bonus Increase"
-    ],
-    glassGradient: "linear-gradient(135deg, rgba(148, 163, 184, 0.15), rgba(100, 116, 139, 0.1))",
-    backgroundPattern: "/images/patterns/silver-pattern.svg",
-    accentGradient: "linear-gradient(135deg, #94A3B8, #64748B)",
-    animationPreset: "silver",
-    shadowColor: "rgba(148, 163, 184, 0.5)"
-  },
-  gold: {
-    name: "Gold",
-    color: "text-yellow-500",
-    colorClass: "yellow",
-    hexColor: "#EAB308",
-    icon: Award,
-    minWager: 100000, // Gold 1
-    maxWager: 449999,
-    benefits: [
-      "All Silver benefits",
-      "Referral Increase",
-      "Loss Back Bonus"
-    ],
-    glassGradient: "linear-gradient(135deg, rgba(234, 179, 8, 0.15), rgba(202, 138, 4, 0.1))",
-    backgroundPattern: "/images/patterns/gold-pattern.svg",
-    accentGradient: "linear-gradient(135deg, #EAB308, #CA8A04)",
-    animationPreset: "gold",
-    shadowColor: "rgba(234, 179, 8, 0.5)"
-  },
-  platinum: {
-    name: "Platinum",
-    color: "text-blue-400",
-    colorClass: "blue",
-    hexColor: "#60A5FA",
-    icon: Trophy,
-    minWager: 450000, // Platinum 1
-    maxWager: 1499999,
-    benefits: [
-      "All Gold benefits",
-      "Higher bonuses",
-      "Premium rewards"
-    ],
-    glassGradient: "linear-gradient(135deg, rgba(96, 165, 250, 0.15), rgba(59, 130, 246, 0.1))",
-    backgroundPattern: "/images/patterns/platinum-pattern.svg",
-    accentGradient: "linear-gradient(135deg, #60A5FA, #3B82F6)",
-    animationPreset: "platinum",
-    shadowColor: "rgba(96, 165, 250, 0.5)"
-  },
-  diamond: {
-    name: "Diamond",
-    color: "text-cyan-400",
-    colorClass: "cyan",
-    hexColor: "#22D3EE",
-    icon: Diamond,
-    minWager: 1500000, // Pearl 1 (mapped to Diamond in our tier system)
-    maxWager: 2999999,
-    benefits: [
-      "All Platinum benefits",
-      "VIP Host",
-      "Exclusive perks"
-    ],
-    glassGradient: "linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgba(6, 182, 212, 0.1))",
-    backgroundPattern: "/images/patterns/diamond-pattern.svg",
-    accentGradient: "linear-gradient(135deg, #22D3EE, #06B6D4)",
-    animationPreset: "diamond",
-    shadowColor: "rgba(34, 211, 238, 0.5)"
-  },
-  master: {
-    name: "Master",
-    color: "text-purple-500",
-    colorClass: "purple",
-    hexColor: "#A855F7",
-    icon: Crown,
-    minWager: 3000000, // Sapphire 1
-    maxWager: 6999999,
-    benefits: [
-      "All Diamond benefits",
-      "Elite VIP events",
-      "Highest cashback rates"
-    ],
-    glassGradient: "linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(126, 34, 206, 0.1))",
-    backgroundPattern: "/images/patterns/master-pattern.svg",
-    accentGradient: "linear-gradient(135deg, #A855F7, #7E22CE)",
-    animationPreset: "master",
-    shadowColor: "rgba(168, 85, 247, 0.5)"
-  },
-  legend: {
-    name: "Legend",
-    color: "text-rose-500",
-    colorClass: "rose",
-    hexColor: "#F43F5E",
-    icon: Zap,
-    minWager: 7000000, // Emerald 1
-    maxWager: null,
-    benefits: [
-      "All Master benefits",
-      "Goated Event Invitations",
-      "Tailor-made promotions",
-      "Unlimited privileges"
-    ],
-    glassGradient: "linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(225, 29, 72, 0.1))",
-    backgroundPattern: "/images/patterns/legend-pattern.svg",
-    accentGradient: "linear-gradient(135deg, #F43F5E, #E11D48)",
-    animationPreset: "legend",
-    shadowColor: "rgba(244, 63, 94, 0.5)"
-  }
+  bronze: TIERS_BY_KEY.bronze as TierInfo,
+  silver: TIERS_BY_KEY.silver as TierInfo,
+  gold: TIERS_BY_KEY.gold as TierInfo,
+  platinum: TIERS_BY_KEY.platinum as TierInfo,
+  diamond: TIERS_BY_KEY.pearl as TierInfo, // Pearl is mapped to Diamond in our legacy system
+  master: TIERS_BY_KEY.sapphire as TierInfo, // Sapphire is mapped to Master in our legacy system
+  legend: TIERS_BY_KEY.emerald as TierInfo  // Emerald is mapped to Legend in our legacy system
 };
+
+// Re-export functions from centralized definitions but maintain legacy naming/interfaces for backwards compatibility
 
 /**
  * Get the tier level based on the user's total wager amount
@@ -185,13 +64,20 @@ export const TIERS: Record<TierLevel, TierInfo> = {
  * @returns Tier level
  */
 export function getTierFromWager(totalWager: number): TierLevel {
-  if (totalWager >= TIERS.legend.minWager) return "legend";
-  if (totalWager >= TIERS.master.minWager) return "master";
-  if (totalWager >= TIERS.diamond.minWager) return "diamond";
-  if (totalWager >= TIERS.platinum.minWager) return "platinum";
-  if (totalWager >= TIERS.gold.minWager) return "gold";
-  if (totalWager >= TIERS.silver.minWager) return "silver";
-  return "bronze";
+  const tier = getOriginalTierFromWager(totalWager);
+  
+  // Map new tier key to legacy tier level
+  switch (tier.key) {
+    case "bronze": return "bronze";
+    case "silver": return "silver";
+    case "gold": return "gold";
+    case "platinum": return "platinum";
+    case "pearl": return "diamond";
+    case "sapphire": return "master";
+    case "emerald": 
+    case "diamond": return "legend";
+    default: return "bronze";
+  }
 }
 
 /**
@@ -222,19 +108,7 @@ export function getTierIconComponent(tier: TierLevel) {
  * @returns Image path
  */
 export function getTierIcon(tier: TierLevel): string {
-  // Using proper mapping to Goated Emblems directory
-  // We have emblems: copper, bronze, silver, gold, platinum, pearl, sapphire, emerald, diamond
-  const tierIcons: Record<TierLevel, string> = {
-    bronze: "/images/Goated Emblems/bronze.e6ea941b.svg",
-    silver: "/images/Goated Emblems/silver.8e3ec67f.svg",
-    gold: "/images/Goated Emblems/gold.1c810178.svg",
-    platinum: "/images/Goated Emblems/platinum.d258f583.svg",
-    diamond: "/images/Goated Emblems/diamond.ddf47a1e.svg",
-    master: "/images/Goated Emblems/sapphire.91e6756b.svg", // Master = Sapphire tier
-    legend: "/images/Goated Emblems/emerald.46bd38eb.svg"    // Legend = Emerald tier
-  };
-  
-  return tierIcons[tier];
+  return TIERS[tier].iconPath;
 }
 
 /**
@@ -244,25 +118,7 @@ export function getTierIcon(tier: TierLevel): string {
  * @returns Progress percentage (0-1)
  */
 export function getNextTierProgress(totalWager: number): number {
-  const currentTier = getTierFromWager(totalWager);
-  
-  // If already at legend tier, return 1 (100%)
-  if (currentTier === "legend") {
-    return 1;
-  }
-  
-  const tiers = Object.keys(TIERS) as TierLevel[];
-  const currentTierIndex = tiers.indexOf(currentTier);
-  const nextTier = tiers[currentTierIndex + 1];
-  
-  const currentTierMin = TIERS[currentTier].minWager;
-  const nextTierMin = TIERS[nextTier].minWager;
-  
-  // Calculate progress within the current tier
-  const progressInTier = totalWager - currentTierMin;
-  const tierRange = nextTierMin - currentTierMin;
-  
-  return Math.min(progressInTier / tierRange, 1);
+  return getOriginalNextTierProgress(totalWager);
 }
 
 /**
@@ -272,19 +128,31 @@ export function getNextTierProgress(totalWager: number): number {
  * @returns Next tier information or null if at highest tier
  */
 export function getNextTierInfo(currentTier: TierLevel | number): TierInfo | null {
-  // If passed a number (totalWager), convert to tier level
-  const tierLevel = typeof currentTier === 'number' ? getTierFromWager(currentTier) : currentTier;
-  
-  // If already at legend tier, return null
-  if (tierLevel === "legend") {
-    return null;
+  // If it's a tier level, map it to the new system
+  if (typeof currentTier === 'string') {
+    const mapping: Record<TierLevel, string> = {
+      bronze: "bronze",
+      silver: "silver",
+      gold: "gold",
+      platinum: "platinum",
+      diamond: "pearl",
+      master: "sapphire",
+      legend: "emerald"
+    };
+    
+    const nextTier = getOriginalNextTierInfo(mapping[currentTier]);
+    if (!nextTier) return null;
+    
+    // Convert back to legacy format
+    return nextTier as unknown as TierInfo;
   }
   
-  const tiers = Object.keys(TIERS) as TierLevel[];
-  const currentTierIndex = tiers.indexOf(tierLevel);
-  const nextTier = tiers[currentTierIndex + 1];
+  // If it's a number (totalWager), just pass it through
+  const nextTier = getOriginalNextTierInfo(currentTier);
+  if (!nextTier) return null;
   
-  return TIERS[nextTier];
+  // Convert to legacy format
+  return nextTier as unknown as TierInfo;
 }
 
 /**
@@ -294,23 +162,5 @@ export function getNextTierInfo(currentTier: TierLevel | number): TierInfo | nul
  * @returns Progress percentage (0-100)
  */
 export function getTierProgressPercentage(totalWager: number): number {
-  const currentTier = getTierFromWager(totalWager);
-  
-  // If already at legend tier, return 100%
-  if (currentTier === "legend") {
-    return 100;
-  }
-  
-  const tiers = Object.keys(TIERS) as TierLevel[];
-  const currentTierIndex = tiers.indexOf(currentTier);
-  const nextTier = tiers[currentTierIndex + 1];
-  
-  const currentTierMin = TIERS[currentTier].minWager;
-  const nextTierMin = TIERS[nextTier].minWager;
-  
-  // Calculate progress within the current tier
-  const progressInTier = totalWager - currentTierMin;
-  const tierRange = nextTierMin - currentTierMin;
-  
-  return Math.min(Math.floor((progressInTier / tierRange) * 100), 100);
+  return getOriginalTierProgressPercentage(totalWager);
 }
