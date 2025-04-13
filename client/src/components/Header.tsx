@@ -82,7 +82,7 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
                 touchAction: 'manipulation' // Improve touch handling
               }}
             >
-              <Search className="h-5 w-5 text-white hover:text-[#D7FF00] transition-colors duration-300" />
+              <Search className="h-5 w-5 text-[#D7FF00] hover:text-[#D7FF00]/80 transition-colors duration-300" />
             </Button>
 
             {/* Quick action buttons */}
