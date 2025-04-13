@@ -167,7 +167,7 @@ export const headerClasses = {
   mobileSearchContainer: "container mx-auto px-4 py-2 relative",
   mobileSearchButton: "md:hidden h-10 w-10 flex items-center justify-center transform transition-transform duration-300 hover:scale-110",
   mobileCloseButton: "absolute right-4 top-1/2 transform -translate-y-1/2 h-8 w-8 flex items-center justify-center",
-  logoContainer: "flex items-center justify-center overflow-hidden", // New class for better logo containment
+  logoContainer: "flex items-center justify-center overflow-hidden pt-1.5", // New class for better logo containment
 };
 
 export const mobileClasses = {
