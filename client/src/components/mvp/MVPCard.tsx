@@ -115,12 +115,22 @@ export function MVPCard({
   return (
     <>
       <motion.div
-        className="relative w-full h-[200px] cursor-pointer"
+        className="relative w-full h-[200px] cursor-pointer select-none"
         onClick={(e) => {
-          // Prevent event bubbling issues
-          e.stopPropagation();
-          onOpenChange(true);
+          if (e.target === e.currentTarget || e.target instanceof HTMLDivElement) {
+            e.preventDefault();
+            e.stopPropagation();
+            onOpenChange(true);
+          }
         }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onOpenChange(true);
+          }
+        }}
+        role="button"
+        tabIndex={0}
         {...fadeIn}
       >
         <div className="relative h-full">
@@ -136,11 +146,17 @@ export function MVPCard({
           <div 
             onTouchStart={() => {}} // Empty handler to ensure touch events register properly
             onClick={(e) => {
-              // Stop propagation to prevent event conflicts
-              e.stopPropagation();
-              
               const target = e.target as HTMLElement;
-              if (!target.closest('.username-trigger')) {
+              if (!target.closest('.username-trigger') && !target.closest('[role="button"]')) {
+                e.preventDefault();
+                e.stopPropagation();
+                onOpenChange(true);
+              }
+            }}
+            onTouchEnd={(e) => {
+              const target = e.target as HTMLElement;
+              if (!target.closest('.username-trigger') && !target.closest('[role="button"]')) {
+                e.preventDefault();
                 onOpenChange(true);
               }
             }}
