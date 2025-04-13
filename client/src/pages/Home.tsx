@@ -378,9 +378,9 @@ export default function Home() {
                         perks.
                       </p>
                       <div className="mt-auto">
-                        <span className="font-heading text-[#D7FF00] inline-flex items-center gap-2 hover:text-[#D7FF00]/80 transition-colors">
+                        <Link href="/goated-token" className="font-heading text-[#D7FF00] inline-flex items-center gap-2 hover:text-[#D7FF00]/80 transition-colors">
                           Learn About Airdrops <ArrowRight className="h-4 w-4" />
-                        </span>
+                        </Link>
                       </div>
                     </div>
                   </div>
@@ -411,9 +411,9 @@ export default function Home() {
                         of exclusive offers and boost your gaming experience.
                       </p>
                       <div className="mt-auto">
-                        <span className="font-heading text-[#D7FF00] inline-flex items-center gap-2 hover:text-[#D7FF00]/80 transition-colors">
+                        <Link href="/promotions" className="font-heading text-[#D7FF00] inline-flex items-center gap-2 hover:text-[#D7FF00]/80 transition-colors">
                           View Promotions <ArrowRight className="h-4 w-4" />
-                        </span>
+                        </Link>
                       </div>
                     </div>
                   </div>
@@ -457,9 +457,9 @@ export default function Home() {
                         and instant support. Stay connected with fellow players.
                       </p>
                       <div className="mt-auto">
-                        <span className="font-heading text-[#D7FF00] inline-flex items-center gap-2 hover:text-[#D7FF00]/80 transition-colors">
+                        <Link href="/telegram" className="font-heading text-[#D7FF00] inline-flex items-center gap-2 hover:text-[#D7FF00]/80 transition-colors">
                           Join Community <ArrowRight className="h-4 w-4" />
-                        </span>
+                        </Link>
                       </div>
                     </div>
                   </div>
