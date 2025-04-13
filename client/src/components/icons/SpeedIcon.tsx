@@ -9,7 +9,14 @@ export const SpeedIcon: React.FC<SpeedIconProps> = ({ className, ...svgProps }) 
   const maskId = "lineMdSpeed0" + Math.random().toString(36).substr(2, 5);
 
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" className={className} {...svgProps}>
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24" 
+      className={`transform transition-all duration-300 hover:scale-110 hover:rotate-12 hover:filter hover:drop-shadow-[0_0_8px_rgba(215,255,0,0.6)] ${className}`} 
+      {...svgProps}
+    >
       <mask id={maskId}>
         <path
           fill="none"
@@ -60,7 +67,15 @@ export const SpeedIcon: React.FC<SpeedIconProps> = ({ className, ...svgProps }) 
           />
         </g>
       </mask>
-      <rect width="24" height="24" fill="currentColor" mask={`url(#${maskId})`} />
+      <rect width="24" height="24" fill="currentColor" mask={`url(#${maskId})`}>
+        <animate
+          attributeName="opacity"
+          dur="0.3s"
+          values="1;0.8;1"
+          repeatCount="1"
+          begin="mouseover"
+        />
+      </rect>
     </svg>
   );
 };
