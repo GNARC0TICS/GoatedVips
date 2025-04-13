@@ -13,6 +13,7 @@ import { UserMenu } from "./UserMenu";
 import { MobileNavigation } from "./MobileNavigation";
 import { MobileSearchDropdown } from "./MobileSearchDropdown";
 import { DesktopNavLinks } from "./NavigationLinks";
+import { AuthSection } from "./AuthSection";
 
 type HeaderProps = {
   isAuthenticated: boolean;
@@ -51,9 +52,15 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
                 />
                 
                 <div className="mt-6 px-4 border-t border-[#2A2B31]/50 pt-6 space-y-3">
+                  {/* Mobile auth section */}
                   {!user && (
                     <div onClick={() => setOpenMobile(false)}>
-                      <AuthModal isMobile={true} />
+                      <AuthSection 
+                        user={user} 
+                        handleLogout={handleLogout} 
+                        isMobile={true} 
+                        onMobileAction={() => setOpenMobile(false)}
+                      />
                     </div>
                   )}
 
@@ -99,7 +106,17 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
             </Sheet>
           </div>
           <Link href="/">
-            <img src="/images/logo-neon.png" alt="GOATED" className={`${headerClasses.logo} ml-1`} />
+            {/* Enhanced logo with proper aspect ratio preservation */}
+            <div className={`${headerClasses.logoContainer} relative ml-1`}>
+              <img 
+                src="/images/logo-neon.png" 
+                alt="GOATED" 
+                className={headerClasses.logo}
+                loading="eager" // Prioritize logo loading
+                width="auto"
+                height="32"
+              />
+            </div>
           </Link>
           <div className="h-16 border-r border-[#2A2B31] ml-2" />
 
@@ -187,11 +204,7 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
               </Button>
             </Link>
             <UtilityPanelButton />
-            {!user && (
-              <div onClick={() => setOpenMobile(false)}>
-                <AuthModal isMobile={true} />
-              </div>
-            )}
+            {/* Remove duplicate auth button in mobile view */}
           </div>
         </div>
 
@@ -202,15 +215,15 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
         <div className={headerClasses.userSection}>
           {user?.isAdmin && <AdminMenu />}
           
-          {user ? (
-            <UserMenu user={user} handleLogout={handleLogout} />
-          ) : (
-            <AuthModal />
-          )}
+          {/* Use the centralized AuthSection component */}
+          <AuthSection 
+            user={user} 
+            handleLogout={handleLogout} 
+          />
         </div>
       </nav>
     </header>
   );
 }
 
-export default Header;
+export default Header; // Export the named function

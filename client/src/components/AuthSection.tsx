@@ -1,50 +1,40 @@
 import React from "react";
-import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
+import { SelectUser } from "@db/schema";
+import AuthModal from "@/components/AuthModal";
+import { UserMenu } from "./UserMenu";
 
-// Import from style constants
-import { buttonStyles } from "@/lib/style-constants";
+/**
+ * AuthSection component
+ * This component abstracts the authentication display logic
+ * to ensure consistent rendering across desktop and mobile views
+ */
+interface AuthSectionProps {
+  user: SelectUser | undefined;
+  handleLogout: () => Promise<void>;
+  isMobile?: boolean;
+  onMobileAction?: () => void; // Optional callback for mobile actions (e.g., closing menu)
+}
 
-// Style constants for this component
-export const authSectionClasses = {
-  container: "container mx-auto flex justify-end mt-16 pt-2 px-4",
-  wrapper: "hidden md:flex items-center gap-3 z-40 absolute right-4",
-  buttons: "flex items-center gap-2 ml-auto",
-};
-
-type AuthSectionProps = {
-  isAuthenticated: boolean;
-};
-
-export function AuthSection({ isAuthenticated }: AuthSectionProps) {
+export function AuthSection({ 
+  user, 
+  handleLogout, 
+  isMobile = false,
+  onMobileAction
+}: AuthSectionProps) {
+  // If user is logged in, show user menu, otherwise show auth modal
   return (
-    <div className={authSectionClasses.container}>
-      <div className={authSectionClasses.wrapper}>
-        {/* PLAY button - always visible */}
-        <div className="hidden lg:flex items-center gap-2 ml-auto">
-          {isAuthenticated ? (
-            <Link href="/dashboard">
-              <Button className={buttonStyles.primary}>
-                Dashboard
-              </Button>
-            </Link>
-          ) : (
-            <>
-              <Link href="/login">
-                <Button className={buttonStyles.outline}>
-                  Login / Register
-                </Button>
-              </Link>
-              <Link href="/play">
-                <Button className={`${buttonStyles.primary} uppercase font-heading`}>
-                  Play Now
-                </Button>
-              </Link>
-            </>
-          )}
+    <>
+      {user ? (
+        <UserMenu 
+          user={user} 
+          handleLogout={handleLogout} 
+        />
+      ) : (
+        <div onClick={onMobileAction}>
+          <AuthModal isMobile={isMobile} />
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 }
 

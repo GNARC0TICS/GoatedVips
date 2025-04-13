@@ -159,7 +159,7 @@ export const headerClasses = {
   container:
     "fixed top-0 left-0 right-0 z-50 bg-[#14151A]/80 backdrop-blur-xl border-b border-[#2A2B31]/50",
   nav: "container mx-auto h-16 px-4 flex items-center justify-between",
-  logo: "h-8 w-auto relative transition-transform duration-300 hover:scale-105",
+  logo: "h-6 sm:h-7 md:h-8 w-auto relative object-contain transition-transform duration-300",
   menuButton: "md:hidden relative overflow-hidden group",
   desktopNav: "hidden md:flex items-center space-x-4",
   userSection: "flex items-center gap-2 md:gap-3",
@@ -167,6 +167,7 @@ export const headerClasses = {
   mobileSearchContainer: "container mx-auto px-4 py-2 relative",
   mobileSearchButton: "md:hidden h-10 w-10 flex items-center justify-center transform transition-transform duration-300 hover:scale-110",
   mobileCloseButton: "absolute right-4 top-1/2 transform -translate-y-1/2 h-8 w-8 flex items-center justify-center",
+  logoContainer: "flex items-center justify-center overflow-hidden", // New class for better logo containment
 };
 
 export const mobileClasses = {

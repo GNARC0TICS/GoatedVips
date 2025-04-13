@@ -11,7 +11,7 @@ import {
   SheetTrigger 
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import AuthModal from "@/components/AuthModal";
+import { AuthSection } from "./AuthSection";
 import { motion } from "framer-motion";
 import giftIcon from '/images/GIFT.png';
 import {
@@ -227,9 +227,15 @@ export function MobileNavigation({
             )}
 
             <div className="mt-6 px-4 border-t border-[#2A2B31]/50 pt-6 space-y-3">
+              {/* Authentication section */}
               {!user && (
                 <div onClick={() => setOpenMobile(false)}>
-                  <AuthModal isMobile={true} />
+                  <AuthSection 
+                    user={undefined} /* Force undefined instead of null/undefined to match type */
+                    handleLogout={handleLogout} 
+                    isMobile={true} 
+                    onMobileAction={() => setOpenMobile(false)}
+                  />
                 </div>
               )}
 
