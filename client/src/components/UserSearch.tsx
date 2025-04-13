@@ -190,9 +190,9 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
       height="24" 
       viewBox="0 0 24 24"
       className={className}
-      fill="#D7FF00"
+      fill="currentColor"
     >
-      <path d="m9.5 10.95l-1.375 1.075q-.15.125-.3.013t-.1-.288l.525-1.7L6.8 8.9q-.125-.125-.062-.288t.237-.162H8.7l.55-1.725q.05-.175.25-.175t.25.175l.55 1.725h1.725q.175 0 .238.163T12.2 8.9l-1.45 1.15l.525 1.7q.05.175-.1.288t-.3-.013zm0 5.05q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l5.6 5.6q.275.275.275.7t-.275.7t-.7.275t-.7-.275l-5.6-5.6q-.75.6-1.725.95T9.5 16m0-2q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14" />
+      <path d="M21.71 20.29L18 16.61A9 9 0 1 0 16.61 18l3.68 3.68a1 1 0 0 0 1.42 0a1 1 0 0 0 0-1.39zM11 18a7 7 0 1 1 7-7a7 7 0 0 1-7 7z" />
     </svg>
   );
 
@@ -221,7 +221,7 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
   return (
     <div className="w-full relative">
       <div className="relative mb-1">
-        <SearchIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#D7FF00]" />
+        <SearchIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#D7FF00] transition-colors duration-200" />
         <Input
           id={isMobile ? "mobile-search-input" : "desktop-search-input"}
           ref={inputRef}
