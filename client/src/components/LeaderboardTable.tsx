@@ -381,7 +381,7 @@ export const LeaderboardTable = React.memo(function LeaderboardTable({ timePerio
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="p-4 border-t border-[#2A2B31] flex items-center justify-between"
+            className="p-6 border-t border-[#2A2B31] flex flex-col md:flex-row items-center justify-center gap-4"
           >
             <div className="flex items-center gap-2 text-[#8A8B91]">
               <Users className="h-4 w-4" />
@@ -390,17 +390,17 @@ export const LeaderboardTable = React.memo(function LeaderboardTable({ timePerio
               </span>
             </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Button
               variant="outline"
               size="icon"
               onClick={handlePrevPage}
               disabled={currentPage === 0}
-              className="h-8 w-8 border-[#2A2B31] hover:bg-[#2A2B31] hover:text-[#D7FF00] transition-colors"
+              className="h-9 w-9 bg-[#D7FF00] border-[#D7FF00] text-black hover:bg-[#D7FF00]/90 hover:border-[#D7FF00]/90 hover:text-black transition-all duration-200 transform active:scale-95 shadow-lg disabled:opacity-50 disabled:shadow-none disabled:transform-none"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-5 w-5" />
             </Button>
-            <span className="text-[#8A8B91] text-sm px-2">
+            <span className="text-[#8A8B91] text-sm font-medium px-2 min-w-[100px] text-center">
               Page {currentPage + 1} of {totalPages || 1}
             </span>
             <Button
@@ -408,9 +408,9 @@ export const LeaderboardTable = React.memo(function LeaderboardTable({ timePerio
               size="icon"
               onClick={handleNextPage}
               disabled={currentPage >= totalPages - 1}
-              className="h-8 w-8 border-[#2A2B31] hover:bg-[#2A2B31] hover:text-[#D7FF00] transition-colors"
+              className="h-9 w-9 bg-[#D7FF00] border-[#D7FF00] text-black hover:bg-[#D7FF00]/90 hover:border-[#D7FF00]/90 hover:text-black transition-all duration-200 transform active:scale-95 shadow-lg disabled:opacity-50 disabled:shadow-none disabled:transform-none"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
         </motion.div>
