@@ -25,8 +25,8 @@ export default function CryptoSwap() {
           transition={{ duration: 0.5 }}
           className="max-w-5xl mx-auto"
         >
-          <h1 className="text-3xl md:text-4xl font-heading text-white mb-4 text-center uppercase">
-            Crypto <span className="text-[#D7FF00]">Swap</span>
+          <h1 className="text-3xl md:text-4xl font-heading text-white mb-4 text-center uppercase tracking-wider">
+            <span className="text-white">CRYPTO</span> <span className="text-[#D7FF00]">SWAP</span>
           </h1>
           <p className="text-gray-400 text-center mb-8 max-w-2xl mx-auto">
             Quickly and securely exchange between cryptocurrencies with our integrated swap service.
