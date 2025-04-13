@@ -78,9 +78,6 @@ export function Layout({ children, hideAuthButton }: LayoutProps) {
         handleLogout={handleLogout} 
       />
 
-      {/* Auth Section - Desktop Only */}
-      {!hideAuthButton && <AuthSection isAuthenticated={isAuthenticated} />}
-
       {/* Main content area */}
       <main className="flex-1">
         {children}

@@ -31,79 +31,13 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
         <MobileSearchDropdown isOpen={mobileSearchOpen} onClose={() => setMobileSearchOpen(false)} />
         <div className="flex items-center gap-2">
           <div className={headerClasses.menuButton}>
-            <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-all duration-300 hover:scale-110"
-                >
-                  <Menu className="h-6 w-6 text-white hover:text-[#D7FF00] transition-colors duration-300" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent
-                side="left"
-                className="w-[300px] bg-[#14151A] border-r border-[#2A2B31] overflow-y-auto p-0"
-              >
-                <MobileNavigation 
-                  user={user} 
-                  isAuthenticated={isAuthenticated} 
-                  handleLogout={handleLogout} 
-                />
-
-                <div className="mt-6 px-4 border-t border-[#2A2B31]/50 pt-6 space-y-3">
-                  {/* Mobile auth section */}
-                  {!user && (
-                    <div onClick={() => setOpenMobile(false)}>
-                      <AuthSection 
-                        user={user} 
-                        handleLogout={handleLogout} 
-                        isMobile={true} 
-                        onMobileAction={() => setOpenMobile(false)}
-                      />
-                    </div>
-                  )}
-
-                  <Button
-                    onClick={() => {
-                      setOpenMobile(false);
-                      window.open("https://www.goated.com/r/SPIN", "_blank");
-                    }}
-                    className="w-full bg-[#D7FF00] text-[#14151A] hover:bg-[#D7FF00]/90 transition-colors font-bold group"
-                  >
-                    <span className="flex items-center gap-1">
-                      PLAY NOW
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        width="20" 
-                        height="20" 
-                        viewBox="0 0 24 24"
-                        className="ml-1"
-                      >
-                        <path 
-                          fill="currentColor" 
-                          stroke="currentColor" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                          strokeWidth="2" 
-                          d="M8 6l10 6l-10 6Z"
-                        />
-                      </svg>
-                    </span>
-                  </Button>
-
-                  {user && (
-                    <Button
-                      onClick={handleLogout}
-                      variant="destructive"
-                      className="w-full"
-                    >
-                      Logout
-                    </Button>
-                  )}
-                </div>
-              </SheetContent>
-            </Sheet>
+            <MobileNavigation 
+              user={user} 
+              isAuthenticated={isAuthenticated} 
+              handleLogout={handleLogout}
+              setOpenMobile={setOpenMobile}
+              openMobile={openMobile}
+            />
           </div>
           <Link href="/">
             {/* Enhanced logo with proper aspect ratio preservation */}
