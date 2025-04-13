@@ -348,19 +348,36 @@ export const LeaderboardTable = React.memo(function LeaderboardTable({ timePerio
           </Table>
         </div>
 
-        {/* Pagination Footer */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="p-4 border-t border-[#2A2B31] flex items-center justify-between"
-        >
-          <div className="flex items-center gap-2 text-[#8A8B91]">
-            <Users className="h-4 w-4" />
-            <span className="text-sm">
-              {metadata?.totalUsers || filteredData.length} Players
-            </span>
+        {/* Total Wagered Summary */}
+          <div className="p-6 bg-[#1A1B21]/80 border-t border-[#2A2B31]">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div>
+                <h4 className="text-[#8A8B91] font-heading text-sm mb-1">TOTAL WAGERED THIS PERIOD</h4>
+                <p className="text-2xl font-bold text-[#D7FF00]">
+                  ${filteredData.reduce((sum: number, entry: LeaderboardEntry) => 
+                    sum + getWagerAmount(entry), 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="flex items-center gap-3 text-white/70">
+                <TrendingUp className="h-5 w-5 text-[#D7FF00]" />
+                <span className="text-sm">Last updated {metadata?.lastUpdated ? getLastUpdateTime(metadata.lastUpdated) : 'recently'}</span>
+              </div>
+            </div>
           </div>
+
+          {/* Pagination Footer */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="p-4 border-t border-[#2A2B31] flex items-center justify-between"
+          >
+            <div className="flex items-center gap-2 text-[#8A8B91]">
+              <Users className="h-4 w-4" />
+              <span className="text-sm">
+                {metadata?.totalUsers || filteredData.length} Players
+              </span>
+            </div>
 
           <div className="flex items-center gap-2">
             <Button
