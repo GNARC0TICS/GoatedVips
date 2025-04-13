@@ -326,14 +326,39 @@ export const LeaderboardTable = React.memo(function LeaderboardTable({ timePerio
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <motion.span 
-                              className="text-white font-semibold"
+                            <motion.div 
+                              className="relative"
                               initial={false}
-                              animate={{ scale: entry.isWagering ? [1, 1.05, 1] : 1 }}
-                              transition={{ duration: 0.3 }}
                             >
-                              ${(getWagerAmount(entry) || 0).toLocaleString()}
-                            </motion.span>
+                              <motion.span 
+                                key={getWagerAmount(entry)}
+                                className="text-white font-semibold inline-block"
+                                initial={{ y: 10, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                exit={{ y: -10, opacity: 0 }}
+                                transition={{ 
+                                  type: "spring",
+                                  stiffness: 500,
+                                  damping: 30,
+                                  mass: 1
+                                }}
+                              >
+                                ${(getWagerAmount(entry) || 0).toLocaleString()}
+                              </motion.span>
+                              {entry.isWagering && (
+                                <motion.div
+                                  className="absolute inset-0"
+                                  animate={{
+                                    boxShadow: ["0 0 0px rgba(215, 255, 0, 0)", "0 0 8px rgba(215, 255, 0, 0.5)", "0 0 0px rgba(215, 255, 0, 0)"]
+                                  }}
+                                  transition={{
+                                    duration: 1.5,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                  }}
+                                />
+                              )}
+                            </motion.div>
                             <AnimatePresence>
                               {entry.isWagering && entry.wagerChange && entry.wagerChange > 0 && (
                                 <motion.div
