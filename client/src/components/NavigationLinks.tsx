@@ -92,12 +92,12 @@ export const NavLink = React.memo(function NavLink({ href, label, tooltip }: Nav
   );
 });
 
-type MobileNavProps = {
+type MobileNavContentProps = {
   setOpenMobile: (open: boolean) => void;
   isAuthenticated: boolean;
 };
 
-export function MobileNavigation({ setOpenMobile, isAuthenticated }: MobileNavProps) {
+export function MobileNavigationContent({ setOpenMobile, isAuthenticated }: MobileNavContentProps) {
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}

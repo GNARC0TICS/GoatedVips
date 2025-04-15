@@ -68,18 +68,21 @@ type MobileNavigationProps = {
   isAuthenticated: boolean;
   handleLogout: () => Promise<void>;
   setOpenMobile?: (open: boolean) => void; // Optional to maintain backward compatibility
+  openMobile?: boolean; // Control open state from parent (added for Header.tsx)
 };
 
 export function MobileNavigation({ 
   user, 
   isAuthenticated,
   handleLogout,
-  setOpenMobile: externalSetOpenMobile 
+  setOpenMobile: externalSetOpenMobile,
+  openMobile: externalOpenMobile
 }: MobileNavigationProps) {
   // If external setter is provided, use it; otherwise use internal state
   const [internalOpenMobile, setInternalOpenMobile] = useState(false);
   const setOpenMobile = externalSetOpenMobile || setInternalOpenMobile;
-  const openMobile = externalSetOpenMobile ? undefined : internalOpenMobile; // Let Sheet control state if external setter
+  // Use externally provided openMobile value if available, otherwise use internal state
+  const openMobile = externalOpenMobile !== undefined ? externalOpenMobile : internalOpenMobile;
 
   return (
     <div className="md:hidden relative overflow-hidden group">
