@@ -1,37 +1,14 @@
-import React, { useRef, useEffect, useState } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { footerClasses } from "@/lib/style-constants";
-import { motion } from "framer-motion";
 
 export function Footer() {
-  const footerRef = useRef<HTMLElement>(null);
-  const [isFooterVisible, setIsFooterVisible] = useState(false);
-
-  // Track footer visibility for animations
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => setIsFooterVisible(entry.isIntersecting),
-      { threshold: 0.1 }
-    );
-    
-    if (footerRef.current) {
-      observer.observe(footerRef.current);
-      return () => {
-        observer.disconnect();
-      };
-    }
-  }, []);
-
   return (
-    <footer ref={footerRef} className={footerClasses.wrapper}>
+    <footer className={footerClasses.wrapper}>
       <div className="absolute inset-0 bg-gradient-to-b from-[#D7FF00]/20 to-transparent pointer-events-none" />
       <div className={footerClasses.container}>
         <div className={footerClasses.grid}>
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={isFooterVisible ? { opacity: 1, y: 0 } : {}}
-            transition={{ delay: 0.2 }}
-          >
+          <div className="transition-all duration-300">
             <div className="flex items-center gap-3 mb-4">
               <h4 className={footerClasses.heading}>
                 Ready to get Goated?
@@ -41,11 +18,15 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="transform transition-transform duration-300 hover:scale-110"
+                style={{
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'manipulation'
+                }}
               >
                 <img
                   src="/images/Goated Logo - Black.png"
                   alt="Goated"
-                  className="h-8 w-auto entrance-zoom wiggle-animation"
+                  className="h-8 w-auto"
                 />
               </a>
             </div>
@@ -58,16 +39,17 @@ export function Footer() {
                 window.open("https://www.goated.com/r/EARLYACCESS", "_blank")
               }
               className="bg-[#14151A] text-white hover:bg-[#14151A]/90 transition-colors"
+              style={{
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
+                minHeight: '44px'
+              }}
             >
               Sign Up Now
             </Button>
-          </motion.div>
+          </div>
           
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={isFooterVisible ? { opacity: 1, y: 0 } : {}}
-            transition={{ delay: 0.4 }}
-          >
+          <div className="transition-all duration-300">
             <div className="flex items-center gap-2 mb-4">
               <h4 className={footerClasses.heading}>
                 Stay Updated
@@ -77,6 +59,10 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="transform transition-transform duration-300 hover:scale-110"
+                style={{
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'manipulation'
+                }}
               >
                 <img
                   src="/images/Goated logo with text.png"
@@ -88,17 +74,28 @@ export function Footer() {
             <p className="text-[#14151A] mb-6">
               Subscribe to our newsletter for exclusive offers and updates!
             </p>
-            <form onSubmit={(e) => e.preventDefault()} className="flex gap-2">
+            <form 
+              onSubmit={(e) => e.preventDefault()} 
+              className="flex gap-2"
+            >
               <input
                 type="email"
                 placeholder="Enter your email"
                 className="flex-1 px-4 py-2 rounded-lg border border-[#14151A]/20 focus:outline-none focus:border-[#14151A] transition-colors duration-300"
+                style={{ fontSize: '16px' }}
               />
-              <Button className="bg-[#14151A] text-white hover:bg-[#14151A]/90">
+              <Button 
+                className="bg-[#14151A] text-white hover:bg-[#14151A]/90"
+                style={{
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'manipulation',
+                  minHeight: '44px'
+                }}
+              >
                 Subscribe
               </Button>
             </form>
-          </motion.div>
+          </div>
         </div>
       </div>
       
@@ -111,6 +108,10 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="transform transition-transform duration-300 hover:scale-105"
+                style={{
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'manipulation'
+                }}
               >
                 <img
                   src="/images/Goated logo with text.png"
@@ -123,6 +124,10 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="transform transition-transform duration-300 hover:scale-105"
+                style={{
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'manipulation'
+                }}
               >
                 <img
                   src="/images/Goated logo with text1.png"

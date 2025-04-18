@@ -26,11 +26,21 @@ export function ClickableUsername({
   withQuickProfile = true,
   onClick
 }: ClickableUsernameProps) {
-  // Stop propagation to prevent unwanted parent clicks
+  // Stop propagation to prevent unwanted parent clicks and handle navigation
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent default browser behavior
     e.stopPropagation(); // Stop event bubbling
-    if (onClick) onClick(e);
+    
+    // If custom click handler is provided, use it
+    if (onClick) {
+      onClick(e);
+    } 
+    // Otherwise if not using QuickProfile, navigate to profile page directly
+    else if (!withQuickProfile) {
+      // Use window.location for more direct navigation
+      window.location.href = `/profile/${userId}`;
+    }
+    // When withQuickProfile=true, the QuickProfile component handles the click
   };
   
   // Mobile-friendly styles
@@ -48,8 +58,23 @@ export function ClickableUsername({
           type="button"
           className={`username-trigger ${className} inline-block text-inherit bg-transparent border-0 p-0 m-0`}
           onClick={handleClick}
-          onTouchStart={(e) => e.stopPropagation()} // Ensure touch events don't propagate
-          style={mobileStyles}
+          onTouchStart={(e) => {
+            e.stopPropagation(); // Ensure touch events don't propagate
+            // Add visual feedback for touch
+            e.currentTarget.style.color = '#D7FF00';
+          }}
+          onTouchEnd={(e) => {
+            e.stopPropagation();
+            // Reset color after touch
+            e.currentTarget.style.color = '';
+            // Trigger click handler manually for better mobile response
+            handleClick(e as unknown as React.MouseEvent);
+          }}
+          style={{
+            ...mobileStyles,
+            minHeight: '30px', // Ensure minimum touch target height
+            padding: '2px 0' // Add some padding for easier touch
+          }}
           role="button"
           aria-label={`View ${username}'s profile`}
         >
@@ -65,8 +90,23 @@ export function ClickableUsername({
       <a 
         className={className}
         onClick={handleClick}
-        onTouchStart={(e) => e.stopPropagation()} // Ensure touch events don't propagate
-        style={mobileStyles}
+        onTouchStart={(e) => {
+          e.stopPropagation(); // Ensure touch events don't propagate
+          // Add visual feedback for touch
+          e.currentTarget.style.color = '#D7FF00';
+        }}
+        onTouchEnd={(e) => {
+          e.stopPropagation();
+          // Reset color after touch
+          e.currentTarget.style.color = '';
+          // Trigger click handler manually for better mobile response
+          handleClick(e as unknown as React.MouseEvent);
+        }}
+        style={{
+          ...mobileStyles,
+          minHeight: '30px', // Ensure minimum touch target height
+          padding: '2px 0' // Add some padding for easier touch
+        }}
         role="button"
         aria-label={`View ${username}'s profile`}
       >

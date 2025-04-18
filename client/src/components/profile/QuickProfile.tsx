@@ -55,17 +55,32 @@ export function QuickProfile({
               font: 'inherit',
               WebkitTapHighlightColor: 'transparent',
               touchAction: 'manipulation',
-              userSelect: 'none'
+              userSelect: 'none',
+              minHeight: '44px', // Ensure minimum touch target size
+              position: 'relative', // Create a larger touch target while keeping visible size
+              zIndex: 5 // Ensure it's above other elements
             }}
             onClick={(e) => {
               e.stopPropagation(); // Prevent event bubbling
               setIsOpen(true);
             }}
+            onTouchStart={(e) => {
+              // Add explicit touch handler
+              e.stopPropagation();
+            }}
           >
             {children}
           </button>
         </DialogTrigger>
-        <DialogContent className="p-0 border-none bg-transparent shadow-none max-w-md mx-auto">
+        <DialogContent 
+          className="p-0 border-none bg-transparent shadow-none max-w-md mx-auto"
+          style={{
+            WebkitOverflowScrolling: 'touch', // Improved scrolling on iOS
+            overscrollBehavior: 'contain', // Prevent pull-to-refresh
+            touchAction: 'pan-y', // Allow vertical scrolling
+            zIndex: 50 // Ensure it's above other elements
+          }}
+        >
           <QuickProfileCard
             profileId={userId}
             onClose={handleClose}

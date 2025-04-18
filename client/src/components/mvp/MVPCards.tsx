@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { motion } from "framer-motion";
 import { Trophy, User, RefreshCw } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from '@/hooks/use-auth';
 import { useProfile } from '@/hooks/use-profile';
 import { colors, cardStyles, textStyles, buttonStyles } from '@/lib/style-constants';
-import { fadeInUp, cardHover, createStaggered } from '@/lib/animation-presets';
 import { MVPCard, MVP, TimePeriod } from './MVPCard';
 
 /**
@@ -186,9 +184,6 @@ export function MVPCards() {
     includeStats: true 
   });
 
-  // Create staggered animation for cards
-  const staggeredAnimation = createStaggered(cardHover, 0.1);
-
   // Display loading state or errors
   if (isLoading || isError) {
     return (
@@ -201,6 +196,11 @@ export function MVPCards() {
               className="mt-3 bg-red-900/30 hover:bg-red-900/50 text-red-200"
               size="sm"
               onClick={() => refetch()}
+              style={{
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
+                minHeight: '44px'
+              }}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
               Retry
@@ -209,11 +209,8 @@ export function MVPCards() {
         )}
 
         {timeframes.map((timeframe, index) => (
-          <motion.div
+          <div
             key={timeframe.period}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: index * 0.1 }}
             className="p-6 bg-[#1A1B21]/50 h-48 rounded-xl relative overflow-hidden"
           >
             <div className="flex items-center gap-2 mb-4">
@@ -228,23 +225,21 @@ export function MVPCards() {
               <div className="h-5 w-32 animate-pulse bg-gradient-to-r from-[#1A1B21]/30 to-[#1A1B21]/50 rounded" />
             </div>
             <div className="h-8 w-full animate-pulse bg-gradient-to-r from-[#1A1B21]/30 to-[#1A1B21]/50 rounded" />
-          </motion.div>
+          </div>
         ))}
       </div>
     );
   }
 
   return (
-    <motion.div 
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto perspective-1000 px-4"
+    <div 
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-4"
       style={{ isolation: 'isolate' }}
-      {...staggeredAnimation.container}
     >
       {/* MVP Cards for each time period */}
       {timeframes.map((timeframe) => (
-        <motion.div
+        <div
           key={timeframe.period}
-          {...staggeredAnimation.item}
           className="relative"
           style={{ zIndex: openCard === timeframe.period ? 50 : 1 }}
         >
@@ -255,13 +250,11 @@ export function MVPCards() {
             onOpenChange={(open) => handleDialogChange(open, timeframe.period)}
             leaderboardData={leaderboardData}
           />
-        </motion.div>
+        </div>
       ))}
 
       {/* Backside Card - shows user stats or prompts login */}
-      <motion.div
-        {...fadeInUp}
-        transition={{ ...fadeInUp.transition, delay: 0.3 }}
+      <div
         className="relative"
         style={{ zIndex: 1 }}
       >
@@ -328,6 +321,11 @@ export function MVPCards() {
                           variant="outline" 
                           size="sm"
                           className="w-full bg-[#D7FF00]/10 border-[#D7FF00]/20 text-[#D7FF00] hover:bg-[#D7FF00]/20"
+                          style={{
+                            WebkitTapHighlightColor: 'transparent',
+                            touchAction: 'manipulation',
+                            minHeight: '44px'
+                          }}
                         >
                           View Full Profile
                         </Button>
@@ -368,6 +366,11 @@ export function MVPCards() {
                         variant="default" 
                         size="sm"
                         className={buttonStyles.primary + " w-full"}
+                        style={{
+                          WebkitTapHighlightColor: 'transparent',
+                          touchAction: 'manipulation',
+                          minHeight: '44px'
+                        }}
                       >
                         Sign In
                       </Button>
@@ -378,8 +381,8 @@ export function MVPCards() {
             </div>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
 

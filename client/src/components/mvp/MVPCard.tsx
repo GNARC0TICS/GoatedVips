@@ -1,14 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from "framer-motion";
+import React, { useState } from 'react';
 import { Trophy, TrendingUp } from "lucide-react";
-import { QuickProfile } from "@/components/profile/QuickProfile";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ProfileTierProgress } from '@/components/profile/ProfileTierProgress';
 import { getTierFromWager, getTierInfo, getTierIcon } from "@/lib/tier-utils";
 import { useQuery } from "@tanstack/react-query";
 import { profileService } from '@/services/profileService';
-import { colors, cardStyles, textStyles, gradients } from '@/lib/style-constants';
-import { fadeIn, fadeInUp } from '@/lib/animation-presets';
+import { colors, cardStyles, textStyles } from '@/lib/style-constants';
 import { ClickableUsername } from '@/components/username';
 
 /**
@@ -114,59 +111,46 @@ export function MVPCard({
 
   return (
     <>
-      <motion.div
+      <div
         className="relative w-full h-[200px] cursor-pointer select-none"
         onClick={(e) => {
-          if (e.target === e.currentTarget || e.target instanceof HTMLDivElement) {
-            e.preventDefault();
-            e.stopPropagation();
-            onOpenChange(true);
+          onOpenChange(true);
+        }}
+        onTouchStart={(e) => {
+          // Add feedback on touch start
+          const target = e.currentTarget.querySelector(`.${cardStyles.hover.split(' ')[0]}`);
+          if (target) {
+            (target as HTMLElement).style.transform = 'scale(0.98)';
+            (target as HTMLElement).style.boxShadow = 'inset 0 0 10px rgba(0,0,0,0.2)';
           }
         }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onOpenChange(true);
+        onTouchEnd={(e) => {
+          // Reset on touch end
+          const target = e.currentTarget.querySelector(`.${cardStyles.hover.split(' ')[0]}`);
+          if (target) {
+            (target as HTMLElement).style.transform = 'scale(1)';
+            (target as HTMLElement).style.boxShadow = '';
           }
+          onOpenChange(true);
         }}
         role="button"
         tabIndex={0}
-        {...fadeIn}
+        style={{
+          WebkitTapHighlightColor: 'transparent',
+          touchAction: 'manipulation',
+        }}
       >
         <div className="relative h-full">
-          {/* Background gradient hover effect */}
-          <div 
-            className="absolute inset-0 bg-gradient-to-b opacity-0 group-hover:opacity-100 transition-all duration-300 blur-sm" 
-            style={{ 
-              background: gradients.mvpHeader(timeframe.colors.primary),
-            }}
-          />
-          
           {/* Card content with enhanced mobile touch handling */}
           <div 
-            onTouchStart={() => {}} // Empty handler to ensure touch events register properly
-            onClick={(e) => {
-              const target = e.target as HTMLElement;
-              if (!target.closest('.username-trigger') && !target.closest('[role="button"]')) {
-                e.preventDefault();
-                e.stopPropagation();
-                onOpenChange(true);
-              }
-            }}
-            onTouchEnd={(e) => {
-              const target = e.target as HTMLElement;
-              if (!target.closest('.username-trigger') && !target.closest('[role="button"]')) {
-                e.preventDefault();
-                onOpenChange(true);
-              }
-            }}
-            className={cardStyles.hover + " touch-manipulation active:scale-[0.98] active:shadow-inner transition-all"}
+            className={cardStyles.hover}
             style={{
               '--hover-border-color': `${timeframe.colors.primary}80`,
               '--hover-shadow-color': `${timeframe.colors.primary}40`,
               height: '100%',
-              WebkitTapHighlightColor: 'transparent', // Remove tap highlight on mobile
-              touchAction: 'manipulation' // Improve touch handling
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation',
+              transition: 'transform 0.1s ease-out, box-shadow 0.1s ease-out'
             } as React.CSSProperties}
           >
             {/* Tier badge - positioned at the top right corner */}
@@ -222,9 +206,26 @@ export function MVPCard({
                 {/* Username with ClickableUsername component */}
                 <div className="flex-grow min-w-0">
                   <div 
-                    onClick={(e) => e.stopPropagation()} 
-                    onTouchStart={(e) => e.stopPropagation()}
-                    className="touch-manipulation"
+                    onClick={(e) => {
+                      // Stop propagation to prevent card click
+                      e.stopPropagation();
+                      e.preventDefault();
+                    }} 
+                    onTouchStart={(e) => {
+                      // Stop propagation on touch start to prevent card interactions
+                      e.stopPropagation();
+                    }}
+                    onTouchEnd={(e) => {
+                      // Stop propagation on touch end
+                      e.stopPropagation();
+                    }}
+                    // Make larger touch area while keeping text same size
+                    style={{
+                      padding: '5px 0',
+                      margin: '-5px 0',
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation'
+                    }}
                   >
                     <ClickableUsername
                       userId={mvp.uid}
@@ -250,11 +251,19 @@ export function MVPCard({
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Detailed view dialog */}
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className={cardStyles.dialog + " animate-in zoom-in-90 duration-300"}>
+        <DialogContent 
+          className={cardStyles.dialog + " animate-in zoom-in-90 duration-200"} 
+          style={{
+            WebkitOverflowScrolling: 'touch', // Improved scrolling on iOS
+            overscrollBehavior: 'contain', // Prevent pull-to-refresh
+            touchAction: 'pan-y', // Allow vertical scrolling
+            zIndex: 50 // Ensure it's above other elements
+          }}
+        >
           <div className="relative p-6 rounded-xl bg-gradient-to-b from-[#1A1B21]/80 to-[#1A1B21]/50 backdrop-blur-sm">
             <div className="absolute inset-0 bg-gradient-to-b from-[#2A2B31]/20 to-transparent opacity-50 rounded-xl" />
             <div className="relative">
@@ -268,11 +277,20 @@ export function MVPCard({
                       className="h-6 w-6" 
                     />
                   )}
-                  <ClickableUsername
-                    userId={mvp.uid}
-                    username={mvp.username}
-                    className="text-xl md:text-2xl font-heading text-white"
-                  />
+                  <div 
+                    style={{
+                      padding: '5px 0',
+                      margin: '-5px 0',
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation'
+                    }}
+                  >
+                    <ClickableUsername
+                      userId={mvp.uid}
+                      username={mvp.username}
+                      className="text-xl md:text-2xl font-heading text-white hover:text-[#D7FF00] transition-colors"
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 text-xl font-heading text-white">
                   <Trophy className="w-5 h-5 text-[#D7FF00]" />
@@ -282,16 +300,12 @@ export function MVPCard({
 
               {/* Tier progress - Only show if profile is loaded */}
               {profile && (
-                <motion.div 
-                  className="mb-4"
-                  {...fadeInUp}
-                  transition={{ ...fadeInUp.transition, delay: 0.1 }}
-                >
+                <div className="mb-4">
                   <ProfileTierProgress profile={{
                     ...profile, 
                     totalWager: String(mvp.wagered.all_time)
                   }} />
-                </motion.div>
+                </div>
               )}
 
               {/* Statistics section */}
@@ -302,32 +316,26 @@ export function MVPCard({
                   { label: "Monthly Rank", value: leaderboardData?.data?.monthly?.data?.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: colors.mvpPeriod.monthly.primary },
                   { label: "All-Time Rank", value: leaderboardData?.data?.all_time?.data?.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: colors.mvpPeriod.allTime.primary }
                 ].map((stat, index) => (
-                  <motion.div 
+                  <div 
                     key={index} 
                     className="flex justify-between items-center p-2 rounded-lg bg-black/20 hover:bg-black/30 transition-colors"
-                    {...fadeInUp}
-                    transition={{ ...fadeInUp.transition, delay: 0.1 + index * 0.05 }}
                   >
                     <span className="text-white/80 text-sm">{stat.label}:</span>
                     <span className="text-white font-mono font-bold" style={{ color: stat.color }}>
                       #{stat.value}
                     </span>
-                  </motion.div>
+                  </div>
                 ))}
                 
                 {/* All-time highlight */}
-                <motion.div 
-                  className="mt-6 p-3 rounded-lg bg-[#D7FF00]/10 border border-[#D7FF00]/20"
-                  {...fadeInUp}
-                  transition={{ ...fadeInUp.transition, delay: 0.3 }}
-                >
+                <div className="mt-6 p-3 rounded-lg bg-[#D7FF00]/10 border border-[#D7FF00]/20">
                   <div className="flex justify-between items-center">
                     <span className="text-[#D7FF00] text-sm font-semibold">All-Time Wagered:</span>
                     <span className="text-white font-mono font-bold text-lg">
                       ${mvp.wagered.all_time.toLocaleString()}
                     </span>
                   </div>
-                </motion.div>
+                </div>
               </div>
             </div>
           </div>

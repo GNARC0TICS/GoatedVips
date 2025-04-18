@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { AuthSection } from "./AuthSection";
-import { motion } from "framer-motion";
 import giftIcon from '/images/GIFT.png';
 import {
   Tooltip,
@@ -46,14 +45,16 @@ const MobileNavLink = React.memo(function MobileNavLink({
   
   return (
     <Link href={href}>
-      <motion.div
-        whileTap={{ scale: 0.98 }}
+      <div
         onClick={handleClick}
         onTouchStart={(e) => {
-          // iOS-specific touch handling to ensure touch events trigger properly
-          // This creates a better touch response on mobile devices
+          // Touch event registered to enhance mobile responsiveness
+          e.currentTarget.style.backgroundColor = isActive ? "#D7FF0030" : "#2A2B3190";
         }}
-        onTouchEnd={handleClick}
+        onTouchEnd={(e) => {
+          e.currentTarget.style.backgroundColor = isActive ? "#D7FF0020" : "transparent";
+          handleClick(e);
+        }}
         style={{
           WebkitTapHighlightColor: 'transparent',
           touchAction: 'manipulation',
@@ -65,7 +66,7 @@ const MobileNavLink = React.memo(function MobileNavLink({
         } ${isTitle || isHome ? "text-base font-bold" : "text-sm"}`}
       >
         {label}
-      </motion.div>
+      </div>
     </Link>
   );
 });
@@ -123,12 +124,7 @@ export function MobileNavigation({
           }}
           className="w-[300px] bg-[#14151A] border-r border-[#2A2B31] overflow-y-auto p-0"
         >
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-            className="flex flex-col gap-4 pt-8"
-          >
+          <div className="flex flex-col gap-4 pt-8">
             <div className="px-4 py-2 text-[#D7FF00] font-heading text-base font-bold">MENU</div>
             <MobileNavLink href="/" label="HOME" onClose={() => setOpenMobile(false)} isTitle={true} />
 
@@ -278,6 +274,11 @@ export function MobileNavigation({
                   window.open("https://www.goated.com/r/SPIN", "_blank");
                 }}
                 className="w-full bg-[#D7FF00] text-[#14151A] hover:bg-[#D7FF00]/90 transition-colors font-bold group"
+                style={{
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'manipulation',
+                  minHeight: '50px' // Larger touch target
+                }}
               >
                 <span className="flex items-center gap-1">
                   PLAY NOW
@@ -322,13 +323,18 @@ export function MobileNavigation({
                   onClick={handleLogout}
                   variant="destructive"
                   className="w-full"
+                  style={{
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation',
+                    minHeight: '50px' // Larger touch target
+                  }}
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   Logout
                 </Button>
               )}
             </div>
-          </motion.div>
+          </div>
         </SheetContent>
       </Sheet>
     </div>

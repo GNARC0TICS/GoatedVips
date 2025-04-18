@@ -1,21 +1,31 @@
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { ArrowUp } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 export function ScrollToTop() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    // Use a throttled scroll handler to improve performance
+    let lastScrollY = window.pageYOffset;
+    let ticking = false;
+
     const toggleVisibility = () => {
-      if (window.pageYOffset > 300) {
-        setIsVisible(true);
-      } else {
-        setIsVisible(false);
+      const currentScrollY = window.pageYOffset;
+      
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          setIsVisible(currentScrollY > 300);
+          ticking = false;
+        });
+        
+        ticking = true;
       }
+      
+      lastScrollY = currentScrollY;
     };
 
-    window.addEventListener("scroll", toggleVisibility);
+    window.addEventListener("scroll", toggleVisibility, { passive: true });
     return () => window.removeEventListener("scroll", toggleVisibility);
   }, []);
 
@@ -26,24 +36,24 @@ export function ScrollToTop() {
     });
   };
 
+  // Simplified non-animated version for better performance
+  if (!isVisible) return null;
+  
   return (
-    <AnimatePresence>
-      {isVisible && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-          className="fixed bottom-8 right-8 z-50"
-        >
-          <Button
-            onClick={scrollToTop}
-            size="icon"
-            className="rounded-full bg-[#D7FF00] hover:bg-[#D7FF00]/80 text-black"
-          >
-            <ArrowUp className="h-5 w-5" />
-          </Button>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div className="fixed bottom-8 right-8 z-50 transition-opacity duration-300 opacity-100">
+      <Button
+        onClick={scrollToTop}
+        size="icon"
+        className="rounded-full bg-[#D7FF00] hover:bg-[#D7FF00]/80 text-black shadow-md"
+        style={{
+          WebkitTapHighlightColor: 'transparent',
+          touchAction: 'manipulation',
+          minHeight: '44px',
+          minWidth: '44px'
+        }}
+      >
+        <ArrowUp className="h-5 w-5" />
+      </Button>
+    </div>
   );
 }
