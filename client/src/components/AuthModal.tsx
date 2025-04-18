@@ -40,7 +40,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
   const { toast } = useToast();
   
   // Common styles for form inputs - increased font size on mobile to prevent zooming
-  const inputStyles = "bg-[#2A2B31] border-[#3A3B41] focus:border-[#D7FF00] focus:ring-1 focus:ring-[#D7FF00] transition-all duration-300 md:text-sm text-base touch-manipulation";
+  const inputStyles = "bg-[#2A2B31] border-[#3A3B41] focus:border-[#D7FF00] focus:ring-1 focus:ring-[#D7FF00] transition-all duration-300 md:text-sm text-base h-12";
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(LoginSchema),
@@ -132,8 +132,13 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
         <Button 
           variant="outline" 
           onClick={() => setIsOpen(true)}
+          style={{
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent',
+            minHeight: isMobile ? '48px' : '40px'
+          }}
           className={`font-heading uppercase bg-[#1A1B21] border-[#2A2B31] hover:bg-[#2A2B31] hover:border-[#D7FF00] hover:shadow-[0_0_10px_rgba(215,255,0,0.3)] transition-all duration-300 text-sm tracking-wide ${
-            isMobile ? "w-full py-1.5 px-3" : "py-1.5 px-4"
+            isMobile ? "w-full py-2 px-4" : "py-1.5 px-4"
           }`}
         >
           <span className="text-white">LOGIN</span>
@@ -200,6 +205,11 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
                 <Button
                   type="submit"
                   className="w-full font-heading uppercase tracking-tight text-black bg-[#D7FF00] hover:bg-[#b2d000] hover:shadow-[0_0_12px_rgba(215,255,0,0.4)] transition-all duration-300"
+                  style={{
+                    touchAction: 'manipulation',
+                    WebkitTapHighlightColor: 'transparent',
+                    minHeight: '48px'
+                  }}
                   disabled={isLoading}
                 >
                   {isLoading ? "Signing In..." : "Sign In"}
@@ -208,6 +218,11 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
                   type="button"
                   variant="ghost"
                   className="text-sm font-heading uppercase tracking-tight text-[#8A8B91] hover:text-[#D7FF00] transition-colors duration-300"
+                  style={{
+                    touchAction: 'manipulation',
+                    WebkitTapHighlightColor: 'transparent',
+                    minHeight: '44px'
+                  }}
                   onClick={() => {
                     setMode("register");
                     loginForm.reset();
@@ -295,6 +310,11 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
                 <Button
                   type="submit"
                   className="w-full font-heading uppercase tracking-tight text-black bg-[#D7FF00] hover:bg-[#b2d000] hover:shadow-[0_0_12px_rgba(215,255,0,0.4)] transition-all duration-300"
+                  style={{
+                    touchAction: 'manipulation',
+                    WebkitTapHighlightColor: 'transparent',
+                    minHeight: '48px'
+                  }}
                   disabled={isLoading}
                 >
                   {isLoading ? "Creating Account..." : "Create Account"}
@@ -303,6 +323,11 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
                   type="button"
                   variant="ghost"
                   className="text-sm font-heading uppercase tracking-tight text-[#8A8B91] hover:text-[#D7FF00] transition-colors duration-300"
+                  style={{
+                    touchAction: 'manipulation',
+                    WebkitTapHighlightColor: 'transparent',
+                    minHeight: '44px'
+                  }}
                   onClick={() => {
                     setMode("login");
                     registerForm.reset();

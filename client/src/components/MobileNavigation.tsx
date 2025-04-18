@@ -39,21 +39,28 @@ const MobileNavLink = React.memo(function MobileNavLink({
   const isActive = location === href;
   const isHome = href === "/";
   
+  const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
+    onClose();
+  };
+  
   return (
     <Link href={href}>
       <motion.div
         whileTap={{ scale: 0.98 }}
-        onClick={(e) => {
-          e.stopPropagation(); // Prevent event bubbling
-          onClose();
+        onClick={handleClick}
+        onTouchStart={(e) => {
+          // iOS-specific touch handling to ensure touch events trigger properly
+          // This creates a better touch response on mobile devices
         }}
+        onTouchEnd={handleClick}
         style={{
           WebkitTapHighlightColor: 'transparent',
           touchAction: 'manipulation',
-          minHeight: '44px', // Ensure min height for touch targets
+          minHeight: '50px', // Increase height for better touch targets
           cursor: 'pointer'
         }}
-        className={`flex items-center px-4 py-3 rounded-lg transition-colors duration-200 ${
+        className={`flex items-center px-4 py-4 rounded-lg transition-colors duration-200 ${
           isActive ? "bg-[#D7FF00]/10 text-[#D7FF00]" : "text-white hover:bg-[#2A2B31] active:bg-[#2A2B31]/80"
         } ${isTitle || isHome ? "text-base font-bold" : "text-sm"}`}
       >
@@ -91,9 +98,18 @@ export function MobileNavigation({
           <Button
             variant="ghost"
             size="icon"
-            className="relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center transform transition-all duration-300 hover:scale-110"
+            className="relative h-12 w-12 md:h-12 md:w-12 flex items-center justify-center transform transition-all duration-300 hover:scale-110"
+            style={{
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent',
+              cursor: 'pointer'
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              // Add dummy handler to ensure touch events register properly
+            }}
           >
-            <Menu className="h-6 w-6 text-white hover:text-[#D7FF00] transition-colors duration-300" />
+            <Menu className="h-8 w-8 text-white hover:text-[#D7FF00] transition-colors duration-300" />
           </Button>
         </SheetTrigger>
         <SheetContent

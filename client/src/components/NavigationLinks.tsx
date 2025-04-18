@@ -31,14 +31,28 @@ export const MobileNavLink = React.memo(function MobileNavLink({
   const [location] = useLocation();
   const isActive = location === href;
   const isHome = href === "/";
+  
+  const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
+    onClose();
+  };
+  
   return (
     <Link href={href}>
       <motion.div
         whileTap={{ scale: 0.98 }}
-        onClick={(e) => {
-          onClose();
+        onClick={handleClick}
+        onTouchStart={(e) => {
+          // iOS-specific touch handling
         }}
-        className={`px-4 py-2.5 rounded-lg transition-colors duration-200 cursor-pointer ${
+        onTouchEnd={handleClick}
+        style={{
+          WebkitTapHighlightColor: 'transparent',
+          touchAction: 'manipulation',
+          minHeight: '50px', // Ensure min height for touch targets
+          cursor: 'pointer'
+        }}
+        className={`px-4 py-3 rounded-lg transition-colors duration-200 cursor-pointer ${
           isActive ? "bg-[#D7FF00]/10 text-[#D7FF00]" : "text-white hover:bg-[#2A2B31]"
         } ${isTitle || isHome ? "text-base font-bold" : "text-sm"}`}
       >
