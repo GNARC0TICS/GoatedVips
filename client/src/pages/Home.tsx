@@ -108,8 +108,8 @@ export default function Home() {
               become part of a thriving community where winning strategies are
               shared daily.
             </motion.p>
-            
-            
+
+
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
