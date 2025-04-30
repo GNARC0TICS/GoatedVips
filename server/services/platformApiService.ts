@@ -22,7 +22,9 @@ import {
   wagerRaces, 
   wagerRaceParticipants, 
   transformationLogs, 
-  users 
+  users,
+  insertWagerRaceSchema,
+  insertWagerRaceParticipantSchema
 } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 import { preparePassword } from "../utils/auth-utils";
@@ -382,6 +384,9 @@ export class PlatformApiService {
     const monthlyData = leaderboardData.data.monthly.data;
     const totalWagered = monthlyData.reduce((sum, p) => sum + p.wagered.this_month, 0);
     
+    // Save completed race data to database if race is ending today
+    this.saveCompletedRaceData(raceId, monthlyData);
+    
     // Create race data structure
     return {
       id: raceId,
@@ -564,6 +569,173 @@ export class PlatformApiService {
     console.error("Could not extract data array from API response", 
       typeof apiData === 'object' ? Object.keys(apiData || {}) : typeof apiData);
     return [];
+  }
+
+  /**
+   * Saves completed race data to the database
+   * This ensures we have a permanent record of the standings when a race completes
+   * 
+   * @param raceId The ID of the race that has completed
+   * @param monthlyData The leaderboard data for the month
+   */
+  private async saveCompletedRaceData(raceId: string, monthlyData: any[]): Promise<void> {
+    try {
+      console.log(`Saving completed race data for race ${raceId}`);
+      
+      // Check if we already have this race in our database
+      const existingRace = await db.query.wagerRaces.findFirst({
+        where: sql`name = ${raceId} OR title = ${`April 2025 Wager Race`}`,
+      });
+      
+      if (existingRace) {
+        console.log(`Race ${raceId} already exists in database with ID ${existingRace.id}`);
+        
+        // Only update if the race status isn't already 'ended'
+        if (existingRace.status !== 'ended') {
+          // Update the race to mark it as completed
+          await db.update(wagerRaces)
+            .set({
+              status: 'ended',
+              completedAt: new Date(),
+              updatedAt: new Date()
+            })
+            .where(sql`id = ${existingRace.id}`);
+          
+          console.log(`Updated race ${raceId} status to 'ended'`);
+        }
+        
+        // Get the latest participants data for this race from the database
+        const existingParticipants = await db.query.wagerRaceParticipants.findMany({
+          where: sql`race_id = ${existingRace.id}`,
+        });
+        
+        console.log(`Found ${existingParticipants.length} existing participants for race ${raceId}`);
+        
+        // Process the top 10 participants
+        const top10 = monthlyData
+          .slice(0, 10)
+          .map((participant, index) => ({
+            uid: participant.uid,
+            name: participant.name,
+            wagered: participant.wagered.this_month,
+            position: index + 1
+          }));
+        
+        // For each of the top 10 participants, update or insert into the database
+        for (const participant of top10) {
+          // Try to find a matching user in our database
+          const user = await db.query.users.findFirst({
+            where: sql`goated_id = ${participant.uid}`,
+          });
+          
+          // Check if this participant already exists in the race
+          const existingParticipant = existingParticipants.find(p => 
+            user ? p.userId === user.id : p.username === participant.name
+          );
+          
+          if (existingParticipant) {
+            // Update the existing participant record
+            await db.update(wagerRaceParticipants)
+              .set({
+                position: participant.position,
+                wagered: String(participant.wagered),
+                prizeAmount: String(participant.position <= 10 ? 
+                  Number(existingRace.prizePool) * (existingRace.prizeDistribution as any)[participant.position] : 0),
+                updatedAt: new Date()
+              })
+              .where(sql`id = ${existingParticipant.id}`);
+              
+            console.log(`Updated participant ${participant.name} for race ${raceId}`);
+          } else {
+            // Insert a new participant record
+            await db.insert(wagerRaceParticipants).values({
+              raceId: existingRace.id,
+              userId: user?.id,
+              username: participant.name,
+              wagered: String(participant.wagered),
+              position: participant.position,
+              prizeAmount: String(participant.position <= 10 ? 
+                Number(existingRace.prizePool) * (existingRace.prizeDistribution as any)[participant.position] : 0),
+              joinedAt: new Date(),
+              updatedAt: new Date()
+            });
+            
+            console.log(`Added new participant ${participant.name} for race ${raceId}`);
+          }
+        }
+      } else {
+        // Create a new race record in the database
+        const result = await db.insert(wagerRaces).values({
+          title: `April 2025 Wager Race`,
+          name: raceId,
+          type: 'monthly',
+          status: 'ended',
+          prizePool: String(500),
+          startDate: new Date(2025, 3, 1),
+          endDate: new Date(2025, 3, 30, 23, 59, 59),
+          prizeDistribution: {
+            "1": 0.425,
+            "2": 0.2,
+            "3": 0.15,
+            "4": 0.075,
+            "5": 0.06,
+            "6": 0.04,
+            "7": 0.0275,
+            "8": 0.0225,
+            "9": 0.0175,
+            "10": 0.0175
+          },
+          completedAt: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }).returning({ id: wagerRaces.id });
+        
+        const newRaceId = result[0]?.id;
+        
+        if (newRaceId) {
+          console.log(`Created new race record with ID ${newRaceId}`);
+          
+          // Process the top 10 participants
+          const top10 = monthlyData
+            .slice(0, 10)
+            .map((participant, index) => ({
+              uid: participant.uid,
+              name: participant.name,
+              wagered: participant.wagered.this_month,
+              position: index + 1
+            }));
+          
+          // For each of the top 10 participants, insert into the database
+          for (const participant of top10) {
+            // Try to find a matching user in our database
+            const user = await db.query.users.findFirst({
+              where: sql`goated_id = ${participant.uid}`,
+            });
+            
+            // Insert a new participant record
+            await db.insert(wagerRaceParticipants).values({
+              raceId: newRaceId,
+              userId: user?.id,
+              username: participant.name,
+              wagered: String(participant.wagered),
+              position: participant.position,
+              prizeAmount: String(participant.position <= 10 ? 
+                500 * ({"1": 0.425, "2": 0.2, "3": 0.15, "4": 0.075, "5": 0.06, 
+                      "6": 0.04, "7": 0.0275, "8": 0.0225, "9": 0.0175, "10": 0.0175} as Record<string, number>)[participant.position.toString()] || 0 : 0),
+              joinedAt: new Date(),
+              updatedAt: new Date()
+            });
+            
+            console.log(`Added participant ${participant.name} for new race ${raceId}`);
+          }
+        } else {
+          console.error(`Failed to create race record for ${raceId}`);
+        }
+      }
+    } catch (error) {
+      console.error(`Error saving completed race data for race ${raceId}:`, error);
+      // Don't throw - this is a non-critical operation
+    }
   }
 
   /**
