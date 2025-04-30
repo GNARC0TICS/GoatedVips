@@ -122,17 +122,14 @@ export default function WagerRaces() {
 
   // Auto-show completed race when race ends
   useEffect(() => {
+    // Since it's April 30th, 2025 now, we want to show the race as completed
+    // The race is completed exactly on April 30th (not after)
     const now = new Date();
-    // For April 2025, let's set the end date to April 30
+    // The race ends on April 30th, 2025 at end of day
     const endOfMonth = new Date(2025, 3, 30, 23, 59, 59); // April 30, 2025
-
-    // Only show as completed if we're past April 30, 2025
-    if (now >= endOfMonth && !showCompletedRace) {
-      setShowCompletedRace(true);
-    } else {
-      // Make sure it's not showing as completed if we're not at the end date
-      setShowCompletedRace(false);
-    }
+    
+    // Today is April 30th, so the race should be shown as completed
+    setShowCompletedRace(true);
   }, []);
 
   useEffect(() => {
@@ -350,7 +347,7 @@ const getTrophyIcon = (rank: number) => {
                   {/* Next Race Countdown */}
                   {(showCompletedRace) && (
                     <div className="text-center">
-                      <div className="text-[#8A8B91] mb-2">Next Race Starts In</div>
+                      <div className="text-[#8A8B91] mb-2">Next Race Starts Tomorrow</div>
                       <div className="bg-[#1A1B21]/80 backdrop-blur-sm px-6 py-4 rounded-lg">
                         <CountdownTimer
                           endDate={new Date(

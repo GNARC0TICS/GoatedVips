@@ -372,10 +372,10 @@ export class PlatformApiService {
   private transformToWagerRace(leaderboardData: LeaderboardData): RaceData {
     console.log("Transforming leaderboard data to wager race format");
     
-    // Hard-code April 2025 for the current race
+    // Hard-code April 30, 2025 for the current race since today is April 30
     // In a production app, you would use the current date: const now = new Date();
-    const now = new Date(2025, 3, 9); // April 9, 2025 (months are 0-indexed, so 3 = April)
-    const endOfMonth = new Date(2025, 4, 0); // Last day of April 2025
+    const now = new Date(2025, 3, 30); // April 30, 2025 (months are 0-indexed, so 3 = April)
+    const endOfMonth = new Date(2025, 3, 30, 23, 59, 59); // April 30, 2025 end of day
     const raceId = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}`;
     
     // Get monthly data and calculate total wagered
@@ -385,7 +385,7 @@ export class PlatformApiService {
     // Create race data structure
     return {
       id: raceId,
-      status: 'live',
+      status: 'ended', // Changed from 'live' to 'ended' since it's April 30th
       startDate: new Date(2025, 3, 1).toISOString(), // April 1, 2025
       endDate: endOfMonth.toISOString(),
       prizePool: 500, // Standard prize pool
