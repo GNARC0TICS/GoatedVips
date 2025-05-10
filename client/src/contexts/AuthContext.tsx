@@ -1,153 +1,154 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
-import supabase from '../lib/supabase';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import jwt_decode from 'jwt-decode'; // For decoding JWTs client-side
+
+// Define the shape of our user object from the platform JWT
+interface PlatformUser {
+  id: number;
+  username: string;
+  email: string;
+  isAdmin: boolean;
+  // Add other relevant fields from JWT payload if needed
+}
 
 // Define the shape of our authentication context
 type AuthContextType = {
-  session: Session | null;
-  user: User | null;
+  user: PlatformUser | null;
+  token: string | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{
-    error: Error | null;
-    data: Session | null;
-  }>;
-  signUp: (email: string, password: string, userData?: any) => Promise<{
-    error: Error | null;
-    data: Session | null;
-  }>;
-  signOut: () => Promise<void>;
   isAdmin: boolean;
+  signIn: (emailOrUsername: string, password: string) => Promise<{ error?: string; user?: PlatformUser }>;
+  signUp: (username: string, email: string, password: string) => Promise<{ error?: string; user?: PlatformUser }>;
+  signOut: () => void;
+  // Initial load check might still be useful
+  initialAuthChecked: boolean; 
 };
 
-// Create context with default values
 const AuthContext = createContext<AuthContextType>({
-  session: null,
   user: null,
+  token: null,
   loading: true,
-  signIn: async () => ({ error: null, data: null }),
-  signUp: async () => ({ error: null, data: null }),
-  signOut: async () => {},
   isAdmin: false,
+  signIn: async () => ({ error: 'Not implemented' }),
+  signUp: async () => ({ error: 'Not implemented' }),
+  signOut: () => {},
+  initialAuthChecked: false,
 });
 
-// Custom hook to use the auth context
 export const useAuth = () => {
   return useContext(AuthContext);
 };
 
-// Provider component that wraps the app and makes auth object available
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState<PlatformUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true); // For initial token load and user fetch
+  const [initialAuthChecked, setInitialAuthChecked] = useState(false);
 
-  useEffect(() => {
-    // Get session from Supabase
-    const getInitialSession = async () => {
-      try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-        setSession(initialSession);
-        setUser(initialSession?.user ?? null);
-        
-        // Check if user is an admin
-        if (initialSession?.user) {
-          const isUserAdmin = initialSession.user.app_metadata?.role === 'admin';
-          setIsAdmin(isUserAdmin);
-        }
-      } catch (error) {
-        console.error('Error getting initial session:', error);
-      } finally {
-        setLoading(false);
+  const fetchUserWithToken = useCallback(async (currentToken: string) => {
+    if (!currentToken) return null;
+    try {
+      // Option 1: Decode JWT locally (if it contains all necessary user info)
+      const decodedUser = jwt_decode<PlatformUser & { exp: number }>(currentToken);
+      // Check expiry if decoding locally, though server will also check
+      if (decodedUser.exp * 1000 < Date.now()) {
+        localStorage.removeItem('authToken');
+        return null;
       }
-    };
-
-    getInitialSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event: AuthChangeEvent, currentSession: Session | null) => {
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        
-        // Check if user is an admin
-        if (currentSession?.user) {
-          const isUserAdmin = currentSession.user.app_metadata?.role === 'admin';
-          setIsAdmin(isUserAdmin);
-        } else {
-          setIsAdmin(false);
-        }
-        
-        setLoading(false);
-      }
-    );
-
-    // Cleanup subscription on unmount
-    return () => {
-      subscription.unsubscribe();
-    };
+      // Option 2: Or, call an endpoint like /api/user to get user details
+      // const response = await fetch('/api/user', {
+      //   headers: { 'Authorization': `Bearer ${currentToken}` },
+      // });
+      // if (!response.ok) throw new Error('Failed to fetch user');
+      // const data = await response.json();
+      // return data.user;
+      return { id: decodedUser.id, username: decodedUser.username, email: decodedUser.email, isAdmin: decodedUser.isAdmin };
+    } catch (error) {
+      console.error('Error fetching user or decoding token:', error);
+      localStorage.removeItem('authToken'); // Clear invalid token
+      return null;
+    }
   }, []);
 
-  // Sign in with email and password
-  const signIn = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        return { error, data: null };
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const storedToken = localStorage.getItem('authToken');
+      if (storedToken) {
+        const fetchedUser = await fetchUserWithToken(storedToken);
+        if (fetchedUser) {
+          setUser(fetchedUser);
+          setToken(storedToken);
+        }
       }
+      setLoading(false);
+      setInitialAuthChecked(true);
+    };
+    initializeAuth();
+  }, [fetchUserWithToken]);
 
-      return { error: null, data: data.session };
-    } catch (error) {
-      return { error: error as Error, data: null };
-    }
-  };
-
-  // Sign up with email and password
-  const signUp = async (email: string, password: string, userData?: any) => {
+  const signIn = async (emailOrUsername: string, password: string) => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: userData, // Additional user metadata
-        },
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailOrUsername, password }), // Assuming login by email
       });
-
-      if (error) {
-        return { error, data: null };
+      const data = await response.json();
+      if (!response.ok) {
+        return { error: data.message || 'Login failed' };
       }
-
-      return { error: null, data: data.session };
-    } catch (error) {
-      return { error: error as Error, data: null };
+      localStorage.setItem('authToken', data.token);
+      setToken(data.token);
+      setUser(data.user);
+      setLoading(false);
+      return { user: data.user };
+    } catch (error: any) {
+      setLoading(false);
+      return { error: error.message || 'An unexpected error occurred' };
     }
   };
 
-  // Sign out
-  const signOut = async () => {
+  const signUp = async (username: string, email: string, password: string) => {
+    setLoading(true);
     try {
-      await supabase.auth.signOut();
-      setSession(null);
-      setUser(null);
-      setIsAdmin(false);
-    } catch (error) {
-      console.error('Error signing out:', error);
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        return { error: data.message || 'Sign up failed' };
+      }
+      localStorage.setItem('authToken', data.token);
+      setToken(data.token);
+      setUser(data.user);
+      setLoading(false);
+      return { user: data.user };
+    } catch (error: any) {
+      setLoading(false);
+      return { error: error.message || 'An unexpected error occurred' };
     }
   };
 
-  // Value provided to consuming components
+  const signOut = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('authToken');
+    // Optionally: call a /api/auth/logout endpoint if it exists and does server-side cleanup
+  };
+
+  const isAdmin = !!user?.isAdmin;
+
   const value = {
-    session,
     user,
+    token,
     loading,
+    isAdmin,
     signIn,
     signUp,
     signOut,
-    isAdmin,
+    initialAuthChecked,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
