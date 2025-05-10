@@ -1,7 +1,7 @@
 import { Router, type Express, type Request, type Response, type NextFunction } from "express";
 import compression from "compression";
 import { db } from "@db";
-import { sql } from "drizzle-orm";
+import { sql, desc } from "drizzle-orm";
 import { createServer, type Server } from "http";
 import { WebSocket, WebSocketServer } from "ws";
 import { log as viteLog } from "./vite";
@@ -23,6 +23,7 @@ function log(message: string | object, source = "express") {
 import bonusChallengesRouter from "./routes/bonus-challenges";
 import usersRouter from "./routes/users";
 import goombasAdminRouter from "./routes/goombas-admin";
+import adminWagerRacesRouter from "./routes/admin/wager_races";
 import { requirePlatformAuth, requirePlatformAdmin } from "../middleware/jwtAuth";
 import { wagerRaces, users as usersSchema, transformationLogs } from "@db/schema";
 import { ensureUserProfile } from "./index";
@@ -213,6 +214,81 @@ router.get("/wager-races/current",
   }
 );
 
+// GET all completed wager races (for public history listing)
+router.get("/wager-races/history", 
+  createRateLimiter('medium'), 
+  cacheMiddleware(CACHE_TIMES.MEDIUM),
+  async (_req: Request, res: Response) => {
+    try {
+      const completedRaces = await db.select()
+        .from(wagerRaces)
+        .where(eq(wagerRaces.status, 'completed'))
+        .orderBy(desc(wagerRaces.endDate));
+      res.json(completedRaces);
+    } catch (error) {
+      console.error('Error fetching wager race history:', error);
+      res.status(500).json({ message: 'Failed to fetch race history' });
+    }
+  }
+);
+
+// GET details of a specific historical race, including participants
+router.get("/wager-races/history/:raceId", 
+  createRateLimiter('medium'), 
+  cacheMiddleware(CACHE_TIMES.MEDIUM),
+  async (req: Request, res: Response) => {
+    const { raceId } = req.params;
+    try {
+      const raceDetails = await db.query.wagerRaces.findFirst({
+        where: eq(wagerRaces.id, raceId),
+      });
+
+      if (!raceDetails || raceDetails.status !== 'completed') {
+        return res.status(404).json({ message: 'Completed race not found' });
+      }
+
+      const participants = await db.select()
+        .from(wagerRaceParticipantSnapshots)
+        .where(eq(wagerRaceParticipantSnapshots.wagerRaceId, raceId))
+        .orderBy(wagerRaceParticipantSnapshots.finalRank);
+
+      res.json({ ...raceDetails, participants });
+    } catch (error) {
+      console.error(`Error fetching details for historical race ${raceId}:`, error);
+      res.status(500).json({ message: 'Failed to fetch race details' });
+    }
+  }
+);
+
+// GET the most recently completed wager race (for RaceTimer.tsx)
+router.get("/wager-races/previous",
+  createRateLimiter('medium'),
+  cacheMiddleware(CACHE_TIMES.MEDIUM),
+  async (_req: Request, res: Response) => {
+    try {
+      const [previousRace] = await db.select()
+        .from(wagerRaces)
+        .where(eq(wagerRaces.status, 'completed'))
+        .orderBy(desc(wagerRaces.endDate))
+        .limit(1);
+
+      if (!previousRace) {
+        return res.status(404).json({ message: 'No previous completed races found' });
+      }
+
+      const participants = await db.select()
+        .from(wagerRaceParticipantSnapshots)
+        .where(eq(wagerRaceParticipantSnapshots.wagerRaceId, previousRace.id))
+        .orderBy(wagerRaceParticipantSnapshots.finalRank);
+      
+      res.json({ ...previousRace, participants });
+    } catch (error) {
+      console.error('Error fetching previous wager race:', error);
+      res.status(500).json({ message: 'Failed to fetch previous race data' });
+    }
+  }
+);
+
 // Helper functions
 function getDefaultRaceData() {
   const year = 2025;
@@ -276,6 +352,8 @@ function setupAPIRoutes(app: Express) {
   // Mount Goombas admin routes (session-based, separate)
   app.use("/goombas.net", goombasAdminRouter);
 
+  // Mount admin wager race routes
+  app.use("/api/admin/wager-races", adminWagerRacesRouter);
 
   // Add other API routes here, ensuring they're all prefixed with /api
   app.get("/api/health", (_req, res) => {

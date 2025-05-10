@@ -7,6 +7,7 @@ import * as users from './users';
 import * as verification from './verification';
 import * as wagerRaces from './wager_races';
 import * as transformationLogs from './transformation_logs';
+import * as wagerRaceParticipantSnapshots from './wager_race_participant_snapshots';
 
 // Export all schemas for use in database initialization
 export {
@@ -18,6 +19,7 @@ export {
   verification,
   wagerRaces,
   transformationLogs,
+  wagerRaceParticipantSnapshots,
 };
 
 // Default export for convenience
@@ -30,4 +32,5 @@ export default {
   verification,
   wagerRaces,
   transformationLogs,
+  wagerRaceParticipantSnapshots,
 };
