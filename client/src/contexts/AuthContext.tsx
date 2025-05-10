@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setToken(storedToken);
         }
       }
-      setLoading(false);
+        setLoading(false);
       setInitialAuthChecked(true);
     };
     initializeAuth();
@@ -132,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = () => {
-    setUser(null);
+      setUser(null);
     setToken(null);
     localStorage.removeItem('authToken');
     // Optionally: call a /api/auth/logout endpoint if it exists and does server-side cleanup

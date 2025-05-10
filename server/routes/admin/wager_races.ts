@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from '@db';
-import { wagerRaces, wagerRaceParticipantSnapshots, users as usersSchema } from '@db/schema'; // aliased users to usersSchema
+import * as schemas from '@db/schema'; // Import all schemas as a module
 import { eq, desc, sql } from 'drizzle-orm';
 import { requirePlatformAdmin } from '../../middleware/jwtAuth'; // Adjusted path
 import { API_CONFIG } from '../../config/api'; // For fetching leaderboard data
@@ -11,7 +11,7 @@ const router = Router();
 // GET all wager races (for admin management)
 router.get('/', requirePlatformAdmin, async (_req: Request, res: Response) => {
   try {
-    const races = await db.select().from(wagerRaces).orderBy(desc(wagerRaces.createdAt));
+    const races = await db.select().from(schemas.wagerRaces).orderBy(desc(schemas.wagerRaces.createdAt));
     res.json(races);
   } catch (error) {
     console.error('Error fetching wager races:', error);
@@ -24,7 +24,7 @@ router.post('/', requirePlatformAdmin, async (req: Request, res: Response) => {
   try {
     // Add Zod validation here based on wagerRaceSchema from WagerRaceManagement.tsx
     const newRaceData = req.body; // TODO: Validate this data
-    const [createdRace] = await db.insert(wagerRaces).values(newRaceData).returning();
+    const [createdRace] = await db.insert(schemas.wagerRaces).values(newRaceData).returning();
     res.status(201).json(createdRace);
   } catch (error) {
     console.error('Error creating wager race:', error);
@@ -38,9 +38,9 @@ router.put('/:raceId', requirePlatformAdmin, async (req: Request, res: Response)
   try {
     // Add Zod validation here
     const updatedRaceData = req.body; // TODO: Validate this data
-    const [updatedRace] = await db.update(wagerRaces)
+    const [updatedRace] = await db.update(schemas.wagerRaces)
       .set({ ...updatedRaceData, updatedAt: new Date() })
-      .where(eq(wagerRaces.id, raceId))
+      .where(eq(schemas.wagerRaces.id, raceId))
       .returning();
     if (!updatedRace) return res.status(404).json({ message: 'Wager race not found' });
     res.json(updatedRace);
@@ -54,8 +54,8 @@ router.put('/:raceId', requirePlatformAdmin, async (req: Request, res: Response)
 router.delete('/:raceId', requirePlatformAdmin, async (req: Request, res: Response) => {
   const { raceId } = req.params;
   try {
-    await db.delete(wagerRaceParticipantSnapshots).where(eq(wagerRaceParticipantSnapshots.wagerRaceId, raceId)); // Delete snapshots first
-    const [deletedRace] = await db.delete(wagerRaces).where(eq(wagerRaces.id, raceId)).returning();
+    await db.delete(schemas.wagerRaceParticipantSnapshots).where(eq(schemas.wagerRaceParticipantSnapshots.wagerRaceId, raceId)); // Delete snapshots first
+    const [deletedRace] = await db.delete(schemas.wagerRaces).where(eq(schemas.wagerRaces.id, raceId)).returning();
     if (!deletedRace) return res.status(404).json({ message: 'Wager race not found' });
     res.status(204).send();
   } catch (error) {
@@ -74,9 +74,9 @@ router.put('/:raceId/status', requirePlatformAdmin, async (req: Request, res: Re
   }
 
   try {
-    const [updatedRace] = await db.update(wagerRaces)
+    const [updatedRace] = await db.update(schemas.wagerRaces)
       .set({ status, updatedAt: new Date() })
-      .where(eq(wagerRaces.id, raceId))
+      .where(eq(schemas.wagerRaces.id, raceId))
       .returning();
 
     if (!updatedRace) return res.status(404).json({ message: 'Wager race not found' });
@@ -130,7 +130,7 @@ async function snapshotRaceLeaderboard(raceId: string, raceType: string) {
       
       // Find local user by goatedId
       let localUser = await db.query.usersSchema.findFirst({
-        where: eq(usersSchema.goatedId, participant.uid),
+        where: eq(schemas.users.goatedId, participant.uid),
         columns: { id: true }
       });
 
@@ -153,7 +153,7 @@ async function snapshotRaceLeaderboard(raceId: string, raceType: string) {
         // prizeWonAmount: calculatePrize(rank, prizeDistribution), // TODO: Implement prize calculation
         snapshotTimestamp: new Date(),
       };
-      await db.insert(wagerRaceParticipantSnapshots).values(snapshotEntry);
+      await db.insert(schemas.wagerRaceParticipantSnapshots).values(snapshotEntry);
     }
     console.log(`Successfully snapshotted leaderboard for race ${raceId}`);
   } catch (error) {

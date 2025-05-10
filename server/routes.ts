@@ -24,8 +24,9 @@ import bonusChallengesRouter from "./routes/bonus-challenges";
 import usersRouter from "./routes/users";
 import goombasAdminRouter from "./routes/goombas-admin";
 import adminWagerRacesRouter from "./routes/admin/wager_races";
-import { requirePlatformAuth, requirePlatformAdmin } from "../middleware/jwtAuth";
-import { wagerRaces, users as usersSchema, transformationLogs } from "@db/schema";
+import { requirePlatformAuth, requirePlatformAdmin } from "./middleware/jwtAuth";
+import * as authController from "./controllers/auth.controller";
+import * as schemas from "@db/schema";
 import { ensureUserProfile } from "./index";
 
 type RateLimitTier = 'HIGH' | 'MEDIUM' | 'LOW';
@@ -221,9 +222,9 @@ router.get("/wager-races/history",
   async (_req: Request, res: Response) => {
     try {
       const completedRaces = await db.select()
-        .from(wagerRaces)
-        .where(eq(wagerRaces.status, 'completed'))
-        .orderBy(desc(wagerRaces.endDate));
+        .from(schemas.wagerRaces)
+        .where(eq(schemas.wagerRaces.status, 'completed'))
+        .orderBy(desc(schemas.wagerRaces.endDate));
       res.json(completedRaces);
     } catch (error) {
       console.error('Error fetching wager race history:', error);
@@ -240,7 +241,7 @@ router.get("/wager-races/history/:raceId",
     const { raceId } = req.params;
     try {
       const raceDetails = await db.query.wagerRaces.findFirst({
-        where: eq(wagerRaces.id, raceId),
+        where: eq(schemas.wagerRaces.id, raceId),
       });
 
       if (!raceDetails || raceDetails.status !== 'completed') {
@@ -248,9 +249,9 @@ router.get("/wager-races/history/:raceId",
       }
 
       const participants = await db.select()
-        .from(wagerRaceParticipantSnapshots)
-        .where(eq(wagerRaceParticipantSnapshots.wagerRaceId, raceId))
-        .orderBy(wagerRaceParticipantSnapshots.finalRank);
+        .from(schemas.wagerRaceParticipantSnapshots)
+        .where(eq(schemas.wagerRaceParticipantSnapshots.wagerRaceId, raceId))
+        .orderBy(schemas.wagerRaceParticipantSnapshots.finalRank);
 
       res.json({ ...raceDetails, participants });
     } catch (error) {
@@ -267,9 +268,9 @@ router.get("/wager-races/previous",
   async (_req: Request, res: Response) => {
     try {
       const [previousRace] = await db.select()
-        .from(wagerRaces)
-        .where(eq(wagerRaces.status, 'completed'))
-        .orderBy(desc(wagerRaces.endDate))
+        .from(schemas.wagerRaces)
+        .where(eq(schemas.wagerRaces.status, 'completed'))
+        .orderBy(desc(schemas.wagerRaces.endDate))
         .limit(1);
 
       if (!previousRace) {
@@ -277,9 +278,9 @@ router.get("/wager-races/previous",
       }
 
       const participants = await db.select()
-        .from(wagerRaceParticipantSnapshots)
-        .where(eq(wagerRaceParticipantSnapshots.wagerRaceId, previousRace.id))
-        .orderBy(wagerRaceParticipantSnapshots.finalRank);
+        .from(schemas.wagerRaceParticipantSnapshots)
+        .where(eq(schemas.wagerRaceParticipantSnapshots.wagerRaceId, previousRace.id))
+        .orderBy(schemas.wagerRaceParticipantSnapshots.finalRank);
       
       res.json({ ...previousRace, participants });
     } catch (error) {
@@ -389,7 +390,7 @@ function setupAPIRoutes(app: Express) {
         try {
           // Check if user already exists
           const existingUser = await db.select()
-            .from(usersSchema)
+            .from(schemas.users)
             .where(sql`username = ${user.username}`)
             .limit(1);
           
@@ -559,8 +560,8 @@ function setupAPIRoutes(app: Express) {
         });
 
         const [raceCount, activeRaceCount] = await Promise.all([
-          db.select({ count: sql`count(*)` }).from(wagerRaces),
-          db.select({ count: sql`count(*)` }).from(wagerRaces).where(eq(wagerRaces.status, 'live')),
+          db.select({ count: sql`count(*)` }).from(schemas.wagerRaces),
+          db.select({ count: sql`count(*)` }).from(schemas.wagerRaces).where(eq(schemas.wagerRaces.status, 'live')),
         ]);
 
         const stats = {
@@ -909,7 +910,7 @@ function handleTransformationLogsConnection(ws: WebSocket) {
 
     // Send recent logs on connection
     db.select()
-      .from(transformationLogs)
+      .from(schemas.transformationLogs)
       .orderBy(sql`created_at DESC`)
       .limit(50)
       .then(logs => {
