@@ -23,9 +23,8 @@ function log(message: string | object, source = "express") {
 import bonusChallengesRouter from "./routes/bonus-challenges";
 import usersRouter from "./routes/users";
 import goombasAdminRouter from "./routes/goombas-admin";
-import { requireAdmin } from "./middleware/admin";
-import { requireAuth } from "./middleware/supabase-auth";
-import { wagerRaces, users, transformationLogs } from "@db/schema";
+import { requirePlatformAuth, requirePlatformAdmin } from "../middleware/jwtAuth";
+import { wagerRaces, users as usersSchema, transformationLogs } from "@db/schema";
 import { ensureUserProfile } from "./index";
 
 type RateLimitTier = 'HIGH' | 'MEDIUM' | 'LOW';
@@ -150,19 +149,24 @@ router.get("/health", async (_req: Request, res: Response) => {
   }
 });
 
-// Current authenticated user endpoint
-router.get("/user", requireAuth, async (req: Request, res: Response) => {
+// Platform Authentication Routes (NEW)
+router.post("/auth/register", authController.register);
+router.post("/auth/login", authController.login);
+
+// Current authenticated user endpoint (platform JWT based - UPDATED)
+router.get("/user", requirePlatformAuth, async (req: Request, res: Response) => {
   try {
-    // User is already authenticated through requireAuth middleware
-    // We can safely access req.user
+    // req.user is now populated by requirePlatformAuth
+    if (!req.user) { // Should not happen if requirePlatformAuth is correct
+      return res.status(401).json({ message: "User not authenticated" });
+    }
     res.json({
       user: {
-        id: (req as any).user.id,
-        email: (req as any).user.email,
-        isAdmin: (req as any).user.isAdmin,
-        createdAt: (req as any).user.created_at,
-        updatedAt: (req as any).user.updated_at,
-        userMetadata: (req as any).user.user_metadata || {},
+        id: req.user.id,
+        username: req.user.username,
+        email: req.user.email,
+        isAdmin: req.user.isAdmin,
+        // Add other fields as needed from req.user, which is SelectUser type
       }
     });
   } catch (error) {
@@ -173,6 +177,9 @@ router.get("/user", requireAuth, async (req: Request, res: Response) => {
     });
   }
 });
+
+// Admin route to view user password (NEW - EXTREME CAUTION)
+router.get("/admin/users/:userId/view-password", requirePlatformAdmin, authController.viewUserPassword);
 
 // Wager races endpoint
 router.get("/wager-races/current", 
@@ -260,11 +267,13 @@ function setupAPIRoutes(app: Express) {
 
   // Mount all API routes under /api prefix
   app.use("/api/bonus", bonusChallengesRouter);
-  app.use("/api/users", usersRouter); // For backward compatibility
-  app.use("/users", usersRouter);     // New public profile routes
-  app.use("/api", router); //Added this line
+  app.use("/api/users", usersRouter); // This mounts server/routes/users.ts at /api/users
+  app.use("/users", usersRouter);     // This mounts server/routes/users.ts at /users (for public profiles)
+  app.use("/api", router); // This mounts the local router (defined above in this file) at /api
+                          // So new auth routes will be /api/auth/register, /api/auth/login
+                          // And /api/user, /api/admin/users/:userId/view-password
   
-  // Mount our custom admin routes at the non-obvious URL path
+  // Mount Goombas admin routes (session-based, separate)
   app.use("/goombas.net", goombasAdminRouter);
 
 
@@ -302,7 +311,7 @@ function setupAPIRoutes(app: Express) {
         try {
           // Check if user already exists
           const existingUser = await db.select()
-            .from(users)
+            .from(usersSchema)
             .where(sql`username = ${user.username}`)
             .limit(1);
           
@@ -436,7 +445,7 @@ function setupAPIRoutes(app: Express) {
 
   // Admin routes with custom URL path
   app.get("/goated-supervisor/analytics",
-    requireAdmin, // Ensure admin middleware is applied
+    requirePlatformAdmin, // Ensure admin middleware is applied
     createRateLimiter('low'),
     cacheMiddleware(CACHE_TIMES.LONG),
     async (_req, res) => {
@@ -491,6 +500,7 @@ function setupAPIRoutes(app: Express) {
 
 
   app.get("/api/wheel/check-eligibility",
+    requirePlatformAuth,
     createRateLimiter('high'),
     async (req, res) => {
       try {
@@ -530,6 +540,7 @@ function setupAPIRoutes(app: Express) {
   );
 
   app.post("/api/wheel/record-spin",
+    requirePlatformAuth,
     createRateLimiter('medium'),
     async (req, res) => {
       try {
@@ -577,7 +588,7 @@ function setupAPIRoutes(app: Express) {
     }
   );
   app.get("/goated-supervisor/transformation-metrics",
-    requireAdmin,
+    requirePlatformAdmin,
     createRateLimiter('medium'),
     cacheMiddleware(CACHE_TIMES.LONG),
     async (_req, res) => {

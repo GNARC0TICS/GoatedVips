@@ -22,38 +22,20 @@ import { ProtectedRoute } from "@/lib/protected-route";
 // Imports a preloader component
 import { PreLoader } from "@/components/PreLoader";
 // Imports the not found component
-import NotFound from "@/pages/not-found";
+// import NotFound from "@/pages/not-found"; // Now imported via routeService
 // Imports the home page component
-import Home from "@/pages/Home";
-// Imports the authentication page component
-import AuthPage from "@/pages/auth-page";
-import VipTransfer from "@/pages/VipTransfer";
-import ProvablyFair from "@/pages/ProvablyFair";
-import WagerRaces from "@/pages/WagerRaces";
-import BonusCodes from "@/pages/BonusCodes";
-import NotificationPreferences from "@/pages/notification-preferences";
-import WagerRaceManagement from "@/pages/admin/WagerRaceManagement";
-import UserManagement from "@/pages/admin/UserManagement";
-import NotificationManagement from "@/pages/admin/NotificationManagement";
-import BonusCodeManagement from "@/pages/admin/BonusCodeManagement";
-import SupportManagement from "@/pages/admin/SupportManagement";
-import Leaderboard from "@/pages/Leaderboard";
-import Help from "@/pages/Help";
-import UserProfile from "@/pages/UserProfile";
-import Telegram from "@/pages/Telegram";
-import HowItWorks from "@/pages/HowItWorks";
-import GoatedToken from "@/pages/GoatedToken";
-import Support from "@/pages/support";
-import FAQ from "@/pages/faq";
-import VipProgram from "@/pages/VipProgram";
-import TipsAndStrategies from "@/pages/tips-and-strategies";
-import Promotions from "@/pages/Promotions";
-import Challenges from "@/pages/Challenges";
-import WheelChallenge from "@/pages/WheelChallenge";
-import GoombasAdminLogin from "@/pages/GoombasAdminLogin";
-import GoombasAdminDashboard from "@/pages/GoombasAdminDashboard";
-import CryptoSwap from "@/pages/CryptoSwap";
+// import Home from "@/pages/Home"; // Now imported via routeService
+// ... other direct page imports will be removed as they come from routeService
+
 import { AdminRoute } from "@/components/AdminRoute";
+import {
+  publicRoutes,
+  protectedRoutes,
+  adminRoutes,
+  goombasAdminRoutes,
+  cryptoSwapRoute,
+  notFoundRoute,
+} from "@/services/routeService"; // Import route configurations
 
 // MainContent Component
 // Handles the core application rendering logic including preloader and route management
@@ -96,47 +78,30 @@ function MainContent() {
                 {/* Main routing configuration */}
                 <Switch>
                   {/* Public Routes */}
-                  <Route path="/" component={Home} />
-                  <Route path="/auth" component={AuthPage} />
-                  <Route path="/wager-races" component={WagerRaces} />
-                  <Route path="/leaderboard" component={Leaderboard} />
-                  <Route path="/tips-and-strategies" component={TipsAndStrategies} />
-                  <Route path="/promotions" component={Promotions} />
-                  <Route path="/help" component={Help} />
-                  <Route path="/provably-fair" component={ProvablyFair} />
-                  <Route path="/telegram" component={Telegram} />
-                  <Route path="/how-it-works" component={HowItWorks} />
-                  <Route path="/goated-token" component={GoatedToken} />
-                  <Route path="/faq" component={FAQ} />
-                  <Route path="/vip-program" component={VipProgram} />
-                  <Route path="/challenges" component={Challenges} />
-                  {/* All user profile routes are public */}
-                  <Route path="/user-profile/:id" component={UserProfile} />
-                  <Route path="/user/:id" component={UserProfile} />
+                  {publicRoutes.map(({ path, component }) => (
+                    <Route key={path} path={path} component={component} />
+                  ))}
 
                   {/* Protected Routes - Require Authentication */}
-                  <ProtectedRoute path="/bonus-codes" component={BonusCodes} />
-                  <ProtectedRoute path="/notification-preferences" component={NotificationPreferences} />
-                  <ProtectedRoute path="/vip-transfer" component={VipTransfer} />
-                  <ProtectedRoute path="/support" component={Support} />
-                  <ProtectedRoute path="/wheel-challenge" component={WheelChallenge} />
+                  {protectedRoutes.map(({ path, component }) => (
+                    <ProtectedRoute key={path} path={path} component={component} />
+                  ))}
 
                   {/* Admin Routes - Require Admin Privileges */}
-                  <AdminRoute path="/admin/user-management" component={UserManagement} />
-                  <AdminRoute path="/admin/wager-races" component={WagerRaceManagement} />
-                  <AdminRoute path="/admin/bonus-codes" component={BonusCodeManagement} />
-                  <AdminRoute path="/admin/notifications" component={NotificationManagement} />
-                  <AdminRoute path="/admin/support" component={SupportManagement} />
+                  {adminRoutes.map(({ path, component }) => (
+                    <AdminRoute key={path} path={path} component={component} />
+                  ))}
                   
                   {/* Custom Admin Routes for goombas.net */}
-                  <Route path="/goombas.net/login" component={GoombasAdminLogin} />
-                  <Route path="/goombas.net/dashboard" component={GoombasAdminDashboard} />
+                  {goombasAdminRoutes.map(({ path, component }) => (
+                    <Route key={path} path={path} component={component} />
+                  ))}
                   
                   {/* Crypto Swap Feature */}
-                  <Route path="/crypto-swap" component={CryptoSwap} />
+                  <Route path={cryptoSwapRoute.path} component={cryptoSwapRoute.component} />
 
                   {/* Fallback Route */}
-                  <Route component={NotFound} />
+                  <Route component={notFoundRoute.component} />
                 </Switch>
               </Layout>
               <Toaster />

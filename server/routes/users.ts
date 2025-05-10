@@ -1,4 +1,4 @@
- import { Router } from "express";
+import { Router } from "express";
 import { db } from "@db";
 import { users } from "@db/schema";
 import type { SelectUser } from "@db/schema";
@@ -554,6 +554,22 @@ router.post("/sync-profiles-from-leaderboard", async (req, res) => {
     let createdCount = 0;
     let existingCount = 0;
     const errors = [];
+
+    // Extract all UIDs from the leaderboard data
+    const leaderboardUserUids = allTimeData.map(p => p.uid).filter(uid => uid);
+
+    let existingGoatedIds = new Set<string>();
+
+    if (leaderboardUserUids.length > 0) {
+      // Fetch existing users from local DB in one query
+      const existingUsersResults = await db.select({
+        goatedId: users.goatedId
+      })
+      .from(users)
+      .where(sql`${users.goatedId} IN (${sql.join(leaderboardUserUids, sql`, `)})`);
+      
+      existingGoatedIds = new Set(existingUsersResults.map(u => u.goatedId).filter(id => id !== null) as string[]);
+    }
     
     // Process each user from the leaderboard
     for (const player of allTimeData) {
@@ -561,12 +577,8 @@ router.post("/sync-profiles-from-leaderboard", async (req, res) => {
         // Skip entries without uid or name
         if (!player.uid || !player.name) continue;
         
-        // Check if user already exists by goatedId
-        const existingUser = await db.select().from(users)
-          .where(sql`goated_id = ${player.uid}`)
-          .limit(1);
-        
-        if (existingUser && existingUser.length > 0) {
+        // Check if user already exists using the Set
+        if (existingGoatedIds.has(player.uid)) {
           existingCount++;
           continue; // Skip existing users
         }

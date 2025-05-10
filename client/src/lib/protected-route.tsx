@@ -1,18 +1,6 @@
-
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 import { Redirect, Route } from 'wouter';
-
-// Protected routes that require authentication
-export const PROTECTED_ROUTES = [
-  '/bonus-codes',
-  '/notification-preferences',
-  '/admin/',
-];
-
-export function requiresAuth(path: string): boolean {
-  return PROTECTED_ROUTES.some(route => path.startsWith(route));
-}
 
 export function ProtectedRoute({
   path,

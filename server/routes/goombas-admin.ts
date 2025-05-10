@@ -2,12 +2,25 @@ import { Router, Request, Response } from 'express';
 import { db } from '@db/index';
 import { users, wheelSpins, bonusCodes, wagerRaces, wagerRaceParticipants, supportTickets } from '@db/schema';
 import { count } from 'drizzle-orm';
-import { validateAdminCredentials, requireAdmin } from '../middleware/admin';
+import { requireAdmin } from '../middleware/admin';
 
 const router = Router();
 
-// Secure admin login endpoint
-router.post('/goombas.net/login', async (req: Request, res: Response) => {
+// Simplified validation for Goombas Admin (credentials from env)
+const validateGoombasAdminCredentials = (username?: string, password?: string, secretKey?: string): boolean => {
+  // In a real scenario, ensure these env vars are set and handled securely
+  const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+  const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY; // Assuming this was also used
+
+  return !!ADMIN_USERNAME && !!ADMIN_PASSWORD && !!ADMIN_SECRET_KEY &&
+         username === ADMIN_USERNAME && 
+         password === ADMIN_PASSWORD && 
+         secretKey === ADMIN_SECRET_KEY;
+};
+
+// Goombas Admin login endpoint (Session-based)
+router.post('/login', async (req: Request, res: Response) => {
   const { username, password, secretKey } = req.body;
 
   if (!username || !password || !secretKey) {
@@ -17,45 +30,67 @@ router.post('/goombas.net/login', async (req: Request, res: Response) => {
     });
   }
 
-  // Validate admin credentials against environment variables
-  const isValid = validateAdminCredentials(username, password, secretKey);
+  const isValid = validateGoombasAdminCredentials(username, password, secretKey);
   
   if (isValid) {
-    // Set session flag to indicate admin authentication
-    req.session.isAdmin = true;
-    
-    return res.status(200).json({
-      message: 'Authentication successful',
-      status: 'success'
-    });
+    if (req.session) {
+      req.session.isAdmin = true;
+      return res.status(200).json({
+        message: 'Goombas Admin authentication successful',
+        status: 'success'
+      });
+    } else {
+      // Should not happen if session middleware is correctly applied to this router
+      return res.status(500).json({ message: 'Session not available', status: 'error' });
+    }
   } else {
     return res.status(401).json({ 
-      message: 'Invalid credentials',
+      message: 'Invalid Goombas Admin credentials',
       status: 'error'
     });
   }
 });
 
-// Admin logout endpoint
-router.post('/goombas.net/logout', requireAdmin, (req: Request, res: Response) => {
-  // Clear admin session
-  req.session.isAdmin = false;
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json({ 
-        message: 'Error during logout',
-        status: 'error'
+// Goombas Admin logout endpoint (Session-based)
+router.post('/logout', requireAdmin, (req: Request, res: Response) => {
+  if (req.session) {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ 
+          message: 'Error during Goombas Admin logout',
+          status: 'error'
+        });
+      }
+      return res.status(200).json({ 
+        message: 'Goombas Admin logout successful',
+        status: 'success'
       });
-    }
-    res.status(200).json({ 
-      message: 'Logout successful',
+    });
+  } else {
+    return res.status(200).json({ 
+      message: 'No active session to logout from',
+      status: 'success' // Or an error, depending on desired behavior
+    });
+  }
+});
+
+// Goombas Admin auth status check (Session-based)
+router.get('/auth-status', (req: Request, res: Response) => {
+  if (req.session && req.session.isAdmin) {
+    return res.status(200).json({ 
+      isAdmin: true,
       status: 'success'
     });
+  }
+  return res.status(401).json({ 
+    isAdmin: false,
+    status: 'error',
+    message: 'Not authenticated as Goombas Admin'
   });
 });
 
 // Basic analytics endpoint
-router.get('/goombas.net/analytics', requireAdmin, async (req: Request, res: Response) => {
+router.get('/analytics', requireAdmin, async (req: Request, res: Response) => {
   try {
     // Count total users
     const userCount = await db.select({ count: count() }).from(users);
@@ -109,7 +144,7 @@ router.get('/goombas.net/analytics', requireAdmin, async (req: Request, res: Res
 });
 
 // User management endpoints
-router.get('/goombas.net/users', requireAdmin, async (req: Request, res: Response) => {
+router.get('/users', requireAdmin, async (req: Request, res: Response) => {
   try {
     const allUsers = await db.select().from(users);
     res.status(200).json(allUsers);
@@ -123,7 +158,7 @@ router.get('/goombas.net/users', requireAdmin, async (req: Request, res: Respons
 });
 
 // Get a specific user
-router.get('/goombas.net/users/:id', requireAdmin, async (req: Request, res: Response) => {
+router.get('/users/:id', requireAdmin, async (req: Request, res: Response) => {
   const userId = Number(req.params.id);
   
   if (isNaN(userId)) {
@@ -148,21 +183,6 @@ router.get('/goombas.net/users/:id', requireAdmin, async (req: Request, res: Res
     console.error('Error fetching user:', error);
     res.status(500).json({ 
       message: 'Error fetching user',
-      status: 'error'
-    });
-  }
-});
-
-// Check admin auth status
-router.get('/goombas.net/auth-status', (req: Request, res: Response) => {
-  if (req.session.isAdmin) {
-    res.status(200).json({ 
-      isAdmin: true,
-      status: 'success'
-    });
-  } else {
-    res.status(401).json({ 
-      isAdmin: false,
       status: 'error'
     });
   }

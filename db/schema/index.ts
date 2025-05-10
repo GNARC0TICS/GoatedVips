@@ -5,6 +5,8 @@ import * as challenges from './challenges';
 import * as telegram from './telegram';
 import * as users from './users';
 import * as verification from './verification';
+import * as wagerRaces from './wager_races';
+import * as transformationLogs from './transformation_logs';
 
 // Export all schemas for use in database initialization
 export {
@@ -13,7 +15,9 @@ export {
   challenges,
   telegram,
   users,
-  verification
+  verification,
+  wagerRaces,
+  transformationLogs,
 };
 
 // Default export for convenience
@@ -23,5 +27,7 @@ export default {
   challenges,
   telegram,
   users,
-  verification
+  verification,
+  wagerRaces,
+  transformationLogs,
 };

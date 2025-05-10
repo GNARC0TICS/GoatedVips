@@ -30,6 +30,7 @@ import GoombasAdminDashboard from "@/pages/GoombasAdminDashboard";
 import CryptoSwap from "@/pages/CryptoSwap";
 import { AdminRoute } from "@/components/AdminRoute";
 import { ProtectedRoute } from "@/lib/protected-route";
+import NotFound from "@/pages/not-found";
 
 export const publicRoutes = [
   { path: "/", component: Home },
@@ -75,4 +76,4 @@ import NotFound from "@/pages/not-found";
 
 export const cryptoSwapRoute = { path: "/crypto-swap", component: CryptoSwap };
 
-export const notFoundRoute = { component: () => React.createElement(() => <div>Not Found</div>) };
+export const notFoundRoute = { component: NotFound };

@@ -361,6 +361,26 @@ async function syncUserProfiles() {
     let updatedCount = 0;
     
     console.log(`Processing ${allTimeData.length} users from leaderboard`);
+
+    // Extract all UIDs from the leaderboard data
+    const leaderboardUserUids = allTimeData.map(p => p.uid).filter(uid => uid);
+    let existingUserMap = new Map<string, { goatedUsername: string | null }>();
+
+    if (leaderboardUserUids.length > 0) {
+      // Fetch existing users from local DB in one query
+      const existingUsersResults = await db.select({
+        goatedId: users.goatedId,
+        goatedUsername: users.goatedUsername // Also fetch username to check if update is needed
+      })
+      .from(users)
+      .where(sql`${users.goatedId} IN (${sql.join(leaderboardUserUids, sql`, `)})`);
+      
+      existingUsersResults.forEach(u => {
+        if (u.goatedId) {
+          existingUserMap.set(u.goatedId, { goatedUsername: u.goatedUsername });
+        }
+      });
+    }
     
     // Process each user from the leaderboard
     for (const player of allTimeData) {
@@ -368,14 +388,11 @@ async function syncUserProfiles() {
         // Skip entries without uid or name
         if (!player.uid || !player.name) continue;
         
-        // Check if user already exists by goatedId
-        const existingUser = await db.select().from(users)
-          .where(sql`goated_id = ${player.uid}`)
-          .limit(1);
-        
-        if (existingUser && existingUser.length > 0) {
-          // If user exists but doesn't have the goated username set, update it
-          if (!existingUser[0].goatedUsername) {
+        const localUser = existingUserMap.get(player.uid);
+
+        if (localUser) {
+          // If user exists but doesn't have the goated username set, or it differs, update it
+          if (!localUser.goatedUsername || localUser.goatedUsername !== player.name) {
             await db.execute(sql`
               UPDATE users 
               SET goated_username = ${player.name}, 
@@ -441,7 +458,6 @@ async function initializeServer() {
 
     const app = express();
     setupMiddleware(app);
-    setupAuth(app);
     registerRoutes(app);
 
     // Admin routes are set up through the middleware and routes system
@@ -618,7 +634,7 @@ function setupMiddleware(app: express.Application) {
   app.use(cookieParser());
   
   // Authentication middleware
-  app.use(supabaseAuthMiddleware);
+  // app.use(supabaseAuthMiddleware); // REMOVED - Replaced by specific platform JWT middleware on routes
   
   app.use(requestLogger);
 
