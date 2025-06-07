@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CryptoSwapWidget } from "@/components/features/CryptoSwapWidget";
-import { Layout } from '@/components/Layout';
+import { Layout } from '@/components/layout';
 import { Repeat, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 

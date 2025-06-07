@@ -11,7 +11,7 @@ import { ParticleBackground } from "../effects/ParticleBackground";
 import { RaceTimer } from "../data/RaceTimer";
 import { Toaster } from "../ui/toaster";
 import { ScrollToTop } from "../effects/ScrollToTop";
-import { AuthSection } from "./AuthSection";
+import { AuthSection } from "../auth/AuthSection";
 
 interface LayoutProps {
   children: React.ReactNode;
