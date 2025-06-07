@@ -42,21 +42,21 @@ export async function syncLeaderboardUsers() {
           .values({
             uid: user.uid,
             name: user.name,
-            wager_today: String(user.wagered?.today || 0),
-            wager_week: String(user.wagered?.this_week || 0),
-            wager_month: String(user.wagered?.this_month || 0),
-            wager_all_time: String(user.wagered?.all_time || 0),
-            updated_at: new Date(),
+            wagerToday: String(user.wagered?.today || 0),
+            wagerWeek: String(user.wagered?.this_week || 0),
+            wagerMonth: String(user.wagered?.this_month || 0),
+            wagerAllTime: String(user.wagered?.all_time || 0),
+            updatedAt: new Date(),
           })
           .onConflictDoUpdate({
             target: leaderboardUsers.uid,
             set: {
               name: user.name,
-              wager_today: String(user.wagered?.today || 0),
-              wager_week: String(user.wagered?.this_week || 0),
-              wager_month: String(user.wagered?.this_month || 0),
-              wager_all_time: String(user.wagered?.all_time || 0),
-              updated_at: new Date(),
+              wagerToday: String(user.wagered?.today || 0),
+              wagerWeek: String(user.wagered?.this_week || 0),
+              wagerMonth: String(user.wagered?.this_month || 0),
+              wagerAllTime: String(user.wagered?.all_time || 0),
+              updatedAt: new Date(),
             },
           });
         

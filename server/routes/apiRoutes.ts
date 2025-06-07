@@ -444,21 +444,20 @@ router.get("/leaderboard", async (req, res, next) => {
 
         switch (timeframe) {
           case "daily":
-            wagerField = "wager_today";
-            wagerColumn = leaderboardUsers.wager_today;
-            // whereCondition = gt(leaderboardUsers.wager_today, 0); // Example: if you only count active wagerers
+            wagerField = "wagerToday";
+            wagerColumn = leaderboardUsers.wagerToday;
             break;
           case "weekly":
-            wagerField = "wager_week";
-            wagerColumn = leaderboardUsers.wager_week;
+            wagerField = "wagerWeek";
+            wagerColumn = leaderboardUsers.wagerWeek;
             break;
           case "all_time":
-            wagerField = "wager_all_time";
+            wagerField = "wagerAllTime";
             wagerColumn = leaderboardUsers.wagerAllTime;
             break;
           case "monthly":
           default:
-            wagerField = "wager_month";
+            wagerField = "wagerMonth";
             wagerColumn = leaderboardUsers.wagerMonth;
             break;
         }

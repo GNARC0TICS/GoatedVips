@@ -3,9 +3,10 @@ import React from 'react';
 
 interface SpeedIconProps extends React.SVGProps<SVGSVGElement> {
   className?: string;
+  isAnimating?: boolean;
 }
 
-export const SpeedIcon: React.FC<SpeedIconProps> = ({ className, ...svgProps }) => {
+export const SpeedIcon: React.FC<SpeedIconProps> = ({ className, isAnimating, ...svgProps }) => {
   const maskId = "lineMdSpeed0" + Math.random().toString(36).substr(2, 5);
 
   return (
