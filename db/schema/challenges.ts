@@ -1,7 +1,6 @@
 import { pgTable, text, timestamp, boolean, serial, integer } from "drizzle-orm/pg-core";
 import { sql, relations } from "drizzle-orm";
 import { users } from "./users";
-import { bonusCodes, type BonusCode as ImportedBonusCodeType } from "./bonus";
 
 export const challenges = pgTable('challenges', {
   id: serial('id').primaryKey(),
@@ -61,4 +60,3 @@ export type Challenge = typeof challenges.$inferSelect;
 export type InsertChallenge = typeof challenges.$inferInsert;
 export type ChallengeEntry = typeof challengeEntries.$inferSelect;
 export type InsertChallengeEntry = typeof challengeEntries.$inferInsert;
-export type BonusCode = ImportedBonusCodeType;
