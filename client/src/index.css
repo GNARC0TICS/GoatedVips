@@ -873,6 +873,12 @@ html {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
     cursor: pointer;
+  }
+
+  /* Apply minimum touch targets only to interactive elements that need it */
+  button:not(.no-min-size),
+  [role="button"]:not(.no-min-size),
+  .touch-target {
     min-height: 44px; /* Minimum touch target size per Apple HIG guidelines */
     min-width: 44px; /* Minimum touch target width per Apple HIG guidelines */
   }

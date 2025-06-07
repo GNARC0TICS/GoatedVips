@@ -12,10 +12,11 @@ export function MobileSearchDropdown({ isOpen, onClose }: MobileSearchDropdownPr
   return (
     <div
       id="mobile-search-dropdown"
-      className={`md:hidden fixed left-0 right-0 top-16 bg-[#14151A] border-b border-[#2A2B31] transition-all duration-300 z-[200] ${
+      className={`md:hidden fixed left-0 right-0 bg-[#14151A] border-b border-[#2A2B31] transition-all duration-300 z-[100] ${
         isOpen ? 'h-16 opacity-100' : 'h-0 opacity-0 pointer-events-none'
       }`}
       style={{
+        top: '3.5rem', // Align with h-14 header height (14 * 0.25rem)
         transform: isOpen ? 'translateY(0)' : 'translateY(-100%)',
         backfaceVisibility: 'hidden',
         WebkitBackfaceVisibility: 'hidden',

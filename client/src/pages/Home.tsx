@@ -35,8 +35,8 @@ export default function Home() {
   return (
     <PageTransition>
     <div className="min-h-screen bg-[#14151A]">
-      <main className="container mx-auto px-4 py-12">
-        <div className="text-center mb-24 max-w-6xl mx-auto px-4">
+      <main className="container mx-auto px-3 sm:px-4 lg:px-6 py-8 sm:py-12">
+        <div className="text-center mb-16 sm:mb-20 lg:mb-24 max-w-6xl mx-auto px-2 sm:px-4">
           <HeroVideo />
           <PromoBanner />
 
