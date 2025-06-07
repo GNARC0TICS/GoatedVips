@@ -357,13 +357,43 @@ export class StatSyncService {
   /**
    * Sorts data by wagered amount for the given period
    * Creates sorted leaderboards for each time period
+   * Handles ties: same wager = same position, next position skips accordingly
    */
   private sortByWagered(data: LeaderboardEntry[], period: string): LeaderboardEntry[] {
-    return [...data].sort((a, b) => {
+    // Sort descending by wagered amount
+    const sorted = [...data].sort((a, b) => {
       const aValue = a.wagered[period as keyof typeof a.wagered] || 0;
       const bValue = b.wagered[period as keyof typeof b.wagered] || 0;
       return bValue - aValue;
     });
+    // Assign positions with tie handling
+    let lastWager = null;
+    let lastPosition = 0;
+    let skip = 1;
+    return sorted.map((entry, idx) => {
+      const wager = entry.wagered[period as keyof typeof entry.wagered] || 0;
+      if (wager === lastWager) {
+        skip++;
+        return { ...entry, rank: lastPosition };
+      } else {
+        lastPosition = idx + 1;
+        lastWager = wager;
+        skip = 1;
+        return { ...entry, rank: lastPosition };
+      }
+    });
+  }
+  
+  /**
+   * Generate a map of userId to position for a given leaderboard (for previous position tracking)
+   */
+  public getUserPositionMap(leaderboardData: LeaderboardEntry[], period: string): Record<string, number> {
+    const sorted = this.sortByWagered(leaderboardData, period);
+    const map: Record<string, number> = {};
+    for (const entry of sorted) {
+      map[entry.uid] = entry.rank;
+    }
+    return map;
   }
   
   /**

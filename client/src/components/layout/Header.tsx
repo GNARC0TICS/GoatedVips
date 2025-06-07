@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Menu, Search } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import AuthModal from "@/components/AuthModal";
+import AuthModal from "../auth/AuthModal";
 import type { SelectUser } from "@db/schema";
 import { UserSearch } from "../interactive/UserSearch";
 import { UtilityPanelButton } from "../utils/UtilityPanel";

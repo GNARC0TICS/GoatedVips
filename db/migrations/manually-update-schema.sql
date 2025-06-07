@@ -12,7 +12,8 @@ ALTER COLUMN prize_distribution SET DEFAULT '{}';
 
 -- Add columns to wagerRaceParticipants if they don't exist
 ALTER TABLE wager_race_participants
-ADD COLUMN IF NOT EXISTS username TEXT;
+ADD COLUMN IF NOT EXISTS username TEXT,
+ADD COLUMN IF NOT EXISTS previous_position INTEGER;
 
 CREATE TABLE IF NOT EXISTS goated_wager_leaderboard (
   uid TEXT PRIMARY KEY,

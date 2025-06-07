@@ -1,177 +1,104 @@
-import { Router, Request, Response } from 'express';
-import { db } from '@db/index';
-import { users, wheelSpins, bonusCodes, wagerRaces, wagerRaceParticipants, supportTickets } from '@db/schema';
-import { count, eq } from 'drizzle-orm';
+import { Router, Request, Response, NextFunction } from 'express';
+import userService from '../services/userService';
+// TODO: Create adminService for analytics if not present
 import { requireAdmin } from '../middleware/admin';
-import { 
-  validateAdminCredentials, 
-  setAdminSession, 
-  clearAdminSession, 
-  AUTH_ERROR_MESSAGES 
+import { RateLimiterMemory } from 'rate-limiter-flexible';
+import {
+  validateAdminCredentials,
+  setAdminSession,
+  clearAdminSession,
+  AUTH_ERROR_MESSAGES
 } from '../utils/auth-utils';
 
 const router = Router();
 
-// Secure admin login endpoint
-router.post('/admin/login', async (req: Request, res: Response) => {
-  const { username, password, secretKey } = req.body;
+// Rate limiter: 10 login attempts per minute per IP
+const loginLimiter = new RateLimiterMemory({ points: 10, duration: 60 });
 
-  if (!username || !password || !secretKey) {
-    return res.status(400).json({ 
-      message: 'Missing credentials',
-      status: 'error'
-    });
-  }
-
-  // Validate admin credentials using centralized utility
-  const isValid = validateAdminCredentials(username, password, secretKey);
-  
-  if (isValid) {
-    // Set session flag using utility function
-    setAdminSession(req);
-    
-    return res.status(200).json({
-      message: 'Authentication successful',
-      status: 'success'
-    });
-  } else {
-    return res.status(401).json({ 
-      message: 'Invalid credentials',
-      status: 'error'
-    });
-  }
-});
-
-// Admin logout endpoint
-router.post('/admin/logout', requireAdmin, (req: Request, res: Response) => {
-  // Clear admin session using utility function
-  clearAdminSession(req);
-  
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json({ 
-        message: 'Error during logout',
-        status: 'error'
-      });
+const withLoginRateLimit = (handler: (req: Request, res: Response, next: NextFunction) => Promise<any>) =>
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await loginLimiter.consume(req.ip || 'unknown');
+      return handler(req, res, next);
+    } catch (err) {
+      return res.status(429).json({ error: 'Too many login attempts' });
     }
-    res.status(200).json({ 
-      message: 'Logout successful',
-      status: 'success'
-    });
-  });
-});
+  };
 
-// Basic analytics endpoint
-router.get('/admin/analytics', requireAdmin, async (req: Request, res: Response) => {
+// POST /admin — secure admin login endpoint
+router.post('/admin', withLoginRateLimit(async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Count total users
-    const userCount = await db.select({ count: count() }).from(users);
-    
-    // Get recent users (last 10 registered)
-    const recentUsers = await db.select({
-      id: users.id,
-      username: users.username,
-      email: users.email,
-      createdAt: users.createdAt,
-      isAdmin: users.isAdmin
-    })
-    .from(users)
-    .orderBy(users.createdAt)
-    .limit(10);
+    const { username, password, secretKey } = req.body;
+    if (!username || !password || !secretKey) {
+      return res.status(400).json({ message: 'Missing credentials', status: 'error' });
+    }
+    const isValid = validateAdminCredentials(username, password, secretKey);
+    if (isValid) {
+      setAdminSession(req);
+      return res.status(200).json({ message: 'Authentication successful', status: 'success' });
+    } else {
+      return res.status(401).json({ message: 'Invalid credentials', status: 'error' });
+    }
+  } catch (err) {
+    next(err);
+  }
+}));
 
-    // Count wheel spins
-    const wheelSpinCount = await db.select({ count: count() }).from(wheelSpins);
-    
-    // Count bonus codes
-    const bonusCodeCount = await db.select({ count: count() }).from(bonusCodes);
-    
-    // Count wager races
-    const wagerRaceCount = await db.select({ count: count() }).from(wagerRaces);
-    
-    // Count wager race participants
-    const wagerRaceParticipantCount = await db.select({ count: count() }).from(wagerRaceParticipants);
-
-    // Count support tickets
-    const supportTicketCount = await db.select({ count: count() }).from(supportTickets);
-    
-    // Send aggregated analytics data
-    res.status(200).json({
-      totalUsers: userCount[0]?.count || 0,
-      recentUsers,
-      stats: {
-        wheelSpins: wheelSpinCount[0]?.count || 0,
-        bonusCodes: bonusCodeCount[0]?.count || 0,
-        wagerRaces: wagerRaceCount[0]?.count || 0,
-        wagerRaceParticipants: wagerRaceParticipantCount[0]?.count || 0,
-        supportTickets: supportTicketCount[0]?.count || 0,
+// POST /admin/logout — admin logout
+router.post('/admin/logout', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    clearAdminSession(req);
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: 'Error during logout', status: 'error' });
       }
+      res.status(200).json({ message: 'Logout successful', status: 'success' });
     });
-  } catch (error) {
-    console.error('Error fetching analytics:', error);
-    res.status(500).json({ 
-      message: 'Error fetching analytics',
-      status: 'error'
-    });
+  } catch (err) {
+    next(err);
   }
 });
 
-// User management endpoints
-router.get('/admin/users', requireAdmin, async (req: Request, res: Response) => {
+// GET /admin/analytics — admin analytics (TODO: move logic to adminService)
+router.get('/admin/analytics', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const allUsers = await db.select().from(users);
-    res.status(200).json(allUsers);
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    res.status(500).json({ 
-      message: 'Error fetching users',
-      status: 'error'
-    });
+    // TODO: Move analytics logic to adminService
+    // Example: const stats = await adminService.getAnalyticsStats();
+    return res.status(501).json({ message: 'Not implemented. Move logic to adminService.' });
+  } catch (err) {
+    next(err);
   }
 });
 
-// Get a specific user
-router.get('/admin/users/:id', requireAdmin, async (req: Request, res: Response) => {
-  const userId = Number(req.params.id);
-  
-  if (isNaN(userId)) {
-    return res.status(400).json({ 
-      message: 'Invalid user ID',
-      status: 'error'
-    });
-  }
-  
+// GET /admin/users — admin: get all users
+router.get('/admin/users', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = await db.select().from(users).where(eq(users.id, userId));
-    
-    if (!user || user.length === 0) {
-      return res.status(404).json({ 
-        message: 'User not found',
-        status: 'error'
-      });
-    }
-    
-    res.status(200).json(user[0]);
-  } catch (error) {
-    console.error('Error fetching user:', error);
-    res.status(500).json({ 
-      message: 'Error fetching user',
-      status: 'error'
-    });
+    // TODO: Add pagination support to userService.getAllUsers
+    const users = await userService.getAllUsers();
+    return res.status(200).json(users);
+  } catch (err) {
+    next(err);
   }
 });
 
-// Check admin auth status
+// GET /admin/users/:id — admin: get specific user
+router.get('/admin/users/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.params.id;
+    const user = await userService.findUserById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found', status: 'error' });
+    return res.status(200).json(user);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /admin/auth-status — check admin auth status
 router.get('/admin/auth-status', (req: Request, res: Response) => {
   if (req.session.isAdmin) {
-    res.status(200).json({ 
-      isAdmin: true,
-      status: 'success'
-    });
+    res.status(200).json({ isAdmin: true, status: 'success' });
   } else {
-    res.status(401).json({ 
-      isAdmin: false,
-      status: 'error'
-    });
+    res.status(401).json({ isAdmin: false, status: 'error' });
   }
 });
 

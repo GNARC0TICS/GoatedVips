@@ -84,7 +84,13 @@ class UserService {
       .set({ ...userData, lastActive: new Date() })
       .where(eq(users.id, parseInt(id, 10)))
       .returning();
-    
+    // Invalidate caches if wager fields are updated
+    if (userData.wageredToday !== undefined || userData.wageredThisWeek !== undefined || userData.wageredThisMonth !== undefined || userData.wageredAllTime !== undefined) {
+      const { cacheService } = await import("./cacheService");
+      cacheService.invalidate("current_race");
+      cacheService.invalidate("previous_race");
+      cacheService.invalidate("leaderboard_top_performers");
+    }
     return updatedUser;
   }
   

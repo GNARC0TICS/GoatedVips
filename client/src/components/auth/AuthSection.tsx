@@ -1,7 +1,7 @@
 import React from "react";
 import { SelectUser } from "@db/schema";
-import AuthModal from "@/components/AuthModal";
-import { UserMenu } from "../layout/UserMenu";
+import AuthModal from "./AuthModal";
+import { UserMenu } from "../utils/UserMenu";
 
 /**
  * AuthSection component

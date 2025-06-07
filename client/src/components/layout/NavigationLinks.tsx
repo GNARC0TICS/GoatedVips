@@ -376,3 +376,5 @@ export function DesktopNavLinks({ isAuthenticated }: DesktopNavLinksProps) {
     </>
   );
 }
+
+export { DesktopNavLinks as NavigationLinks };

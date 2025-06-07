@@ -1,4 +1,9 @@
-<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+import React from 'react';
+
+export default function AnalyticsDashboard({ stats }: { stats?: any }) {
+  return (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card>
           <CardHeader>
             <CardTitle>Total Users</CardTitle>
@@ -55,3 +60,6 @@
           </CardContent>
         </Card>
       </div>
+    </>
+  );
+}

@@ -500,6 +500,13 @@ export class ProfileService {
     }
   }
   
+  /**
+   * Check if a Goated username exists (delegates to goatedApiService)
+   */
+  async checkGoatedUsername(username: string) {
+    return goatedApiService.checkGoatedUsername(username);
+  }
+  
   // Private helper methods
   
   /**

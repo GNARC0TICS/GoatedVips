@@ -245,7 +245,7 @@ function setupAPIRoutes(app: Express) {
   app.use("/api", router); // Added this line
   
   // Mount our custom admin routes at the non-obvious URL path
-  app.use("/goombas.net", goombasAdminRouter);
+  app.use("/admin", goombasAdminRouter);
 
   // Add other API routes here, ensuring they're all prefixed with /api
   app.get("/api/health", (_req, res) => {

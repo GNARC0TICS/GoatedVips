@@ -55,6 +55,7 @@ import WheelChallenge from "@/pages/WheelChallenge";
 import GoombasAdminLogin from "@/pages/GoombasAdminLogin";
 import GoombasAdminDashboard from "@/pages/GoombasAdminDashboard";
 import CryptoSwap from "@/pages/CryptoSwap";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
 
 // MainContent Component
 // Handles the core application rendering logic including preloader and route management
@@ -123,6 +124,7 @@ function MainContent() {
                   <ProtectedRoute path="/wheel-challenge" component={WheelChallenge} />
 
                   {/* Admin Routes - Require Admin Privileges */}
+                  <AdminRoute path="/admin" component={AdminDashboard} />
                   <AdminRoute path="/admin/user-management" component={UserManagement} />
                   <AdminRoute path="/admin/wager-races" component={WagerRaceManagement} />
                   <AdminRoute path="/admin/bonus-codes" component={BonusCodeManagement} />

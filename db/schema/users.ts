@@ -1,5 +1,4 @@
-
-import { pgTable, text, timestamp, integer, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { relations } from 'drizzle-orm';
 
@@ -21,7 +20,7 @@ export const users = pgTable('users', {
   profileColor: text('profile_color').default('#D7FF00'),
   goatedAccountLinked: boolean('goated_account_linked').default(false),
   goatedUsername: text('goated_username'),
-  goatedId: text('goated_id').unique(), // Add goatedId field to link to Goated user ID
+  goatedId: text('goated_id').unique(),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
   lastActive: timestamp('last_active'),
   lastLogin: timestamp('last_login'),
@@ -40,7 +39,10 @@ export const users = pgTable('users', {
   emailVerified: boolean('email_verified').default(false),
   suspiciousActivity: boolean('suspicious_activity').default(false),
   activityLogs: jsonb('activity_logs').default([]).notNull(),
-});
+}, (table) => ({
+  goatedIdIdx: index("idx_goated_id").on(table.goatedId),
+  userIdIdx: index("idx_user_id").on(table.id),
+}));
 
 export const userRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),

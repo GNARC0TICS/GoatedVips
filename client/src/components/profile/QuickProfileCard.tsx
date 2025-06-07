@@ -9,7 +9,7 @@ import { ExternalLink, Check, Clock, Shield, AlertTriangle, MessageCircle, Share
 import { ProfileEmblem } from './ProfileEmblem';
 import { ProfileTierProgress } from './ProfileTierProgress';
 import { cn } from '@/lib/utils';
-import { Spinner } from '@/components/ui/spinner';
+import { LoadingSpinner as Spinner } from "../ui/loading-spinner";
 import { getTierFromWager, getTierInfo, TierLevel } from '@/lib/tier-utils';
 import { motion } from 'framer-motion';
 import { useProfile } from '@/hooks/use-profile';

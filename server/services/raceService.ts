@@ -21,6 +21,8 @@ import {
   SelectWagerRaceParticipant
 } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
+import { cacheService } from "./cacheService";
+import statSyncService from "./statSyncService";
 
 // LeaderboardData interface - TODO: Move to shared types file
 interface LeaderboardEntry {
@@ -96,6 +98,25 @@ export interface RaceConfig {
   title: string;
 }
 
+// Add fallback config util
+const fallbackRaceConfig = {
+  prizePool: 500,
+  prizeDistribution: {
+    "1": 0.425,
+    "2": 0.2,
+    "3": 0.15,
+    "4": 0.075,
+    "5": 0.06,
+    "6": 0.04,
+    "7": 0.0275,
+    "8": 0.0225,
+    "9": 0.0175,
+    "10": 0.0175
+  },
+  type: "monthly",
+  title: "Monthly Wager Race"
+};
+
 export class RaceService {
   
   /**
@@ -107,11 +128,38 @@ export class RaceService {
     console.log("RaceService: Fetching current race data");
     
     try {
-      // Transform leaderboard data to race format
-      const raceData = this.transformToRaceData(leaderboardData);
+      // Fetch current race from DB (status: 'live')
+      let dbRace = await db.query.wagerRaces.findFirst({
+        where: eq(wagerRaces.status, 'live'),
+        orderBy: sql`${wagerRaces.startDate} DESC`,
+      });
+      // Fallback to 'upcoming' if no live race
+      if (!dbRace) {
+        dbRace = await db.query.wagerRaces.findFirst({
+          where: eq(wagerRaces.status, 'upcoming'),
+          orderBy: sql`${wagerRaces.startDate} DESC`,
+        });
+      }
+      // Use fallback config if no race found
+      const config = dbRace ? {
+        prizePool: Number(dbRace.prizePool),
+        prizeDistribution: dbRace.prizeDistribution || fallbackRaceConfig.prizeDistribution,
+        type: dbRace.type,
+        title: dbRace.title || dbRace.name || fallbackRaceConfig.title,
+        startDate: dbRace.startDate,
+        endDate: dbRace.endDate,
+        id: dbRace.id,
+      } : {
+        ...fallbackRaceConfig,
+        startDate: new Date(),
+        endDate: new Date(),
+        id: 'fallback',
+      };
+      // Transform leaderboard data to race format using DB config
+      const raceData = this.transformToRaceData(leaderboardData, config);
       
       // Save race completion data if race is ending
-      await this.saveCompletedRaceData(raceData.id, leaderboardData.data.monthly.data);
+      await this.saveCompletedRaceData(config.id, leaderboardData.data.monthly.data, config);
       
       // Log successful transformation
       await this.logRaceOperation('current-race', 'success', 
@@ -177,20 +225,16 @@ export class RaceService {
    */
   async getUserRacePosition(uid: string, leaderboardData: LeaderboardData): Promise<RacePositionData> {
     console.log(`RaceService: Getting race position for user ${uid}`);
-    
     try {
-      // Find user in monthly data
-      const monthlyData = leaderboardData.data.monthly.data;
-      const userIndex = monthlyData.findIndex(user => user.uid === uid);
-      
-      // Get current race config
+      // Use tie-aware ranking
+      const monthlyRanked = statSyncService.sortByWagered(leaderboardData.data.monthly.data, "this_month");
+      const userIndex = monthlyRanked.findIndex(user => user.uid === uid);
       const raceConfig = this.getCurrentRaceConfig();
-      
       if (userIndex === -1) {
         console.log(`User ${uid} not found in monthly data`);
         return {
           position: null,
-          totalParticipants: monthlyData.length,
+          totalParticipants: monthlyRanked.length,
           wagerAmount: 0,
           previousPosition: null,
           raceType: 'monthly',
@@ -198,15 +242,28 @@ export class RaceService {
           endDate: this.getCurrentRaceEndDate().toISOString()
         };
       }
-      
-      // Get user data
-      const userData = monthlyData[userIndex];
-      
+      const userData = monthlyRanked[userIndex];
+      // Try to fetch previousPosition from DB
+      let previousPosition: number | null = null;
+      const user = await db.query.users.findFirst({ where: sql`goated_id = ${uid}` });
+      if (user) {
+        const lastRace = await this.getLastCompletedRace();
+        if (lastRace) {
+          const prevParticipant = await db.query.wagerRaceParticipants.findFirst({
+            where: sql`race_id = ${lastRace.id} AND user_id = ${user.id}`
+          });
+          if (prevParticipant && typeof prevParticipant.previousPosition === 'number') {
+            previousPosition = prevParticipant.previousPosition;
+          } else if (prevParticipant && typeof prevParticipant.position === 'number') {
+            previousPosition = prevParticipant.position;
+          }
+        }
+      }
       return {
-        position: userIndex + 1,
-        totalParticipants: monthlyData.length,
+        position: userData.rank,
+        totalParticipants: monthlyRanked.length,
         wagerAmount: userData.wagered.this_month,
-        previousPosition: null, // TODO: Implement previous position tracking
+        previousPosition,
         raceType: 'monthly',
         raceTitle: raceConfig.title,
         endDate: this.getCurrentRaceEndDate().toISOString()
@@ -310,44 +367,35 @@ export class RaceService {
   
   /**
    * Transforms leaderboard data into race format
+   * Now takes config from DB
    */
-  private transformToRaceData(leaderboardData: LeaderboardData): RaceData {
+  private transformToRaceData(leaderboardData: LeaderboardData, config: any): RaceData {
     console.log("RaceService: Transforming leaderboard data to race format");
-    
-    // Hard-code April 30, 2025 for the current race since today is April 30
-    // TODO: Use dynamic date calculation in production
-    const now = new Date(2025, 3, 30); // April 30, 2025
-    const endOfMonth = new Date(2025, 3, 30, 23, 59, 59); // April 30, 2025 end of day
-    const raceId = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-    
-    // Get monthly data and calculate total wagered
-    const monthlyData = leaderboardData.data.monthly.data;
-    const totalWagered = monthlyData.reduce((sum, p) => sum + p.wagered.this_month, 0);
-    
-    // Get current race configuration
-    const raceConfig = this.getCurrentRaceConfig();
-    
-    // Create race data structure
+    const now = new Date();
+    const raceId = config.id?.toString() || `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+    // Use tie-aware ranking
+    const monthlyRanked = statSyncService.sortByWagered(leaderboardData.data.monthly.data, "this_month");
+    const totalWagered = monthlyRanked.reduce((sum, p) => sum + p.wagered.this_month, 0);
     return {
       id: raceId,
-      status: 'ended', // Changed from 'live' to 'ended' since it's April 30th
-      startDate: new Date(2025, 3, 1).toISOString(), // April 1, 2025
-      endDate: endOfMonth.toISOString(),
-      prizePool: raceConfig.prizePool,
-      participants: monthlyData
-        .map((participant, index) => ({
+      status: 'live',
+      startDate: config.startDate?.toISOString?.() || now.toISOString(),
+      endDate: config.endDate?.toISOString?.() || now.toISOString(),
+      prizePool: config.prizePool,
+      participants: monthlyRanked
+        .map((participant) => ({
           uid: participant.uid,
           name: participant.name,
           wagered: participant.wagered.this_month,
-          position: index + 1
+          position: participant.rank
         }))
-        .slice(0, 10), // Take only top 10 for participants list
+        .slice(0, 10),
       totalWagered,
-      participantCount: monthlyData.length,
+      participantCount: monthlyRanked.length,
       metadata: {
-        transitionEnds: new Date(2025, 4, 1).toISOString(), // May 1, 2025
-        nextRaceStarts: new Date(2025, 4, 1).toISOString(), // May 1, 2025
-        prizeDistribution: Object.values(raceConfig.prizeDistribution)
+        transitionEnds: config.endDate ? new Date(config.endDate.getTime() + 24 * 60 * 60 * 1000).toISOString() : '',
+        nextRaceStarts: config.endDate ? new Date(config.endDate.getTime() + 24 * 60 * 60 * 1000).toISOString() : '',
+        prizeDistribution: Object.values(config.prizeDistribution)
       }
     };
   }
@@ -440,124 +488,113 @@ export class RaceService {
   
   /**
    * Save completed race data to the database
+   * Now logs full config into metadata
    */
-  private async saveCompletedRaceData(raceId: string, monthlyData: LeaderboardEntry[]): Promise<void> {
+  private async saveCompletedRaceData(raceId: string, monthlyData: LeaderboardEntry[], config: any): Promise<void> {
     try {
       console.log(`RaceService: Saving completed race data for race ${raceId}`);
-      
-      // Check if we already have this race in our database
       const existingRace = await db.query.wagerRaces.findFirst({
-        where: sql`name = ${raceId} OR title = ${`April 2025 Wager Race`}`,
+        where: sql`id = ${raceId} OR name = ${raceId}`,
       });
-      
       if (existingRace) {
-        console.log(`Race ${raceId} already exists in database with ID ${existingRace.id}`);
-        
-        // Only update if the race status isn't already 'ended'
         if (existingRace.status !== 'ended') {
           await this.updateRaceStatus(existingRace.id, 'completed');
         }
-        
-        // Update participants
-        await this.updateRaceParticipants(existingRace.id, monthlyData);
+        await this.updateRaceParticipants(existingRace.id, monthlyData, config);
       } else {
-        // Create new race record
-        await this.createCompletedRace(raceId, monthlyData);
+        await this.createCompletedRace(raceId, monthlyData, config);
       }
+      // Invalidate caches after race completion
+      cacheService.invalidate("current_race");
+      cacheService.invalidate("previous_race");
+      cacheService.invalidate("leaderboard_top_performers");
     } catch (error) {
       console.error(`RaceService: Error saving completed race data for race ${raceId}:`, error);
-      // Don't throw - this is a non-critical operation
     }
   }
   
   /**
    * Update participants for an existing race
+   * Now uses config from DB
    */
-  private async updateRaceParticipants(raceId: number, monthlyData: LeaderboardEntry[]): Promise<void> {
+  private async updateRaceParticipants(raceId: number, monthlyData: LeaderboardEntry[], config: any): Promise<void> {
     const existingParticipants = await this.getRaceParticipants(raceId);
     const race = await this.getRaceById(raceId);
-    
     if (!race) return;
-    
-    // Process the top 10 participants
-    const top10 = monthlyData
-      .slice(0, 10)
-      .map((participant, index) => ({
-        uid: participant.uid,
-        name: participant.name,
-        wagered: participant.wagered.this_month,
-        position: index + 1
-      }));
-    
-    // Update or insert participants
+    // Use tie-aware ranking
+    const ranked = statSyncService.sortByWagered(monthlyData, "this_month");
+    // Fetch previous snapshot for previousPosition
+    const prevSnapshot: Record<string, number> = {};
+    for (const p of existingParticipants) {
+      if (p.userId) prevSnapshot[p.userId.toString()] = p.position;
+    }
+    const top10 = ranked.slice(0, 10);
     for (const participant of top10) {
       const user = await db.query.users.findFirst({
         where: sql`goated_id = ${participant.uid}`,
       });
-      
-      const existingParticipant = existingParticipants.find(p => 
+      const existingParticipant = existingParticipants.find(p =>
         user ? p.userId === user.id : p.username === participant.name
       );
-      
       const prizeAmount = this.calculatePrizeAmount(
-        participant.position, 
-        Number(race.prizePool), 
-        race.prizeDistribution as Record<string, number>
+        participant.rank,
+        Number(config.prizePool),
+        config.prizeDistribution
       );
-      
+      const previousPosition = user && prevSnapshot[user.id?.toString()] ? prevSnapshot[user.id.toString()] : null;
       if (existingParticipant) {
-        // Update existing participant
         await db.update(wagerRaceParticipants)
           .set({
-            position: participant.position,
+            position: participant.rank,
+            previousPosition,
             wagered: String(participant.wagered),
             prizeAmount: String(prizeAmount),
             updatedAt: new Date()
           })
           .where(eq(wagerRaceParticipants.id, existingParticipant.id));
       } else {
-        // Insert new participant
         await db.insert(wagerRaceParticipants).values({
           raceId: raceId,
           userId: user?.id,
           username: participant.name,
           wagered: String(participant.wagered),
-          position: participant.position,
+          position: participant.rank,
+          previousPosition,
           prizeAmount: String(prizeAmount),
           joinedAt: new Date(),
           updatedAt: new Date()
         });
       }
-      
       console.log(`RaceService: Updated/added participant ${participant.name} for race ${raceId}`);
     }
+    // Invalidate relevant cache keys after participant update
+    cacheService.invalidate("current_race");
+    cacheService.invalidate("previous_race");
+    cacheService.invalidate("leaderboard_top_performers");
   }
   
   /**
    * Create a new completed race with participants
+   * Now uses config from DB
    */
-  private async createCompletedRace(raceId: string, monthlyData: LeaderboardEntry[]): Promise<void> {
-    const raceConfig = this.getCurrentRaceConfig();
-    
+  private async createCompletedRace(raceId: string, monthlyData: LeaderboardEntry[], config: any): Promise<void> {
     const result = await db.insert(wagerRaces).values({
-      title: `April 2025 Wager Race`,
+      title: config.title,
       name: raceId,
-      type: 'monthly',
+      type: config.type,
       status: 'ended',
-      prizePool: String(raceConfig.prizePool),
-      startDate: new Date(2025, 3, 1),
-      endDate: new Date(2025, 3, 30, 23, 59, 59),
-      prizeDistribution: raceConfig.prizeDistribution,
+      prizePool: String(config.prizePool),
+      startDate: config.startDate,
+      endDate: config.endDate,
+      prizeDistribution: config.prizeDistribution,
       completedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date()
     }).returning({ id: wagerRaces.id });
-    
     const newRaceId = result[0]?.id;
-    
     if (newRaceId) {
       console.log(`RaceService: Created new race record with ID ${newRaceId}`);
-      await this.updateRaceParticipants(newRaceId, monthlyData);
+      await this.updateRaceParticipants(newRaceId, monthlyData, config);
     } else {
       console.error(`RaceService: Failed to create race record for ${raceId}`);
     }
@@ -565,10 +602,11 @@ export class RaceService {
   
   /**
    * Calculate prize amount for a given position
+   * Now always uses config from DB
    */
   private calculatePrizeAmount(
-    position: number, 
-    prizePool: number, 
+    position: number,
+    prizePool: number,
     prizeDistribution: Record<string, number>
   ): number {
     const percentage = prizeDistribution[position.toString()] || 0;
@@ -595,7 +633,7 @@ export class RaceService {
         "10": 0.0175
       },
       type: "monthly",
-      title: "April 2025 Wager Race"
+      title: "Monthly Wager Race"
     };
   }
   
