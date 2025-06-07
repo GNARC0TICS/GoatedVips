@@ -13,12 +13,8 @@
  */
 
 import { db } from "@db";
-import { 
-  users, 
-  transformationLogs,
-  SelectUser,
-  InsertUser
-} from "@db/schema";
+import { users, SelectUser, InsertUser } from '../db/schema/users';
+import { transformationLogs } from '../db/schema/transformationLogs';
 import { eq, sql } from "drizzle-orm";
 import { preparePassword } from "../utils/auth-utils";
 import goatedApiService from "./goatedApiService";
@@ -594,7 +590,10 @@ export class ProfileService {
         createdAt: users.createdAt,
         goatedId: users.goatedId,
         goatedUsername: users.goatedUsername,
-        goatedAccountLinked: users.goatedAccountLinked
+        goatedAccountLinked: users.goatedAccountLinked,
+        profilePublic: users.profilePublic,
+        showStats: users.showStats,
+        totalWager: users.totalWager
       });
       
       if (insertedUsers.length > 0) {
@@ -642,7 +641,10 @@ export class ProfileService {
         createdAt: users.createdAt,
         goatedId: users.goatedId,
         goatedUsername: users.goatedUsername,
-        goatedAccountLinked: users.goatedAccountLinked
+        goatedAccountLinked: users.goatedAccountLinked,
+        profilePublic: users.profilePublic,
+        showStats: users.showStats,
+        totalWager: users.totalWager
       });
       
       if (insertedUsers.length > 0) {
@@ -841,3 +843,43 @@ export const profileService = new ProfileService();
 
 // Default export for consistency
 export default profileService;
+
+</file_content>
+
+Now that you have the latest state of the file, try the operation again with fewer, more precise SEARCH blocks. For large files especially, it may be prudent to try to limit yourself to <5 SEARCH/REPLACE blocks at a time, then wait for the user to respond with the result of the operation before following up with another replace_in_file call to make additional edits.
+(If you run into this error 3 times in a row, you may use the write_to_file tool as a fallback.)
+</error><environment_details>
+# VSCode Visible Files
+server/services/profileService.ts
+
+# VSCode Open Tabs
+scope.md
+server/services/profileService.ts
+package.json
+server/services/statSyncService.ts
+client/src/components/profile/PrivacySettingsDialog.tsx
+client/src/services/profileService.ts
+client/src/pages/EnhancedUserProfile.tsx
+client/src/components/ui/dialog.tsx
+server/services/userService.ts
+server/routes/users.ts
+client/src/App.tsx
+client/src/components/username/ClickableUsername.tsx
+client/src/components/profile/AccountLinkingDialog.tsx
+server/routes/account-linking.ts
+server/services/goatedApiService.ts
+client/src/data/navigationData.tsx
+db/schema/users.ts
+client/src/pages/Home.tsx
+client/src/components/effects/ParticleBackground.tsx
+.env
+
+# Current Time
+6/7/2025, 3:42:59 PM (America/Vancouver, UTC-7:00)
+
+# Context Window Usage
+513,403 / 1,048.576K tokens used (49%)
+
+# Current Mode
+ACT MODE
+</environment_details>
