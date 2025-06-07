@@ -26,23 +26,14 @@ export async function syncLeaderboardUsers() {
 
     console.log(`LeaderboardSyncService: Processing ${users.length} users`);
     
-    // Log sample user data structure for debugging
-    if (users.length > 0) {
-      console.log('Sample user data structure:', JSON.stringify(users[0], null, 2));
-      
-      // Find users with non-zero wagering amounts
-      const nonZeroUsers = users.filter(u => 
-        (u.wagered?.today && u.wagered.today > 0) ||
-        (u.wagered?.this_week && u.wagered.this_week > 0) ||
-        (u.wagered?.this_month && u.wagered.this_month > 0) ||
-        (u.wagered?.all_time && u.wagered.all_time > 0)
-      );
-      console.log(`Found ${nonZeroUsers.length} users with non-zero wagering amounts`);
-      
-      if (nonZeroUsers.length > 0) {
-        console.log('Sample non-zero user:', JSON.stringify(nonZeroUsers[0], null, 2));
-      }
-    }
+    // Count users with non-zero wagering amounts for monitoring
+    const activeUsers = users.filter(u => 
+      (u.wagered?.today && u.wagered.today > 0) ||
+      (u.wagered?.this_week && u.wagered.this_week > 0) ||
+      (u.wagered?.this_month && u.wagered.this_month > 0) ||
+      (u.wagered?.all_time && u.wagered.all_time > 0)
+    );
+    console.log(`Processing ${activeUsers.length} active users out of ${users.length} total users`);
     
     let created = 0;
     let updated = 0;

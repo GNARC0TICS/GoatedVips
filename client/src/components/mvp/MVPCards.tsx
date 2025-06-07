@@ -47,7 +47,7 @@ export function MVPCards() {
     error: errorDaily, 
     isError: isErrorDaily,
     refetch: refetchDaily
-  } = useLeaderboard("daily");
+  } = useLeaderboard("today", { limit: 1, page: 1 });
 
   const { 
     data: weeklyLeaderboardResponse, 
@@ -55,7 +55,7 @@ export function MVPCards() {
     error: errorWeekly, 
     isError: isErrorWeekly,
     refetch: refetchWeekly
-  } = useLeaderboard("weekly");
+  } = useLeaderboard("weekly", { limit: 1, page: 1 });
 
   const { 
     data: monthlyLeaderboardResponse, 
@@ -63,16 +63,25 @@ export function MVPCards() {
     error: errorMonthly, 
     isError: isErrorMonthly,
     refetch: refetchMonthly
-  } = useLeaderboard("monthly");
+  } = useLeaderboard("monthly", { limit: 1, page: 1 });
+
+  const { 
+    data: allTimeLeaderboardResponse, 
+    isLoading: isLoadingAllTime, 
+    error: errorAllTime, 
+    isError: isErrorAllTime,
+    refetch: refetchAllTime
+  } = useLeaderboard("all_time", { limit: 10, page: 1 });
   
-  const isLoading = isLoadingDaily || isLoadingWeekly || isLoadingMonthly;
-  const isError = isErrorDaily || isErrorWeekly || isErrorMonthly;
-  const error = errorDaily || errorWeekly || errorMonthly;
+  const isLoading = isLoadingDaily || isLoadingWeekly || isLoadingMonthly || isLoadingAllTime;
+  const isError = isErrorDaily || isErrorWeekly || isErrorMonthly || isErrorAllTime;
+  const error = errorDaily || errorWeekly || errorMonthly || errorAllTime;
   
   const refetchAll = () => {
     refetchDaily();
     refetchWeekly();
     refetchMonthly();
+    refetchAllTime();
   };
 
   const combinedLeaderboardDataForDialog = useMemo(() => {
@@ -80,9 +89,9 @@ export function MVPCards() {
       daily: dailyLeaderboardResponse,
       weekly: weeklyLeaderboardResponse,
       monthly: monthlyLeaderboardResponse,
-      // all_time data is not fetched here, so rank in dialog will be affected
+      allTime: allTimeLeaderboardResponse,
     };
-  }, [dailyLeaderboardResponse, weeklyLeaderboardResponse, monthlyLeaderboardResponse]);
+  }, [dailyLeaderboardResponse, weeklyLeaderboardResponse, monthlyLeaderboardResponse, allTimeLeaderboardResponse]);
 
   const mvps = React.useMemo(() => {
     const dailyMVPData = dailyLeaderboardResponse?.entries?.[0];
@@ -94,25 +103,24 @@ export function MVPCards() {
       weekly: weeklyMVPData ? formatMVPData(weeklyMVPData, 'weekly') : undefined,
       monthly: monthlyMVPData ? formatMVPData(monthlyMVPData, 'monthly') : undefined,
     };
-  }, [dailyLeaderboardResponse, weeklyLeaderboardResponse, monthlyLeaderboardResponse]);
+  }, [dailyLeaderboardResponse, weeklyLeaderboardResponse, monthlyLeaderboardResponse, allTimeLeaderboardResponse]);
 
-  // Helper function to format MVP data in a consistent structure
+  // Helper function to format MVP data with complete wagering information
   function formatMVPData(entry: LeaderboardEntry, period: 'daily' | 'weekly' | 'monthly'): MVP {
-    // TODO: The 'wagered.all_time' field is crucial for ProfileTierProgress in MVPCard.
-    // The current API (useLeaderboard) does not provide this unless timeframe is 'all_time'.
-    // This will lead to inaccurate tier display. Consider fetching all_time stats for MVPs separately.
+    // Find the user's all-time data to get complete wagering information
+    const allTimeEntry = allTimeLeaderboardResponse?.entries?.find(user => user.userId === entry.userId);
+    
     return {
       username: entry.username,
       uid: entry.userId,
       wagerAmount: entry.wagered, // This is the period-specific wager
-      avatarUrl: entry.avatarUrl || '', // Assuming avatarUrl is part of LeaderboardEntry
+      avatarUrl: entry.avatarUrl || '',
       rank: entry.rank,
-      // lastWagerChange: entry.lastWagerChange, // This field is not in LeaderboardEntry
       wagered: {
         today: period === 'daily' ? entry.wagered : 0,
         this_week: period === 'weekly' ? entry.wagered : 0,
         this_month: period === 'monthly' ? entry.wagered : 0,
-        all_time: 0, // Placeholder: This will cause inaccurate tier display in MVPCard
+        all_time: allTimeEntry?.wagered || 0, // Use actual all-time data for tier calculations
       },
     };
   }
