@@ -49,7 +49,7 @@ export function MobileNavigation({
             variant="ghost"
             size="icon"
             aria-label="Open mobile menu"
-            className="relative h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center transform transition-all duration-300 hover:scale-110 z-30"
+            className="relative h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center transform transition-all duration-300 hover:scale-110 min-h-[36px] min-w-[36px]"
             style={{
               touchAction: 'manipulation',
               WebkitTapHighlightColor: 'transparent',
