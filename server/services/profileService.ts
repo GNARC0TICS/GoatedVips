@@ -12,9 +12,9 @@
  * and various utility functions into a single, focused service.
  */
 
-import { db } from "@db";
-import { users, SelectUser, InsertUser } from '../db/schema/users';
-import { transformationLogs } from '../db/schema/transformationLogs';
+import { db } from "../../db";
+import { users, SelectUser, InsertUser } from '../../db/schema';
+import { transformationLogs } from '../../db/schema';
 import { eq, sql } from "drizzle-orm";
 import { preparePassword } from "../utils/auth-utils";
 import goatedApiService from "./goatedApiService";
@@ -49,754 +49,523 @@ interface LeaderboardData {
 /**
  * Profile synchronization statistics
  */
-export interface SyncStats {
-  created: number;
-  updated: number;
-  existing: number;
-  totalProcessed: number;
+interface SyncStats {
+  totalUsers: number;
+  processedUsers: number;
+  newUsers: number;
+  updatedUsers: number;
+  errors: number;
   duration: number;
 }
 
 /**
- * Account linking request result
+ * Goated account linking request
  */
-export interface LinkingResult {
-  success: boolean;
-  message: string;
-  username?: string;
-  reason?: string;
+interface GoatedLinkRequest {
+  userId: string;
+  goatedUsername: string;
+  goatedId?: string;
+  requestedAt: Date;
+  status: 'pending' | 'approved' | 'rejected';
 }
 
 /**
- * Profile creation options
+ * Comprehensive ProfileService class
+ * 
+ * This service provides a complete solution for user profile management,
+ * including Goated account integration, profile synchronization, and 
+ * profile discovery features.
  */
-export interface ProfileCreateOptions {
-  username: string;
-  goatedId?: string;
-  goatedUsername?: string;
-  email?: string;
-  bio?: string;
-  profileColor?: string;
-  isLinked?: boolean;
-  wagerData?: {
-    today: number;
-    this_week: number;
-    this_month: number;
-    all_time: number;
-  };
-  rankData?: {
-    daily: number | null;
-    weekly: number | null;
-    monthly: number | null;
-    allTime: number | null;
-  };
-}
-
-// Constants for bio strings
-const DEFAULT_BIO_GOATED_PLAYER = 'Official Goated.com player profile';
-const DEFAULT_BIO_USER_PROFILE = 'User profile';
-const DEFAULT_BIO_LEADERBOARD_PLAYER = 'Goated.com player';
-
-export class ProfileService {
+class ProfileService {
   
   /**
-   * Ensure a user profile exists
-   * Creates profile from Goated API data if available, otherwise creates placeholder
+   * Create a new user profile
    */
-  async ensureUserProfile(userId: string): Promise<any> {
-    if (!userId) return null;
-
-    console.log(`ProfileService: Ensuring profile exists for ID: ${userId}`);
-
-    try {
-      // First check if user already exists
-      const existingUser = await this.findExistingProfile(userId);
-      if (existingUser) {
-        // Refresh Goated data if linked
-        if (existingUser.goatedId && existingUser.goatedAccountLinked) {
-          await this.refreshGoatedUserData(String(existingUser.id), existingUser.goatedId);
-        }
-        
-        return {
-          ...existingUser,
-          isNewlyCreated: false
-        };
-      }
-
-      // Try to create profile from Goated API data
-      const goatedProfile = await this.createFromGoatedData(userId);
-      if (goatedProfile) {
-        return goatedProfile;
-      }
-
-      // Fallback to placeholder profile
-      return await this.createPlaceholderProfile(userId);
-    } catch (error) {
-      console.error(`ProfileService: Error ensuring profile for ID ${userId}:`, error);
-      return null;
-    }
-  }
-  
-  /**
-   * Request Goated account linking
-   * Initiates the admin approval process for account linking
-   */
-  async requestGoatedAccountLink(userId: string, goatedUsername: string, privacySettings?: { profilePublic: boolean; showStats: boolean }): Promise<LinkingResult> {
-    try {
-      // Validate user exists
-      const user = await this.findUserById(userId);
-      if (!user) {
-        throw new Error('User not found');
-      }
-      
-      // Check for existing pending request
-      if (user.goatedLinkRequested) {
-        throw new Error('You already have a pending link request');
-      }
-      
-      // Check if already linked
-      if (user.goatedAccountLinked) {
-        throw new Error('Your account is already linked to a Goated account');
-      }
-      
-      // Verify Goated username exists
-      const goatedCheck = await goatedApiService.checkGoatedUsername(goatedUsername);
-      if (!goatedCheck.exists) {
-        throw new Error('Goated username not found or invalid');
-      }
-      
-      // Store the request
-      const updatePayload: Partial<InsertUser> = {
-        goatedLinkRequested: true,
-        goatedUsernameRequested: goatedUsername,
-        // goatedLinkRequestedAt: new Date() // Field not in schema
-      };
-
-      if (privacySettings) {
-        // Privacy settings fields exist in schema but not in TypeScript types
-        // Using type assertion to bypass TypeScript until schema types are regenerated
-        (updatePayload as any).profilePublic = privacySettings.profilePublic;
-        (updatePayload as any).showStats = privacySettings.showStats;
-        (updatePayload as any).profilePrivacySettings = privacySettings;
-      }
-
-      await this.updateUser(userId, updatePayload);
-      
-      await this.logProfileOperation('account-link-request', 'success', 
-        `User ${userId} requested linking to ${goatedUsername}`, 0);
-      
-      return {
-        success: true,
-        message: 'Link request submitted. An admin will review your request.',
-        username: goatedUsername
-      };
-    } catch (error) {
-      await this.logProfileOperation('account-link-request', 'error', 
-        `Failed to request linking for user ${userId}: ${error instanceof Error ? error.message : String(error)}`, 0);
-      throw error;
-    }
-  }
-  
-  /**
-   * Admin approval of Goated account linking
-   */
-  async approveGoatedAccountLink(userId: string, goatedId: string, approvedBy: string): Promise<SelectUser> {
-    try {
-      // Validate user and pending request
-      const user = await this.findUserById(userId);
-      if (!user) {
-        throw new Error('User not found');
-      }
-      
-      if (!user.goatedLinkRequested) {
-        throw new Error('No pending link request for this user');
-      }
-      
-      // Check for conflicts
-      const existingLinked = await this.findUserByGoatedId(goatedId);
-      const userIdNumber = parseInt(userId, 10);
-      if (existingLinked && existingLinked.id !== userIdNumber) {
-        throw new Error('This Goated ID is already linked to another account');
-      }
-      
-      // Get Goated user info and wager data
-      const goatedUser = await goatedApiService.getUserInfo(goatedId);
-      if (!goatedUser) {
-        throw new Error('Goated user information not found');
-      }
-      
-      // Update user with approved linking
-      // Privacy settings (profilePublic, showStats) should have been set during requestGoatedAccountLink
-      // and will persist unless explicitly changed here.
-      const updatedUser = await this.updateUser(userId, {
-        goatedId,
-        goatedUsername: goatedUser.name,
-        goatedAccountLinked: true,
-        goatedLinkRequested: false,
-        goatedUsernameRequested: null,
-        totalWager: goatedUser.wager?.all_time !== undefined ? String(goatedUser.wager.all_time) : user.totalWager,
-        // verifiedBy: approvedBy, // Field not in schema
-        // verifiedAt: new Date() // Field not in schema
-      });
-      
-      await this.logProfileOperation('account-link-approved', 'success', 
-        `Admin ${approvedBy} approved linking for user ${userId} to Goated ID ${goatedId}`, 0);
-      
-      return updatedUser;
-    } catch (error) {
-      await this.logProfileOperation('account-link-approved', 'error', 
-        `Failed to approve linking for user ${userId}: ${error instanceof Error ? error.message : String(error)}`, 0);
-      throw error;
-    }
-  }
-  
-  /**
-   * Admin rejection of Goated account linking
-   */
-  async rejectGoatedAccountLink(userId: string, reason: string, rejectedBy: string): Promise<LinkingResult> {
-    try {
-      // Validate user and pending request
-      const user = await this.findUserById(userId);
-      if (!user) {
-        throw new Error('User not found');
-      }
-      
-      if (!user.goatedLinkRequested) {
-        throw new Error('No pending link request for this user');
-      }
-      
-      // Clear the request, but keep existing privacy settings
-      await this.updateUser(userId, {
-        goatedLinkRequested: false,
-        goatedUsernameRequested: null,
-      });
-      
-      await this.logProfileOperation('account-link-rejected', 'success', 
-        `Admin ${rejectedBy} rejected linking for user ${userId}. Reason: ${reason}`, 0);
-      
-      return {
-        success: true,
-        message: 'Link request rejected',
-        reason
-      };
-    } catch (error) {
-      await this.logProfileOperation('account-link-rejected', 'error', 
-        `Failed to reject linking for user ${userId}: ${error instanceof Error ? error.message : String(error)}`, 0);
-      throw error;
-    }
-  }
-  
-  /**
-   * Unlink Goated account
-   */
-  async unlinkGoatedAccount(userId: string): Promise<LinkingResult> {
-    try {
-      // Validate user has linked account
-      const user = await this.findUserById(userId);
-      if (!user) {
-        throw new Error('User not found');
-      }
-      
-      if (!user.goatedId) {
-        throw new Error('No linked account to unlink');
-      }
-      
-      // Unlink the account and reset privacy settings
-      await this.updateUser(userId, {
-        goatedId: null,
-        goatedUsername: null,
-        goatedAccountLinked: false,
-        lastActive: new Date(),
-        profilePublic: true, // Reset to public by default as per new rules
-        showStats: true,     // Reset to show stats by default
-        profilePrivacySettings: {} // Clear specific settings
-      } as Partial<InsertUser>); // Using type assertion for profilePublic, showStats
-      
-      await this.logProfileOperation('account-unlinked', 'success', 
-        `User ${userId} unlinked their Goated account`, 0);
-      
-      return {
-        success: true,
-        message: 'Account unlinked successfully'
-      };
-    } catch (error) {
-      await this.logProfileOperation('account-unlinked', 'error', 
-        `Failed to unlink account for user ${userId}: ${error instanceof Error ? error.message : String(error)}`, 0);
-      throw error;
-    }
-  }
-  
-  /**
-   * Synchronize all user profiles from Goated API
-   * Creates/updates profiles based on current leaderboard data
-   */
-  async syncUserProfiles(leaderboardData?: LeaderboardData): Promise<SyncStats> {
+  public async createUser(userData: InsertUser): Promise<SelectUser> {
     const startTime = Date.now();
-    console.log("ProfileService: Starting profile synchronization");
     
     try {
-      let created = 0;
-      let updated = 0;
-      let existing = 0;
-      
-      // Fetch leaderboard data if not provided
-      if (!leaderboardData) {
-        console.log("ProfileService: Fetching transformed leaderboard data for profile sync");
-        try {
-          leaderboardData = await statSyncService.getLeaderboardData();
-          console.log("ProfileService: Received leaderboard data:", !!leaderboardData);
-        } catch (fetchError) {
-          console.error("ProfileService: Error fetching leaderboard data:", fetchError);
-          await this.logProfileOperation('profile-sync', 'error', 
-            `Failed to fetch leaderboard data: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`, 
-            Date.now() - startTime);
-          throw new Error(`Failed to fetch leaderboard data: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
-        }
-        
-        if (!leaderboardData) {
-          await this.logProfileOperation('profile-sync', 'error', 
-            'Leaderboard data is null/undefined', Date.now() - startTime);
-          throw new Error('Leaderboard data is null/undefined');
-        }
-        
-        if (!leaderboardData.data) {
-          await this.logProfileOperation('profile-sync', 'error', 
-            'Leaderboard data.data is missing', Date.now() - startTime);
-          throw new Error('Leaderboard data.data is missing');
-        }
-        
-        if (!leaderboardData.data.all_time) {
-          await this.logProfileOperation('profile-sync', 'error', 
-            'Leaderboard data.data.all_time is missing', Date.now() - startTime);
-          throw new Error('Leaderboard data.data.all_time is missing');
-        }
+      // Hash password if provided
+      if (userData.password) {
+        userData.password = await preparePassword(userData.password);
       }
-      
-      const profiles = leaderboardData.data.all_time.data || [];
-      
-      if (!profiles.length) {
-        await this.logProfileOperation('profile-sync', 'warning', 
-          'No profiles found in API response', Date.now() - startTime);
-        return { created, updated, existing, totalProcessed: 0, duration: Date.now() - startTime };
-      }
-      
-      // Build rank maps for all timeframes
-      const rankMaps = this.buildRankMaps(leaderboardData);
-      
-      // Process each profile
-      for (const profile of profiles) {
-        try {
-          const { uid, name, wagered } = profile;
-          
-          if (!uid || !name) continue;
-          
-          const existingUser = await db.query.users.findFirst({
-            where: eq(users.goatedId, uid)
-          });
-          
-          if (existingUser) {
-            // Check if update needed
-            const needsUpdate = this.profileNeedsUpdate(existingUser, profile, rankMaps);
-            
-            if (needsUpdate) {
-              await this.updateExistingProfile(existingUser, profile, rankMaps);
-              updated++;
-            } else {
-              existing++;
-            }
-          } else {
-            // Create new profile
-            await this.createNewProfile(profile, rankMaps);
-            created++;
-          }
-        } catch (error) {
-          console.error(`ProfileService: Error processing profile ${profile?.name}:`, error);
-          continue;
-        }
-      }
-      
-      const duration = Date.now() - startTime;
-      await this.logProfileOperation('profile-sync', 'success', 
-        `Synced ${created + updated} profiles (${created} created, ${updated} updated, ${existing} unchanged)`, 
-        duration);
-      
-      return { created, updated, existing, totalProcessed: profiles.length, duration };
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      await this.logProfileOperation('profile-sync', 'error', 
-        'Failed to sync profiles', duration, error instanceof Error ? error.message : String(error));
-      throw error;
-    }
-  }
-  
-  /**
-   * Update wager data for existing users
-   */
-  async updateWagerData(leaderboardData: LeaderboardData): Promise<number> {
-    const startTime = Date.now();
-    console.log("ProfileService: Starting wager data update");
-    
-    try {
-      const profiles = leaderboardData.data.all_time.data || [];
-      
-      if (!profiles.length) {
-        await this.logProfileOperation('wager-update', 'warning', 
-          'No profiles found for wager update', Date.now() - startTime);
-        return 0;
-      }
-      
-      let updatedCount = 0;
-      
-      for (const profile of profiles) {
-        try {
-          const { uid, wagered } = profile;
-          
-          if (!uid || !wagered) continue;
-          
-          const userResult = await db.query.users.findFirst({
-            where: eq(users.goatedId, uid)
-          });
-          
-          if (!userResult) continue;
-          
-          await db.update(users)
-            .set({
-              totalWager: String(wagered.all_time || 0),
-              // dailyWager: String(wagered.today || 0), // Field not in schema
-              // weeklyWager: String(wagered.this_week || 0), // Field not in schema
-              // monthlyWager: String(wagered.this_month || 0), // Field not in schema
-              // lastWagerSync: new Date(), // Field not in schema
-              lastUpdated: new Date()
-            })
-            .where(eq(users.goatedId, uid));
-          
-          updatedCount++;
-        } catch (error) {
-          console.error(`ProfileService: Error updating wager data for ${profile.uid}:`, error);
-          continue;
-        }
-      }
-      
-      await this.logProfileOperation('wager-update', 'success', 
-        `Updated wager data for ${updatedCount} users`, Date.now() - startTime);
-      
-      return updatedCount;
-    } catch (error) {
-      await this.logProfileOperation('wager-update', 'error', 
-        'Failed to update wager data', Date.now() - startTime, error instanceof Error ? error.message : String(error));
-      throw error;
-    }
-  }
-  
-  /**
-   * Refresh Goated data for a specific user
-   */
-  async refreshGoatedUserData(userId: string, goatedId: string): Promise<void> {
-    try {
-      const goatedUser = await goatedApiService.findUserByGoatedId(goatedId);
-      
-      if (!goatedUser) {
-        console.warn(`ProfileService: Goated user ${goatedId} no longer exists, but linked to user ${userId}`);
-        return;
-      }
-      
-      const wagerData = await goatedApiService.getUserWagerData(goatedId);
-      
-      if (wagerData && wagerData.all_time !== undefined) {
-        await db.update(users)
-          .set({
-            totalWager: String(wagerData.all_time),
-            lastActive: new Date(),
-            // lastWagerSync: new Date() // Field not in schema
-          })
-          .where(eq(users.id, parseInt(userId, 10)));
-      }
-    } catch (error) {
-      console.error(`ProfileService: Error refreshing Goated data for user ${userId}:`, error);
-    }
-  }
-  
-  /**
-   * Check if a Goated username exists (delegates to goatedApiService)
-   */
-  async checkGoatedUsername(username: string) {
-    return goatedApiService.checkGoatedUsername(username);
-  }
-  
-  // Private helper methods
-  
-  /**
-   * Find existing profile by ID or Goated ID
-   */
-  private async findExistingProfile(userId: string): Promise<SelectUser | null> {
-    const isNumericId = /^\d+$/.test(userId);
-    let user: SelectUser | undefined;
 
-    if (isNumericId) {
-      user = await db.query.users.findFirst({
-        where: eq(users.id, parseInt(userId, 10)),
-        // Omitting 'columns' to select all fields, matching SelectUser type
-      });
-    }
+      const result = await db.insert(users).values({
+        ...userData,
+        createdAt: new Date(),
+        lastUpdated: new Date()
+      }).returning();
 
-    if (user) {
+      if (!result || result.length === 0) {
+        throw new Error('Failed to create user');
+      }
+
+      const user = result[0];
+      const duration = Date.now() - startTime;
+      
+      await this.logProfileOperation(
+        'create',
+        'success',
+        `Created user profile for ${user.username || user.email}`,
+        duration
+      );
+
       return user;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      await this.logProfileOperation(
+        'create',
+        'error',
+        `Failed to create user profile`,
+        duration,
+        error instanceof Error ? error.message : String(error)
+      );
+      throw error;
     }
-
-    // Try by Goated ID if not found by numeric ID or if userId is not numeric
-    user = await db.query.users.findFirst({
-      where: eq(users.goatedId, userId),
-      // Omitting 'columns' to select all fields, matching SelectUser type
-    });
-    
-    return user || null;
   }
-  
+
   /**
-   * Create profile from Goated API data
+   * Find user by email
    */
-  private async createFromGoatedData(userId: string): Promise<any> {
+  public async findUserByEmail(email: string): Promise<SelectUser | null> {
     try {
-      // Get user data from leaderboard
-      const rawData = await goatedApiService.fetchReferralData();
-      if (!rawData?.data) return null;
-      
-      const userData = this.findUserInLeaderboard(userId, rawData);
-      if (!userData?.name) return null;
-      
-      // Create permanent profile with Goated data
-      const email = `goatedid-${userId}@users.goatedvips.com`;
-      const randomPassword = Math.random().toString(36).substring(2, 10); // Placeholder password
-      const hashedPassword = await preparePassword(randomPassword);
-
-
-      const insertedUsers = await db.insert(users).values({
-        username: userData.name,
-        email: email,
-        password: hashedPassword,
-        createdAt: new Date(),
-        bio: DEFAULT_BIO_GOATED_PLAYER,
-        isAdmin: false,
-        goatedId: userId,
-        goatedUsername: userData.name,
-        goatedAccountLinked: true,
-        profilePublic: true,
-        showStats: true
-      }).returning({
-        id: users.id,
-        username: users.username,
-        bio: users.bio,
-        profileColor: users.profileColor,
-        createdAt: users.createdAt,
-        goatedId: users.goatedId,
-        goatedUsername: users.goatedUsername,
-        goatedAccountLinked: users.goatedAccountLinked,
-        profilePublic: users.profilePublic,
-        showStats: users.showStats,
-        totalWager: users.totalWager
+      const result = await db.query.users.findFirst({
+        where: eq(users.email, email)
       });
       
-      if (insertedUsers.length > 0) {
-        console.log(`ProfileService: Created permanent profile for Goated player ${userData.name} (${userId})`);
-        return {
-          ...insertedUsers[0],
-          isNewlyCreated: true,
-          isPermanent: true
-        };
-      }
+      return result || null;
     } catch (error) {
-      console.error(`ProfileService: Failed to create Goated profile for ${userId}:`, error);
-    }
-    
-    return null;
-  }
-  
-  /**
-   * Create placeholder profile
-   */
-  private async createPlaceholderProfile(userId: string): Promise<any> {
-    try {
-      const isNumericId = /^\d+$/.test(userId);
-      const tempUsername = `goated_placeholder_${userId}`;
-      const email = `userid-${userId}@users.goatedvips.com`;
-      const randomPassword = Math.random().toString(36).substring(2, 10); // Placeholder password
-      const hashedPassword = await preparePassword(randomPassword);
-      
-      const insertedUsers = await db.insert(users).values({
-        username: tempUsername,
-        email: email,
-        password: hashedPassword,
-        createdAt: new Date(),
-        bio: DEFAULT_BIO_USER_PROFILE,
-        isAdmin: false,
-        goatedId: userId,
-        goatedAccountLinked: false,
-        profilePublic: true,
-        showStats: true
-      }).returning({
-        id: users.id,
-        username: users.username,
-        bio: users.bio,
-        profileColor: users.profileColor,
-        createdAt: users.createdAt,
-        goatedId: users.goatedId,
-        goatedUsername: users.goatedUsername,
-        goatedAccountLinked: users.goatedAccountLinked,
-        profilePublic: users.profilePublic,
-        showStats: users.showStats,
-        totalWager: users.totalWager
-      });
-      
-      if (insertedUsers.length > 0) {
-        console.log(`ProfileService: Created placeholder profile for ID ${userId}`);
-        return {
-          ...insertedUsers[0],
-          isNewlyCreated: true,
-          isTemporary: true // This flag indicates it's a placeholder
-        };
-      }
-    } catch (error) {
-      console.error(`ProfileService: Failed to create placeholder profile for ${userId}:`, error);
-    }
-    
-    return null;
-  }
-  
-  /**
-   * Find user in leaderboard data
-   */
-  private findUserInLeaderboard(userId: string, rawData: any): any {
-    const timeframes = ['all_time', 'monthly', 'weekly', 'today'];
-    
-    for (const timeframe of timeframes) {
-      const users = rawData?.data?.[timeframe]?.data || [];
-      const foundUser = users.find((u: any) => u.uid === userId);
-      if (foundUser) return foundUser;
-    }
-    
-    return null;
-  }
-  
-  /**
-   * Build rank maps for all timeframes
-   */
-  private buildRankMaps(leaderboardData: LeaderboardData) {
-    const rankMaps = {
-      daily: new Map(),
-      weekly: new Map(),
-      monthly: new Map(),
-      allTime: new Map()
-    };
-    
-    // Build rank maps
-    leaderboardData.data.today?.data?.forEach((profile, index) => {
-      if (profile.uid) rankMaps.daily.set(profile.uid, index + 1);
-    });
-    
-    leaderboardData.data.weekly?.data?.forEach((profile, index) => {
-      if (profile.uid) rankMaps.weekly.set(profile.uid, index + 1);
-    });
-    
-    leaderboardData.data.monthly?.data?.forEach((profile, index) => {
-      if (profile.uid) rankMaps.monthly.set(profile.uid, index + 1);
-    });
-    
-    leaderboardData.data.all_time?.data?.forEach((profile, index) => {
-      if (profile.uid) rankMaps.allTime.set(profile.uid, index + 1);
-    });
-    
-    return rankMaps;
-  }
-  
-  /**
-   * Check if profile needs update
-   */
-  private profileNeedsUpdate(existingUser: any, profile: LeaderboardEntry, rankMaps: any): boolean {
-    return (
-      existingUser.goatedUsername !== profile.name ||
-      existingUser.totalWager !== String(profile.wagered?.all_time || 0) // Other fields (dailyWager, etc.) not in schema
-      // (existingUser as any).dailyWager !== String(profile.wagered?.today || 0) ||
-      // (existingUser as any).weeklyWager !== String(profile.wagered?.this_week || 0) ||
-      // (existingUser as any).monthlyWager !== String(profile.wagered?.this_month || 0) ||
-      // (existingUser as any).dailyRank !== rankMaps.daily.get(profile.uid) ||
-      // (existingUser as any).weeklyRank !== rankMaps.weekly.get(profile.uid) ||
-      // (existingUser as any).monthlyRank !== rankMaps.monthly.get(profile.uid) ||
-      // (existingUser as any).allTimeRank !== rankMaps.allTime.get(profile.uid)
-    );
-  }
-  
-  /**
-   * Update existing profile
-   */
-  private async updateExistingProfile(existingUser: any, profile: LeaderboardEntry, rankMaps: any): Promise<void> {
-    await db.update(users)
-      .set({
-        goatedUsername: profile.name,
-        totalWager: String(profile.wagered?.all_time || 0),
-        // dailyWager: String(profile.wagered?.today || 0), // Field not in schema
-        // weeklyWager: String(profile.wagered?.this_week || 0), // Field not in schema
-        // monthlyWager: String(profile.wagered?.this_month || 0), // Field not in schema
-        // dailyRank: rankMaps.daily.get(profile.uid) || null, // Field not in schema
-        // weeklyRank: rankMaps.weekly.get(profile.uid) || null, // Field not in schema
-        // monthlyRank: rankMaps.monthly.get(profile.uid) || null, // Field not in schema
-        // allTimeRank: rankMaps.allTime.get(profile.uid) || null, // Field not in schema
-        lastActive: new Date(),
-        lastUpdated: new Date(),
-        // lastWagerSync: new Date() // Field not in schema
-      })
-      .where(eq(users.goatedId, profile.uid));
-  }
-  
-  /**
-   * Create new profile from leaderboard data
-   */
-  private async createNewProfile(profile: LeaderboardEntry, rankMaps: any): Promise<void> {
-    const randomPassword = Math.random().toString(36).substring(2, 10);
-    const hashedPassword = await preparePassword(randomPassword);
-    
-    await db.insert(users).values({
-      username: profile.name,
-      password: hashedPassword,
-      email: `goatedid-${profile.uid}@users.goatedvips.com`,
-      goatedId: profile.uid,
-      goatedUsername: profile.name,
-      goatedAccountLinked: true,
-      profilePublic: true,
-      showStats: true,
-      totalWager: String(profile.wagered?.all_time || 0),
-      createdAt: new Date(),
-      lastUpdated: new Date(),
-      bio: DEFAULT_BIO_LEADERBOARD_PLAYER
-    });
-  }
-  
-  /**
-   * Basic user operations
-   */
-  private async findUserById(userId: string): Promise<SelectUser | null> {
-    try {
-      const user = await db.query.users.findFirst({
-        where: eq(users.id, parseInt(userId, 10))
-      });
-      return user || null;
-    } catch (error) {
-      console.error(`ProfileService: Error finding user ${userId}:`, error);
+      console.error("ProfileService: Error finding user by email:", error);
       return null;
     }
   }
-  
-  private async findUserByGoatedId(goatedId: string): Promise<SelectUser | null> {
+
+  /**
+   * Find user by username
+   */
+  public async findUserByUsername(username: string): Promise<SelectUser | null> {
     try {
-      const user = await db.query.users.findFirst({
+      const result = await db.query.users.findFirst({
+        where: eq(users.username, username)
+      });
+      
+      return result || null;
+    } catch (error) {
+      console.error("ProfileService: Error finding user by username:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Find user by ID
+   */
+  public async findUserById(id: string | number): Promise<SelectUser | null> {
+    try {
+      const userId = typeof id === 'string' ? parseInt(id, 10) : id;
+      
+      const result = await db.query.users.findFirst({
+        where: eq(users.id, userId)
+      });
+      
+      return result || null;
+    } catch (error) {
+      console.error("ProfileService: Error finding user by ID:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Find user by Goated ID
+   */
+  public async findUserByGoatedId(goatedId: string): Promise<SelectUser | null> {
+    try {
+      const result = await db.query.users.findFirst({
         where: eq(users.goatedId, goatedId)
       });
-      return user || null;
+      
+      return result || null;
     } catch (error) {
-      console.error(`ProfileService: Error finding user by Goated ID ${goatedId}:`, error);
+      console.error("ProfileService: Error finding user by Goated ID:", error);
       return null;
     }
   }
-  
+
+  /**
+   * Sync user profiles from Goated leaderboard
+   * 
+   * This method fetches the latest leaderboard data and synchronizes
+   * user profiles, creating new ones for users not in our database
+   * and updating existing ones with fresh data.
+   */
+  public async syncUserProfiles(): Promise<SyncStats> {
+    const startTime = Date.now();
+    
+    const stats: SyncStats = {
+      totalUsers: 0,
+      processedUsers: 0,
+      newUsers: 0,
+      updatedUsers: 0,
+      errors: 0,
+      duration: 0
+    };
+
+    try {
+      await this.logProfileOperation(
+        'sync',
+        'info',
+        'Starting user profile synchronization',
+        0
+      );
+
+      // Fetch leaderboard data from Goated API
+      const leaderboardData = await goatedApiService.getLeaderboard();
+      
+      if (!leaderboardData || leaderboardData.status !== 'success') {
+        throw new Error('Failed to fetch leaderboard data from Goated API');
+      }
+
+      // Collect all unique users from all leaderboard categories
+      const allUsers = new Map<string, LeaderboardEntry>();
+      
+      Object.values(leaderboardData.data).forEach(category => {
+        category.data.forEach(entry => {
+          if (!allUsers.has(entry.uid)) {
+            allUsers.set(entry.uid, entry);
+          }
+        });
+      });
+
+      stats.totalUsers = allUsers.size;
+
+      // Process each user
+      for (const [uid, entry] of allUsers) {
+        try {
+          await this.processUserEntry(entry);
+          stats.processedUsers++;
+        } catch (error) {
+          console.error(`ProfileService: Error processing user ${uid}:`, error);
+          stats.errors++;
+        }
+      }
+
+      stats.duration = Date.now() - startTime;
+
+      await this.logProfileOperation(
+        'sync',
+        'success',
+        `Profile sync completed: ${stats.processedUsers}/${stats.totalUsers} users processed, ${stats.newUsers} new, ${stats.updatedUsers} updated, ${stats.errors} errors`,
+        stats.duration
+      );
+
+      return stats;
+    } catch (error) {
+      stats.duration = Date.now() - startTime;
+      
+      await this.logProfileOperation(
+        'sync',
+        'error',
+        'Profile synchronization failed',
+        stats.duration,
+        error instanceof Error ? error.message : String(error)
+      );
+
+      throw error;
+    }
+  }
+
+  /**
+   * Process a single user entry from leaderboard data
+   */
+  private async processUserEntry(entry: LeaderboardEntry): Promise<void> {
+    // Check if user already exists
+    const existingUser = await this.findUserByGoatedId(entry.uid);
+    
+    if (existingUser) {
+      // Update existing user
+      await this.updateUser(existingUser.id.toString(), {
+        username: entry.name,
+        goatedId: entry.uid,
+        lastUpdated: new Date()
+      });
+    } else {
+      // Create new user
+      await this.createUser({
+        username: entry.name,
+        goatedId: entry.uid,
+        email: `${entry.uid}@goated.temp`, // Temporary email
+        goatedAccountLinked: true,
+        createdAt: new Date(),
+        lastUpdated: new Date()
+      });
+    }
+  }
+
+  /**
+   * Create or update user profile ensuring it exists
+   * 
+   * This method is used by API endpoints to ensure a user profile
+   * exists before displaying data. It handles various scenarios:
+   * - Finding by internal ID
+   * - Finding by Goated ID
+   * - Creating from Goated API data
+   * - Creating placeholder profiles
+   */
+  public async ensureUserProfile(userId: string): Promise<{
+    user: SelectUser;
+    isNewlyCreated: boolean;
+  } | null> {
+    const startTime = Date.now();
+    
+    try {
+      // Try to find existing user by internal ID first
+      let user = await this.findUserById(userId);
+      
+      if (user) {
+        return { user, isNewlyCreated: false };
+      }
+
+      // Try to find by Goated ID
+      user = await this.findUserByGoatedId(userId);
+      
+      if (user) {
+        return { user, isNewlyCreated: false };
+      }
+
+      // Try to fetch user from Goated API and create profile
+      const goatedUser = await goatedApiService.getUserProfile(userId);
+      
+      if (goatedUser) {
+        user = await this.createUser({
+          username: goatedUser.name || `User${userId}`,
+          goatedId: userId,
+          email: `${userId}@goated.temp`,
+          goatedAccountLinked: true,
+          createdAt: new Date(),
+          lastUpdated: new Date()
+        });
+
+        const duration = Date.now() - startTime;
+        await this.logProfileOperation(
+          'ensure',
+          'success',
+          `Created profile from Goated API for user ${userId}`,
+          duration
+        );
+
+        return { user, isNewlyCreated: true };
+      }
+
+      // Create placeholder profile for users not found in API
+      user = await this.createUser({
+        username: `User${userId}`,
+        goatedId: userId,
+        email: `${userId}@placeholder.temp`,
+        isGoatedLinked: false,
+        createdAt: new Date(),
+        lastUpdated: new Date()
+      });
+
+      const duration = Date.now() - startTime;
+      await this.logProfileOperation(
+        'ensure',
+        'warning',
+        `Created placeholder profile for user ${userId} (not found in Goated API)`,
+        duration
+      );
+
+      return { user, isNewlyCreated: true };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      await this.logProfileOperation(
+        'ensure',
+        'error',
+        `Failed to ensure profile for user ${userId}`,
+        duration,
+        error instanceof Error ? error.message : String(error)
+      );
+
+      console.error("ProfileService: Error ensuring user profile:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Request Goated account linking
+   * 
+   * Initiates the process of linking a user's account with their Goated profile.
+   * This creates a pending request that needs to be approved.
+   */
+  public async requestGoatedLinking(
+    userId: string,
+    goatedUsername: string,
+    goatedId?: string
+  ): Promise<GoatedLinkRequest> {
+    const startTime = Date.now();
+    
+    try {
+      // Verify user exists
+      const user = await this.findUserById(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Check if user is already linked
+      if (user.isGoatedLinked && user.goatedId) {
+        throw new Error('User is already linked to a Goated account');
+      }
+
+      // Verify Goated username exists (optional verification)
+      if (goatedId) {
+        const goatedProfile = await goatedApiService.getUserProfile(goatedId);
+        if (!goatedProfile || goatedProfile.name !== goatedUsername) {
+          throw new Error('Goated profile verification failed');
+        }
+      }
+
+      // Create linking request (this could be stored in a separate table in the future)
+      const linkRequest: GoatedLinkRequest = {
+        userId,
+        goatedUsername,
+        goatedId,
+        requestedAt: new Date(),
+        status: 'pending'
+      };
+
+      const duration = Date.now() - startTime;
+      await this.logProfileOperation(
+        'link-request',
+        'success',
+        `Goated linking requested for user ${userId} to ${goatedUsername}`,
+        duration
+      );
+
+      return linkRequest;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      await this.logProfileOperation(
+        'link-request',
+        'error',
+        `Failed to request Goated linking for user ${userId}`,
+        duration,
+        error instanceof Error ? error.message : String(error)
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Approve Goated account linking
+   */
+  public async approveGoatedLinking(
+    userId: string,
+    goatedId: string,
+    goatedUsername: string
+  ): Promise<SelectUser> {
+    const startTime = Date.now();
+    
+    try {
+      // Update user with Goated linking
+      const user = await this.updateUser(userId, {
+        goatedId,
+        username: goatedUsername,
+        isGoatedLinked: true,
+        lastUpdated: new Date()
+      });
+
+      // Sync user stats
+      await statSyncService.syncUserStats(parseInt(userId, 10));
+
+      const duration = Date.now() - startTime;
+      await this.logProfileOperation(
+        'link-approve',
+        'success',
+        `Approved Goated linking for user ${userId} to ${goatedUsername} (${goatedId})`,
+        duration
+      );
+
+      return user;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      await this.logProfileOperation(
+        'link-approve',
+        'error',
+        `Failed to approve Goated linking for user ${userId}`,
+        duration,
+        error instanceof Error ? error.message : String(error)
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Reject Goated account linking
+   */
+  public async rejectGoatedLinking(
+    userId: string,
+    reason?: string
+  ): Promise<void> {
+    const startTime = Date.now();
+    
+    try {
+      const duration = Date.now() - startTime;
+      await this.logProfileOperation(
+        'link-reject',
+        'info',
+        `Rejected Goated linking for user ${userId}${reason ? `: ${reason}` : ''}`,
+        duration
+      );
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      await this.logProfileOperation(
+        'link-reject',
+        'error',
+        `Failed to process Goated linking rejection for user ${userId}`,
+        duration,
+        error instanceof Error ? error.message : String(error)
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Search users by username (for profile discovery)
+   */
+  public async searchUsersByUsername(query: string, limit = 10): Promise<SelectUser[]> {
+    try {
+      const result = await db.query.users.findMany({
+        where: sql`${users.username} ILIKE ${`%${query}%`}`,
+        limit
+      });
+      
+      return result || [];
+    } catch (error) {
+      console.error("ProfileService: Error searching users:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get user profile with additional metadata
+   */
+  public async getUserProfile(userId: string): Promise<SelectUser | null> {
+    try {
+      const user = await this.findUserById(userId);
+      
+      if (!user) {
+        return null;
+      }
+
+      // Additional profile enrichment could go here
+      return user;
+    } catch (error) {
+      console.error("ProfileService: Error getting user profile:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Update user profile
+   */
   public async updateUser(userId: string, updates: Partial<InsertUser>): Promise<SelectUser> {
     const result = await db.update(users)
       .set({
@@ -843,43 +612,3 @@ export const profileService = new ProfileService();
 
 // Default export for consistency
 export default profileService;
-
-</file_content>
-
-Now that you have the latest state of the file, try the operation again with fewer, more precise SEARCH blocks. For large files especially, it may be prudent to try to limit yourself to <5 SEARCH/REPLACE blocks at a time, then wait for the user to respond with the result of the operation before following up with another replace_in_file call to make additional edits.
-(If you run into this error 3 times in a row, you may use the write_to_file tool as a fallback.)
-</error><environment_details>
-# VSCode Visible Files
-server/services/profileService.ts
-
-# VSCode Open Tabs
-scope.md
-server/services/profileService.ts
-package.json
-server/services/statSyncService.ts
-client/src/components/profile/PrivacySettingsDialog.tsx
-client/src/services/profileService.ts
-client/src/pages/EnhancedUserProfile.tsx
-client/src/components/ui/dialog.tsx
-server/services/userService.ts
-server/routes/users.ts
-client/src/App.tsx
-client/src/components/username/ClickableUsername.tsx
-client/src/components/profile/AccountLinkingDialog.tsx
-server/routes/account-linking.ts
-server/services/goatedApiService.ts
-client/src/data/navigationData.tsx
-db/schema/users.ts
-client/src/pages/Home.tsx
-client/src/components/effects/ParticleBackground.tsx
-.env
-
-# Current Time
-6/7/2025, 3:42:59 PM (America/Vancouver, UTC-7:00)
-
-# Context Window Usage
-513,403 / 1,048.576K tokens used (49%)
-
-# Current Mode
-ACT MODE
-</environment_details>
