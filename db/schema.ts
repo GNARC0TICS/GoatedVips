@@ -364,3 +364,13 @@ export type InsertTransformationLog = typeof transformationLogs.$inferInsert;
 export type SelectTransformationLog = typeof transformationLogs.$inferSelect;
 export type InsertSyncLog = typeof syncLogs.$inferInsert;
 export type SelectSyncLog = typeof syncLogs.$inferSelect;
+
+export const goatedWagerLeaderboard = pgTable("goated_wager_leaderboard", {
+  uid: text("uid").primaryKey(),
+  name: text("name").notNull(),
+  wagered_today: decimal("wagered_today", { precision: 18, scale: 8 }).notNull().default("0"),
+  wagered_this_week: decimal("wagered_this_week", { precision: 18, scale: 8 }).notNull().default("0"),
+  wagered_this_month: decimal("wagered_this_month", { precision: 18, scale: 8 }).notNull().default("0"),
+  wagered_all_time: decimal("wagered_all_time", { precision: 18, scale: 8 }).notNull().default("0"),
+  last_synced: timestamp("last_synced").defaultNow().notNull(),
+});

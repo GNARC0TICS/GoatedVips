@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 /**
  * Main server entry point for the GoatedVIPs application
  * Handles server initialization, middleware setup, and core service bootstrapping

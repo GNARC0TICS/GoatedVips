@@ -8,11 +8,11 @@
  * Contains all necessary parameters for communicating with the Goated API
  */
 export const API_CONFIG = {
-  // The full URL to the external API endpoint
-  baseUrl: "https://api.goated.com/user2/affiliate/referral-leaderboard/2RW440E",
+  // The full URL to the new external API endpoint
+  baseUrl: "https://apis.goated.com/user/affiliate/referral-leaderboard/2RW440E",
   
-  // API token for authentication - only use environment variable
-  token: process.env.GOATED_API_TOKEN || process.env.API_TOKEN || "",
+  // API token for authentication - hardcoded for testing
+  token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJNZ2xjTU9DNEl6cWpVbzVhTXFBVyIsInNlc3Npb24iOiJ3SmlGVk1yaHJEMFYiLCJpYXQiOjE3NDkyNTUxNDYsImV4cCI6MTc0OTM0MTU0Nn0.mcW1J0iakuZ-p5W54Pi5wGlFldGQcMAtm-jXXtWuY-E",
   
   // Empty endpoints object as we're using the full URL as baseUrl
   endpoints: {

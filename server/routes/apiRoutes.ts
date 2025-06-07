@@ -174,4 +174,23 @@ router.post("/sync/trigger", async (_req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/test/goated-raw
+ * Returns the raw response from the Goated.com API for inspection
+ * No transformation or caching
+ */
+router.get("/test/goated-raw", async (_req: Request, res: Response) => {
+  try {
+    const goatedApiService = (await import("../services/goatedApiService")).default;
+    const rawData = await goatedApiService.fetchReferralData(true);
+    res.json({ status: "success", rawData });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Failed to fetch raw Goated.com API data",
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
 export default router;
