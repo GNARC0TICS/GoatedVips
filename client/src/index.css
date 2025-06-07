@@ -951,4 +951,53 @@ html {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
+
+  /* Ensure proper spacing for mobile cards and components */
+  .card,
+  [data-radix-dialog-content],
+  [data-radix-popover-content],
+  .dropdown-content {
+    margin: 8px;
+    max-width: calc(100vw - 16px);
+  }
+
+  /* Improve mobile modal and dialog positioning */
+  [data-radix-dialog-overlay] {
+    padding: 16px;
+  }
+
+  /* Better mobile form spacing */
+  .form-container,
+  .auth-form,
+  .profile-form {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  /* Optimize mobile grid layouts */
+  .grid-responsive {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Mobile-specific leaderboard optimizations */
+  .leaderboard-table {
+    font-size: 14px;
+  }
+  
+  .leaderboard-row {
+    min-height: 48px;
+    padding: 8px 4px;
+  }
+
+  /* Profile card mobile optimizations */
+  .profile-card {
+    padding: 12px;
+    margin: 8px 0;
+  }
+
+  .profile-stats {
+    flex-direction: column;
+    gap: 8px;
+  }
 }

@@ -67,15 +67,15 @@ export default function Home() {
             <AnimatedSection 
               preset="fadeInUp" 
               delay={0.2}
-              className="mb-24"
+              className="mb-16 sm:mb-20 lg:mb-24"
               whileInView={{
                 opacity: 1,
                 y: 0,
               }}
               viewport={{ once: true, margin: "-100px" }}
             >
-              <h2 className="text-4xl font-heading text-white mb-12 text-center flex items-center justify-center gap-3">
-                <Crown className="w-8 h-8 text-[#D7FF00] animate-wiggle" />
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-heading text-white mb-8 sm:mb-10 lg:mb-12 text-center flex items-center justify-center gap-2 sm:gap-3">
+                <Crown className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-[#D7FF00] animate-wiggle" />
                 TOP PERFORMERS
               </h2>
               <MVPCards />
@@ -84,15 +84,15 @@ export default function Home() {
             <AnimatedSection 
               preset="fadeInUp" 
               delay={0.3}
-              className="mb-24"
+              className="mb-16 sm:mb-20 lg:mb-24"
               whileInView={{
                 opacity: 1,
                 y: 0,
               }}
               viewport={{ once: true, margin: "-100px" }}
             >
-              <h2 className="text-4xl font-heading text-white mb-12 text-center flex items-center justify-center gap-3">
-                <Zap className="w-8 h-8 text-[#D7FF00] animate-flicker" />
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-heading text-white mb-8 sm:mb-10 lg:mb-12 text-center flex items-center justify-center gap-2 sm:gap-3">
+                <Zap className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-[#D7FF00] animate-flicker" />
                 EXPLORE OUR FEATURES
               </h2>
               <FeatureCardGrid />

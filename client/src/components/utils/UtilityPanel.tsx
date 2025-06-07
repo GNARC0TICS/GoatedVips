@@ -37,7 +37,12 @@ export const UtilityPanelButton = () => {
       animate={{ height: "auto", opacity: 1 }}
       exit={{ height: 0, opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-x-0 top-16 bg-[#1A1B21] border-b border-[#2A2B31]"
+      className="fixed inset-x-0 bg-[#1A1B21] border-b border-[#2A2B31] z-[90]"
+      style={{ 
+        top: '3.5rem',
+        touchAction: 'manipulation',
+        WebkitTapHighlightColor: 'transparent'
+      }}
     >
       <div className="grid grid-cols-2 gap-3 p-4">
         <motion.button
@@ -46,7 +51,11 @@ export const UtilityPanelButton = () => {
             setIsOpen(false);
           }}
           whileTap={{ scale: 0.95 }}
-          className="flex flex-col items-center justify-center gap-2 p-4 bg-[#2A2B31]/60 rounded-xl"
+          className="flex flex-col items-center justify-center gap-2 p-4 bg-[#2A2B31]/60 rounded-xl min-h-[60px] touch-target"
+          style={{
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent'
+          }}
         >
           <InventoryIcon className="w-8 h-8 text-[#D7FF00]" />
           <span className="text-xs text-[#8A8B91]">Daily Spin</span>
@@ -58,7 +67,11 @@ export const UtilityPanelButton = () => {
             setIsOpen(false);
           }}
           whileTap={{ scale: 0.95 }}
-          className="flex flex-col items-center justify-center gap-2 p-4 bg-[#2A2B31]/60 rounded-xl"
+          className="flex flex-col items-center justify-center gap-2 p-4 bg-[#2A2B31]/60 rounded-xl min-h-[60px] touch-target"
+          style={{
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent'
+          }}
         >
           <Ticket className="w-8 h-8 text-[#D7FF00]" />
           <span className="text-xs text-[#8A8B91]">Bonus Codes</span>
@@ -69,8 +82,12 @@ export const UtilityPanelButton = () => {
           target="_blank"
           rel="noopener noreferrer"
           whileTap={{ scale: 0.95 }}
-          className="flex flex-col items-center justify-center gap-2 p-4 bg-[#2A2B31]/60 rounded-xl"
+          className="flex flex-col items-center justify-center gap-2 p-4 bg-[#2A2B31]/60 rounded-xl min-h-[60px] touch-target"
           onClick={() => setIsOpen(false)}
+          style={{
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent'
+          }}
         >
           <Send className="w-8 h-8 text-[#D7FF00]" />
           <span className="text-xs text-[#8A8B91]">Telegram</span>
@@ -81,8 +98,12 @@ export const UtilityPanelButton = () => {
           target="_blank"
           rel="noopener noreferrer"
           whileTap={{ scale: 0.95 }}
-          className="flex flex-col items-center justify-center gap-2 p-4 bg-[#2A2B31]/60 rounded-xl"
+          className="flex flex-col items-center justify-center gap-2 p-4 bg-[#2A2B31]/60 rounded-xl min-h-[60px] touch-target"
           onClick={() => setIsOpen(false)}
+          style={{
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent'
+          }}
         >
           <MessageCircle className="w-8 h-8 text-[#D7FF00]" />
           <span className="text-xs text-[#8A8B91]">Support</span>
