@@ -1,5 +1,7 @@
 # GoatedVIPs Platform Audit Checklist
 
+// Documentation references updated to docs/ directory [2024-06-09]
+
 ## Structure
 - [ ] Consolidate documentation into a single `docs/` directory
 - [ ] Prune and optimize static assets

@@ -10,14 +10,12 @@ import goatedApiService from '../services/goatedApiService';
 import { scheduleJob } from 'node-schedule';
 import { db } from 'db';
 import { syncLogs } from '@db/schema';
+import { syncGoatedWagerLeaderboard } from '../services/wagerLeaderboardSync';
 
 // Set up sync schedules
 const SYNC_SCHEDULES = {
   // Run profile sync hourly at minute 15 (1:15, 2:15, etc.)
   PROFILE_SYNC: '15 * * * *',
-  
-  // Run wager data updates every 30 minutes
-  WAGER_DATA: '*/30 * * * *',
   
   // Refresh API cache every 15 minutes
   API_REFRESH: '*/15 * * * *'
@@ -40,21 +38,21 @@ export function initializeDataSyncTasks() {
       });
     });
     
-    // Schedule wager data updates
-    scheduleJob(SYNC_SCHEDULES.WAGER_DATA, () => {
-      console.log("[Running scheduled wager data update...]");
-      runWagerDataUpdate().catch(err => {
-        console.error("[Wager data update error]", err);
-        logSyncError('wager', err);
-      });
-    });
-    
     // Schedule API cache refresh
     scheduleJob(SYNC_SCHEDULES.API_REFRESH, () => {
       console.log("[Refreshing API cache...]");
       refreshApiCache().catch(err => {
         console.error("[API cache refresh error]", err);
         logSyncError('api-cache', err);
+      });
+    });
+    
+    // Schedule wager leaderboard sync (every 10 minutes)
+    scheduleJob('*/10 * * * *', () => {
+      console.log("[Running scheduled wager leaderboard sync...]");
+      syncGoatedWagerLeaderboard().catch(err => {
+        console.error("[Wager leaderboard sync error]", err);
+        logSyncError('wager-leaderboard', err);
       });
     });
     
@@ -95,40 +93,6 @@ export async function runProfileSync() {
     
     // Log sync failure
     await logSyncError('profile', error);
-    throw error;
-  }
-}
-
-/**
- * Run wager data update process
- * Updates wager statistics for all users
- */
-export async function runWagerDataUpdate() {
-  console.log("Running scheduled wager data update...");
-  const startTime = Date.now();
-  
-  try {
-    // Perform the actual update
-    const updatedCount = await platformApiService.updateWagerData();
-    
-    // Log successful update
-    await db.insert(syncLogs).values({
-      type: 'wager',
-      status: 'success',
-      updated_count: updatedCount,
-      total_processed: updatedCount,
-      duration_ms: Date.now() - startTime,
-      created_at: new Date()
-    });
-    
-    console.log(`[Wager data update completed] Updated: ${updatedCount}, Duration: ${Date.now() - startTime}ms`);
-    return updatedCount;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[Wager data update failed]", errorMessage);
-    
-    // Log update failure
-    await logSyncError('wager', error);
     throw error;
   }
 }
@@ -190,4 +154,3 @@ async function logSyncError(type: string, error: unknown) {
 
 // For compatibility with the sync functions in platformApiService
 export const syncUserProfiles = runProfileSync;
-export const updateWagerData = runWagerDataUpdate;

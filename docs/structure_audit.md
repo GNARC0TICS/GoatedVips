@@ -3,6 +3,8 @@
 ## Overview
 This document provides a comprehensive audit of the GoatedVIPs project structure as of the current state. It is based on the generated directory tree and available documentation, with a focus on clarity, modularity, and maintainability.
 
+// Documentation references updated to docs/ directory [2024-06-09]
+
 ---
 
 ## High-Level Directory Structure

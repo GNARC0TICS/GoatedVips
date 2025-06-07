@@ -406,11 +406,11 @@
 │   │   └── bonus-codes-api.md
 │   ├── index.ts
 │   ├── middleware
-│   │   ├── admin.ts
-│   │   ├── auth.ts
-│   │   ├── domain-handler.ts
-│   │   ├── error-handler.ts
-│   │   └── rate-limit.ts
+│   │   ├── auth.ts                 # ✅ clean (High Modularity/Cohesion) — Authenticates user via token, attaches user to req. Used by most user/account routes. Needs to replace inline `req.user?.id` checks.
+│   │   ├── admin.ts                # ✅ clean (High Modularity/Cohesion) — Verifies admin session (`req.session.isAdmin`). Used by all `/admin` routes. Needs to replace inline `req.user?.admin` checks.
+│   │   ├── domain-handler.ts       # ✅ clean (High Modularity/Cohesion) — Marks requests from `/goombas.net` domain. Global. Ensure all domain logic uses this.
+│   │   ├── error-handler.ts        # ✅ clean (High Modularity/Cohesion) — Global error and 404 handler. Standardizes error responses. Universal. Ensure all custom errors use AppError.
+│   │   └── rate-limit.ts           # ✅ clean (High Modularity/Cohesion) — Provides login and API rate limiters. Used by Login/API endpoints. Audit for missing usage on sensitive routes.
 │   ├── routes
 │   │   ├── account-linking.ts
 │   │   ├── apiRoutes.ts
@@ -449,3 +449,79 @@
 └── vitest.config.ts
 
 45 directories, 404 files
+
+// Backend services audit updated [2024-06-09]
+
+server/services/
+├── wagerLeaderboardSync.ts      # ✅ clean — Syncs Goated wager leaderboard to DB. Upserts wager fields for all users. No business logic, just sync. Uses goatedApiService. Runs on startup & interval.
+├── telegramBotService.ts        # ✅ clean — Telegram bot integration. Handles /start and /verify commands, user linking. Singleton, minimal logic.
+├── userService.ts               # 🧹 needs cleanup — Central user DB service. CRUD, search, profile ensure, Goated linking, verification. Some overlap with platformApiService. Some logic could be further modularized.
+├── goatedApiService.ts          # ✅ clean — Handles all external Goated.com API calls. Retry logic, token mgmt, error handling. No business logic, just API. Good separation.
+├── platformApiService.ts        # 🧹 needs cleanup — All internal business logic: transforms, syncs, race logic, DB ops, endpoints. Large, some tight coupling (API+DB+logic). Some duplication with userService.
+├── cacheService.ts              # ✅ clean — In-memory cache with TTL, namespaces, stats, stale-while-revalidate, error caching. Good separation. Could be extracted to core utils if used elsewhere.
+
+// 📦 Route Inventory & Refactor Notes (June 2025)
+// Added after comprehensive audit of all backend routes. See scope.md for summary and refactor checklist.
+
+| Endpoint/Path                       | Method | Feature(s)         | Middleware                | Key Dependencies         | Coupling Level         | Refactor Notes / Issues                                                                                  |
+|--------------------------------------|--------|--------------------|---------------------------|-------------------------|------------------------|----------------------------------------------------------------------------------------------------------|
+| **users.ts**                        |        |                    |                           |                         |                        |                                                                                                          |
+| `/search`                           | GET    | 🟢🟡                | none                      | db                      | Fat (direct DB/logic)  | Should call userService for search logic.                                                                |
+| `/:id`                              | GET    | 🟢🟡                | none                      | db                      | Fat (direct DB/logic)  | Should call userService for lookup/formatting.                                                           |
+| `/leaderboard/:timeframe`            | GET    | 🟡                 | none                      | db                      | Fat (direct DB/logic)  | Should call leaderboard/stat service.                                                                    |
+| `/admin/all`                        | GET    | 🔴                 | requireAuth, requireAdmin | db                      | Fat (direct DB/logic)  | Should call userService for admin queries.                                                               |
+| `/ensure-profile`                    | POST   | 🟢                 | none                      | ensureUserProfile       | Service-wrapped        | Should call a dedicated profileService, not index.                                                       |
+| `/:id/stats`                        | GET    | 🟡                 | none                      | db                      | Fat (direct DB/logic)  | Should call userService for stats/tier logic.                                                            |
+| `/:id`                              | PATCH  | 🟢                 | none                      | db                      | Fat (direct DB/logic)  | Should call userService for updates.                                                                     |
+| `/batch`                            | GET    | 🟢🟡                | none                      | db                      | Fat (direct DB/logic)  | Should call userService for batch fetch.                                                                 |
+| **account-linking.ts**               |        |                    |                           |                         |                        |                                                                                                          |
+| `/request-link`                     | POST   | 🟢                 | (auth via req.user)        | userService             | Service-wrapped        | Good, but should use explicit middleware for auth.                                                       |
+| `/unlink-account`                    | POST   | 🟢                 | (auth via req.user)        | db                      | Fat (direct DB/logic)  | Should use userService for unlink logic.                                                                 |
+| `/check-goated-username/:username`   | GET    | 🟢                 | (auth via req.user)        | goatedApiService        | Service-wrapped        | Good, but should use explicit middleware for auth.                                                       |
+| `/admin-approve-link`                | POST   | 🟢🔴               | (admin via req.user)       | userService             | Service-wrapped        | Good, but should use explicit admin middleware.                                                          |
+| `/admin-reject-link`                 | POST   | 🟢🔴               | (admin via req.user)       | userService             | Service-wrapped        | Good, but should use explicit admin middleware.                                                          |
+| **goombas-admin.ts**                 |        |                    |                           |                         |                        |                                                                                                          |
+| `/admin/login`                      | POST   | 🔴                 | none                      | auth-utils              | Service-wrapped        | Good, uses utility for validation.                                                                       |
+| `/admin/logout`                     | POST   | requireAdmin        | auth-utils                | Service-wrapped         | Good, uses utility for session clear.                                                                    |
+| `/admin/analytics`                   | GET    | 🔴                 | requireAdmin               | db                      | Fat (direct DB/logic)  | Should move analytics logic to a service.                                                                |
+| `/admin/users`                       | GET    | 🔴                 | requireAdmin               | db                      | Fat (direct DB/logic)  | Should call userService.                                                                                 |
+| `/admin/users/:id`                   | GET    | 🔴                 | requireAdmin               | db                      | Fat (direct DB/logic)  | Should call userService.                                                                                 |
+| `/admin/auth-status`                 | GET    | none                | session                    | Service-wrapped         | Good, simple session check.                                                                              |
+| **webhook.ts**                       |        | 🟠                 | rateLimiter                | bot, telegram           | Service-wrapped         | Good, all logic delegated to bot handlers.                                                               |
+| **bonus-challenges.ts**              |        |                    |                           |                         |                        |                                                                                                          |
+| `/bonus-codes`                       | GET    | 🟡                 | rateLimiter                | db                      | Service-wrapped         | Good, uses rate limit and caching headers.                                                               |
+| `/admin/bonus-codes`                 | GET    | 🔴                 | isAdmin                    | db                      | Service-wrapped         | Good, uses admin middleware.                                                                             |
+| `/admin/bonus-codes`                 | POST   | 🔴                 | isAdmin                    | db                      | Service-wrapped         | Good, uses admin middleware.                                                                             |
+| `/admin/bonus-codes/:id`             | PUT    | 🔴                 | isAdmin                    | db                      | Service-wrapped         | Good, uses admin middleware.                                                                             |
+| `/admin/bonus-codes/:id`             | DELETE | 🔴                 | isAdmin                    | db                      | Service-wrapped         | Good, uses admin middleware.                                                                             |
+| **challenges.ts**                    |        | 🟡                 | isAdmin (admin routes)      | db                      | Service-wrapped (admin) | Good, admin and public routes separated.                                                                 |
+| `/admin/challenges`                  | GET    | 🔴                 | isAdmin                    | db                      | Service-wrapped         | Good, uses admin middleware.                                                                             |
+| `/admin/challenges`                  | POST   | 🔴                 | isAdmin                    | db                      | Service-wrapped         | Good, uses admin middleware.                                                                             |
+| `/admin/challenges/:id`              | PUT    | 🔴                 | isAdmin                    | db                      | Service-wrapped         | Good, uses admin middleware.                                                                             |
+| `/admin/challenges/:id`              | DELETE | 🔴                 | isAdmin                    | db                      | Service-wrapped         | Good, uses admin middleware.                                                                             |
+| `/challenges`                        | GET    | 🟡                 | none                       | db                      | Service-wrapped         | Good, public fetch.                                                                                      |
+| `/challenges/:id/entries`            | POST   | 🟡                 | (auth via req.user)         | db                      | Fat (direct DB/logic)  | Should use explicit auth middleware.                                                                     |
+| **apiRoutes.ts**                     |        |                    |                           |                         |                        |                                                                                                          |
+| `/affiliate/stats`                   | GET    | 🔵🟡               | cache(15min)                | platformApiService       | Service-wrapped         | Good, all logic in service.                                                                              |
+| `/wager-races/current`               | GET    | 🟣                 | cache(15min)                | platformApiService       | Service-wrapped         | Good, all logic in service.                                                                              |
+| `/wager-races/previous`              | GET    | 🟣                 | cache(15min)                | platformApiService       | Service-wrapped         | Good, all logic in service.                                                                              |
+| `/wager-race/position`               | GET    | 🟣                 | none                        | platformApiService       | Service-wrapped         | Good, all logic in service.                                                                              |
+| `/sync/trigger`                      | POST   | 🔴                 | none                        | platformApiService       | Service-wrapped         | Should require admin middleware.                                                                         |
+| `/test/goated-raw`                   | GET    | none                | goatedApiService            | Service-wrapped         | Good, for debugging only.                                                                               |
+
+### Refactor Checklist
+- [ ] Migrate all direct DB/business logic in `users.ts` to `userService`/`profileService`
+- [ ] Move analytics and user management logic in `goombas-admin.ts` to `adminService` or `userService`
+- [ ] Enforce explicit auth/admin middleware in `account-linking.ts` and `challenges.ts`
+- [ ] Add admin middleware to `/sync/trigger` in `apiRoutes.ts`
+- [x] Keep `apiRoutes.ts` as a clean controller layer using proper services
+
+// 🧱 Middleware Inventory & Refactor Checklist (June 2025)
+// Added after comprehensive audit of all backend middleware. See scope.md for summary and refactor checklist.
+
+server/middleware/
+├── auth.ts                 # ✅ clean (High Modularity/Cohesion) — Authenticates user via token, attaches user to req. Used by most user/account routes. Needs to replace inline `req.user?.id` checks.
+├── admin.ts                # ✅ clean (High Modularity/Cohesion) — Verifies admin session (`req.session.isAdmin`). Used by all `/admin` routes. Needs to replace inline `req.user?.admin` checks.
+├── domain-handler.ts       # ✅ clean (High Modularity/Cohesion) — Marks requests from `/goombas.net` domain. Global. Ensure all domain logic uses this.
+├── error-handler.ts        # ✅ clean (High Modularity/Cohesion) — Global error and 404 handler. Standardizes error responses. Universal. Ensure all custom errors use AppError.
+├── rate-limit.ts           # ✅ clean (High Modularity/Cohesion) — Provides login and API rate limiters. Used by Login/API endpoints. Audit for missing usage on sensitive routes.

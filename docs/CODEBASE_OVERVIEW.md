@@ -1,4 +1,4 @@
-
+// Documentation references updated to docs/ directory [2024-06-09]
 # GoatedVIPs Platform Technical Overview
 
 ## Platform Context

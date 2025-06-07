@@ -1,5 +1,7 @@
 # Mobile Improvements Guide
 
+// Documentation references updated to docs/ directory [2024-06-09]
+
 This guide documents the mobile optimization strategies implemented in the GoatedVIPs platform and provides guidance for future improvements.
 
 ## Current Mobile Optimizations
