@@ -399,32 +399,22 @@ async function initializeServer() {
     const { initializeDataSyncTasks } = await import('./tasks/dataSyncTasks');
     initializeDataSyncTasks();
 
-    // Run an immediate profile sync to ensure all user profiles are created
-    try {
-      log("info", "Starting immediate data sync...");
-
-      // Set a timeout to ensure server startup isn't blocked
-      // Use a longer timeout to match our API timeout settings
-      const syncPromise = Promise.race([
-        syncUserProfiles(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Initial sync timeout - continuing with server startup")), 15000))
-      ]);
-
-      try {
-        await syncPromise;
-      } catch (error) {
-        const timeoutError = error as Error;
-        log("warn", `${timeoutError.message}`);
-      }
-
-      // Also update wager data
-      const goatedApiService = (await import('./services/goatedApiService')).default;
-      const wagerCount = await goatedApiService.updateAllWagerData();
-      log("info", `Initial wager data update completed for ${wagerCount} users`);
-    } catch (syncError) {
-      log("error", `Error during initial data sync: ${syncError instanceof Error ? syncError.message : String(syncError)}`);
-      // Non-fatal error, continue with server initialization
-    }
+    // Start background sync operations (non-blocking)
+    log("info", "Starting background data sync...");
+    
+    // Run profile sync in background
+    syncUserProfiles().catch(error => {
+      log("error", `Background profile sync failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
+    
+    // Also start wager data update in background
+    import('./services/goatedApiService').then(({ default: goatedApiService }) => {
+      return goatedApiService.updateAllWagerData();
+    }).then(wagerCount => {
+      log("info", `Background wager data update completed for ${wagerCount} users`);
+    }).catch(error => {
+      log("error", `Background wager sync failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
     log("info", "Data synchronization tasks initialized");
 
 

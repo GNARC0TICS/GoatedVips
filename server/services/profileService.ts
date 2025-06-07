@@ -22,6 +22,7 @@ import {
 import { eq, sql } from "drizzle-orm";
 import { preparePassword } from "../utils/auth-utils";
 import goatedApiService from "./goatedApiService";
+import statSyncService from "./statSyncService";
 
 // TODO: Move to shared types file during future refactor
 interface LeaderboardEntry {
@@ -324,14 +325,13 @@ export class ProfileService {
       
       // Fetch leaderboard data if not provided
       if (!leaderboardData) {
-        console.log("ProfileService: Fetching leaderboard data for profile sync");
-        const rawData = await goatedApiService.fetchReferralData();
-        if (!rawData?.data) {
+        console.log("ProfileService: Fetching transformed leaderboard data for profile sync");
+        leaderboardData = await statSyncService.getLeaderboardData();
+        if (!leaderboardData?.data) {
           await this.logProfileOperation('profile-sync', 'error', 
             'Failed to fetch leaderboard data', Date.now() - startTime);
           throw new Error('Failed to fetch leaderboard data');
         }
-        leaderboardData = rawData;
       }
       
       const profiles = leaderboardData.data.all_time.data || [];

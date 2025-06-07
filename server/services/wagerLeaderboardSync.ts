@@ -48,8 +48,14 @@ export async function syncGoatedWagerLeaderboard() {
   }
 }
 
-// Run on startup
-syncGoatedWagerLeaderboard();
+// Run on startup (non-blocking)
+syncGoatedWagerLeaderboard().catch(error => {
+  console.error('Initial wager leaderboard sync failed:', error);
+});
 
 // Schedule periodic sync
-setInterval(syncGoatedWagerLeaderboard, SYNC_INTERVAL); 
+setInterval(() => {
+  syncGoatedWagerLeaderboard().catch(error => {
+    console.error('Scheduled wager leaderboard sync failed:', error);
+  });
+}, SYNC_INTERVAL); 
