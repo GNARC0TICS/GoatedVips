@@ -2,7 +2,7 @@
 
 ## Overview
 
-We've significantly enhanced the GoatedVIPs profile system with a focus on:
+We've significantly enhanced the GoatedVIPs profile system with a consice focus on:
 
 1. Component modularity through decomposition
 2. Improved visual design with tier-based styling
