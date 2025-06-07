@@ -13,6 +13,9 @@ type AnimatedSectionProps = HTMLMotionProps<'div'> & {
   staggerChildren?: number;
   delayChildren?: number;
   elementType?: keyof JSX.IntrinsicElements; // To allow specifying element type like 'p'
+  // Added support for whileInView optimization
+  whileInView?: any;
+  viewport?: any;
 };
 
 const animationPresets = {
@@ -34,6 +37,8 @@ export function AnimatedSection({
   staggerChildren,
   delayChildren,
   elementType: ElementType = 'div', // Default to div
+  whileInView,
+  viewport,
   ...rest
 }: AnimatedSectionProps) {
   let selectedPresetConfig = animationPresets[preset as keyof Omit<typeof animationPresets, 'staggerContainer'>];
@@ -78,12 +83,23 @@ export function AnimatedSection({
   
   const MotionElement = motion[ElementType as keyof typeof motion];
 
+  // Determine animation trigger based on whileInView prop
+  const animationProps = whileInView 
+    ? {
+        initial: "initial",
+        whileInView: whileInView,
+        viewport: viewport || { once: true },
+      }
+    : {
+        initial: "initial",
+        animate: "animate",
+      };
+
   return (
     <MotionElement
       variants={motionVariants} // Apply the determined variants
-      initial="initial" // Or "hidden" if using stagger presets that define it
-      animate="animate" // Or "visible"
       className={className}
+      {...animationProps}
       {...rest}
     >
       {children}

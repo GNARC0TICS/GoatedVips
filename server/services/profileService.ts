@@ -96,6 +96,11 @@ export interface ProfileCreateOptions {
   };
 }
 
+// Constants for bio strings
+const DEFAULT_BIO_GOATED_PLAYER = 'Official Goated.com player profile';
+const DEFAULT_BIO_USER_PROFILE = 'User profile';
+const DEFAULT_BIO_LEADERBOARD_PLAYER = 'Goated.com player';
+
 export class ProfileService {
   
   /**
@@ -140,7 +145,7 @@ export class ProfileService {
    * Request Goated account linking
    * Initiates the admin approval process for account linking
    */
-  async requestGoatedAccountLink(userId: string, goatedUsername: string): Promise<LinkingResult> {
+  async requestGoatedAccountLink(userId: string, goatedUsername: string, privacySettings?: { profilePublic: boolean; showStats: boolean }): Promise<LinkingResult> {
     try {
       // Validate user exists
       const user = await this.findUserById(userId);
@@ -165,11 +170,20 @@ export class ProfileService {
       }
       
       // Store the request
-      await this.updateUser(userId, {
+      const updatePayload: Partial<InsertUser> = {
         goatedLinkRequested: true,
         goatedUsernameRequested: goatedUsername,
-        goatedLinkRequestedAt: new Date()
-      });
+        // goatedLinkRequestedAt: new Date() // Field not in schema
+      };
+
+      if (privacySettings) {
+        updatePayload.profilePublic = privacySettings.profilePublic;
+        updatePayload.showStats = privacySettings.showStats;
+        // If you have a JSONB field like 'profilePrivacySettings' in your schema:
+        // updatePayload.profilePrivacySettings = privacySettings; 
+      }
+
+      await this.updateUser(userId, updatePayload);
       
       await this.logProfileOperation('account-link-request', 'success', 
         `User ${userId} requested linking to ${goatedUsername}`, 0);
@@ -222,8 +236,8 @@ export class ProfileService {
         goatedLinkRequested: false,
         goatedUsernameRequested: null,
         totalWager: goatedUser.wager?.all_time !== undefined ? String(goatedUser.wager.all_time) : user.totalWager,
-        verifiedBy: approvedBy,
-        verifiedAt: new Date()
+        // verifiedBy: approvedBy, // Field not in schema
+        // verifiedAt: new Date() // Field not in schema
       });
       
       await this.logProfileOperation('account-link-approved', 'success', 
@@ -293,7 +307,11 @@ export class ProfileService {
         goatedId: null,
         goatedUsername: null,
         goatedAccountLinked: false,
-        lastActive: new Date()
+        lastActive: new Date(),
+        // Reset privacy settings on unlink
+        profilePublic: false,
+        showStats: false,
+        profilePrivacySettings: {}
       });
       
       await this.logProfileOperation('account-unlinked', 'success', 
@@ -446,10 +464,10 @@ export class ProfileService {
           await db.update(users)
             .set({
               totalWager: String(wagered.all_time || 0),
-              dailyWager: String(wagered.today || 0),
-              weeklyWager: String(wagered.this_week || 0),
-              monthlyWager: String(wagered.this_month || 0),
-              lastWagerSync: new Date(),
+              // dailyWager: String(wagered.today || 0), // Field not in schema
+              // weeklyWager: String(wagered.this_week || 0), // Field not in schema
+              // monthlyWager: String(wagered.this_month || 0), // Field not in schema
+              // lastWagerSync: new Date(), // Field not in schema
               lastUpdated: new Date()
             })
             .where(eq(users.goatedId, uid));
@@ -491,7 +509,7 @@ export class ProfileService {
           .set({
             totalWager: String(wagerData.all_time),
             lastActive: new Date(),
-            lastWagerSync: new Date()
+            // lastWagerSync: new Date() // Field not in schema
           })
           .where(eq(users.id, parseInt(userId, 10)));
       }
@@ -512,40 +530,28 @@ export class ProfileService {
   /**
    * Find existing profile by ID or Goated ID
    */
-  private async findExistingProfile(userId: string): Promise<any> {
+  private async findExistingProfile(userId: string): Promise<SelectUser | null> {
     const isNumericId = /^\d+$/.test(userId);
-    
-    // Try by internal ID first
+    let user: SelectUser | undefined;
+
     if (isNumericId) {
-      const results = await db.execute(sql`
-        SELECT 
-          id, username, bio, email,
-          profile_color as "profileColor",
-          created_at as "createdAt",
-          goated_id as "goatedId", 
-          goated_username as "goatedUsername",
-          goated_account_linked as "goatedAccountLinked"
-        FROM users WHERE id::text = ${userId} LIMIT 1
-      `);
-      
-      if (results.rows && results.rows.length > 0) {
-        return results.rows[0];
-      }
+      user = await db.query.users.findFirst({
+        where: eq(users.id, parseInt(userId, 10)),
+        // Omitting 'columns' to select all fields, matching SelectUser type
+      });
     }
+
+    if (user) {
+      return user;
+    }
+
+    // Try by Goated ID if not found by numeric ID or if userId is not numeric
+    user = await db.query.users.findFirst({
+      where: eq(users.goatedId, userId),
+      // Omitting 'columns' to select all fields, matching SelectUser type
+    });
     
-    // Try by Goated ID
-    const results = await db.execute(sql`
-      SELECT 
-        id, username, bio, email,
-        profile_color as "profileColor",
-        created_at as "createdAt",
-        goated_id as "goatedId", 
-        goated_username as "goatedUsername",
-        goated_account_linked as "goatedAccountLinked"
-      FROM users WHERE goated_id = ${userId} LIMIT 1
-    `);
-    
-    return results.rows && results.rows.length > 0 ? results.rows[0] : null;
+    return user || null;
   }
   
   /**
@@ -561,23 +567,37 @@ export class ProfileService {
       if (!userData?.name) return null;
       
       // Create permanent profile with Goated data
-      const email = `${userData.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@goated.placeholder.com`;
+      const email = `goatedid-${userId}@users.goatedvips.com`;
+      const randomPassword = Math.random().toString(36).substring(2, 10); // Placeholder password
+      const hashedPassword = await preparePassword(randomPassword);
+
+
+      const insertedUsers = await db.insert(users).values({
+        username: userData.name,
+        email: email,
+        password: hashedPassword, // Drizzle requires a password; using a placeholder
+        createdAt: new Date(),
+        // profileColor: '#D7FF00', // Rely on schema default
+        bio: DEFAULT_BIO_GOATED_PLAYER,
+        isAdmin: false,
+        goatedId: userId,
+        goatedUsername: userData.name,
+        goatedAccountLinked: true
+      }).returning({
+        id: users.id,
+        username: users.username,
+        bio: users.bio,
+        profileColor: users.profileColor,
+        createdAt: users.createdAt,
+        goatedId: users.goatedId,
+        goatedUsername: users.goatedUsername,
+        goatedAccountLinked: users.goatedAccountLinked
+      });
       
-      const result = await db.execute(sql`
-        INSERT INTO users (
-          username, email, password, created_at, profile_color, 
-          bio, is_admin, goated_id, goated_username, goated_account_linked
-        ) VALUES (
-          ${userData.name}, ${email}, '', ${new Date()}, '#D7FF00', 
-          'Official Goated.com player profile', false, ${userId}, ${userData.name}, true
-        ) RETURNING id, username, bio, profile_color as "profileColor", created_at as "createdAt", 
-          goated_id as "goatedId", goated_username as "goatedUsername", goated_account_linked as "goatedAccountLinked"
-      `);
-      
-      if (result?.rows && result.rows.length > 0) {
+      if (insertedUsers.length > 0) {
         console.log(`ProfileService: Created permanent profile for Goated player ${userData.name} (${userId})`);
         return {
-          ...result.rows[0],
+          ...insertedUsers[0],
           isNewlyCreated: true,
           isPermanent: true
         };
@@ -596,25 +616,37 @@ export class ProfileService {
     try {
       const isNumericId = /^\d+$/.test(userId);
       const tempUsername = isNumericId ? `User ${userId}` : `User ${userId.substring(0, 8)}`;
-      const email = isNumericId ? `user_${userId}@placeholder.com` : `user_${userId.substring(0, 8)}@placeholder.com`;
+      const email = `userid-${userId}@users.goatedvips.com`;
+      const randomPassword = Math.random().toString(36).substring(2, 10); // Placeholder password
+      const hashedPassword = await preparePassword(randomPassword);
       
-      const result = await db.execute(sql`
-        INSERT INTO users (
-          username, email, password, created_at, profile_color, 
-          bio, is_admin, goated_id, goated_account_linked
-        ) VALUES (
-          ${tempUsername}, ${email}, '', ${new Date()}, '#D7FF00', 
-          'User profile', false, ${userId}, false
-        ) RETURNING id, username, bio, profile_color as "profileColor", created_at as "createdAt", 
-          goated_id as "goatedId", goated_username as "goatedUsername", goated_account_linked as "goatedAccountLinked"
-      `);
+      const insertedUsers = await db.insert(users).values({
+        username: tempUsername,
+        email: email,
+        password: hashedPassword, // Drizzle requires a password; using a placeholder
+        createdAt: new Date(),
+        // profileColor: '#D7FF00', // Rely on schema default
+        bio: DEFAULT_BIO_USER_PROFILE,
+        isAdmin: false,
+        goatedId: userId, // Assuming placeholder profiles might still have a goatedId if it's a Goated user not yet fully synced
+        goatedAccountLinked: false
+      }).returning({
+        id: users.id,
+        username: users.username,
+        bio: users.bio,
+        profileColor: users.profileColor,
+        createdAt: users.createdAt,
+        goatedId: users.goatedId,
+        goatedUsername: users.goatedUsername,
+        goatedAccountLinked: users.goatedAccountLinked
+      });
       
-      if (result?.rows && result.rows.length > 0) {
+      if (insertedUsers.length > 0) {
         console.log(`ProfileService: Created placeholder profile for ID ${userId}`);
         return {
-          ...result.rows[0],
+          ...insertedUsers[0],
           isNewlyCreated: true,
-          isTemporary: true
+          isTemporary: true // This flag indicates it's a placeholder
         };
       }
     } catch (error) {
@@ -676,14 +708,14 @@ export class ProfileService {
   private profileNeedsUpdate(existingUser: any, profile: LeaderboardEntry, rankMaps: any): boolean {
     return (
       existingUser.goatedUsername !== profile.name ||
-      existingUser.totalWager !== String(profile.wagered?.all_time || 0) ||
-      existingUser.dailyWager !== String(profile.wagered?.today || 0) ||
-      existingUser.weeklyWager !== String(profile.wagered?.this_week || 0) ||
-      existingUser.monthlyWager !== String(profile.wagered?.this_month || 0) ||
-      existingUser.dailyRank !== rankMaps.daily.get(profile.uid) ||
-      existingUser.weeklyRank !== rankMaps.weekly.get(profile.uid) ||
-      existingUser.monthlyRank !== rankMaps.monthly.get(profile.uid) ||
-      existingUser.allTimeRank !== rankMaps.allTime.get(profile.uid)
+      existingUser.totalWager !== String(profile.wagered?.all_time || 0) // Other fields (dailyWager, etc.) not in schema
+      // (existingUser as any).dailyWager !== String(profile.wagered?.today || 0) ||
+      // (existingUser as any).weeklyWager !== String(profile.wagered?.this_week || 0) ||
+      // (existingUser as any).monthlyWager !== String(profile.wagered?.this_month || 0) ||
+      // (existingUser as any).dailyRank !== rankMaps.daily.get(profile.uid) ||
+      // (existingUser as any).weeklyRank !== rankMaps.weekly.get(profile.uid) ||
+      // (existingUser as any).monthlyRank !== rankMaps.monthly.get(profile.uid) ||
+      // (existingUser as any).allTimeRank !== rankMaps.allTime.get(profile.uid)
     );
   }
   
@@ -695,16 +727,16 @@ export class ProfileService {
       .set({
         goatedUsername: profile.name,
         totalWager: String(profile.wagered?.all_time || 0),
-        dailyWager: String(profile.wagered?.today || 0),
-        weeklyWager: String(profile.wagered?.this_week || 0),
-        monthlyWager: String(profile.wagered?.this_month || 0),
-        dailyRank: rankMaps.daily.get(profile.uid) || null,
-        weeklyRank: rankMaps.weekly.get(profile.uid) || null,
-        monthlyRank: rankMaps.monthly.get(profile.uid) || null,
-        allTimeRank: rankMaps.allTime.get(profile.uid) || null,
+        // dailyWager: String(profile.wagered?.today || 0), // Field not in schema
+        // weeklyWager: String(profile.wagered?.this_week || 0), // Field not in schema
+        // monthlyWager: String(profile.wagered?.this_month || 0), // Field not in schema
+        // dailyRank: rankMaps.daily.get(profile.uid) || null, // Field not in schema
+        // weeklyRank: rankMaps.weekly.get(profile.uid) || null, // Field not in schema
+        // monthlyRank: rankMaps.monthly.get(profile.uid) || null, // Field not in schema
+        // allTimeRank: rankMaps.allTime.get(profile.uid) || null, // Field not in schema
         lastActive: new Date(),
         lastUpdated: new Date(),
-        lastWagerSync: new Date()
+        // lastWagerSync: new Date() // Field not in schema
       })
       .where(eq(users.goatedId, profile.uid));
   }
@@ -719,23 +751,23 @@ export class ProfileService {
     await db.insert(users).values({
       username: profile.name,
       password: hashedPassword,
-      email: `${profile.uid}@goated.placeholder`,
+      email: `goatedid-${profile.uid}@users.goatedvips.com`,
       goatedId: profile.uid,
       goatedUsername: profile.name,
       goatedAccountLinked: true,
       totalWager: String(profile.wagered?.all_time || 0),
-      dailyWager: String(profile.wagered?.today || 0),
-      weeklyWager: String(profile.wagered?.this_week || 0),
-      monthlyWager: String(profile.wagered?.this_month || 0),
-      dailyRank: rankMaps.daily.get(profile.uid) || null,
-      weeklyRank: rankMaps.weekly.get(profile.uid) || null,
-      monthlyRank: rankMaps.monthly.get(profile.uid) || null,
-      allTimeRank: rankMaps.allTime.get(profile.uid) || null,
+      // dailyWager: String(profile.wagered?.today || 0), // Field not in schema
+      // weeklyWager: String(profile.wagered?.this_week || 0), // Field not in schema
+      // monthlyWager: String(profile.wagered?.this_month || 0), // Field not in schema
+      // dailyRank: rankMaps.daily.get(profile.uid) || null, // Field not in schema
+      // weeklyRank: rankMaps.weekly.get(profile.uid) || null, // Field not in schema
+      // monthlyRank: rankMaps.monthly.get(profile.uid) || null, // Field not in schema
+      // allTimeRank: rankMaps.allTime.get(profile.uid) || null, // Field not in schema
       createdAt: new Date(),
       lastUpdated: new Date(),
-      lastWagerSync: new Date(),
-      profileColor: '#D7FF00',
-      bio: 'Goated.com player'
+      // lastWagerSync: new Date(), // Field not in schema
+      // profileColor: '#D7FF00', // Rely on schema default
+      bio: DEFAULT_BIO_LEADERBOARD_PLAYER
     });
   }
   
@@ -811,4 +843,4 @@ export class ProfileService {
 export const profileService = new ProfileService();
 
 // Default export for consistency
-export default profileService; 
+export default profileService;

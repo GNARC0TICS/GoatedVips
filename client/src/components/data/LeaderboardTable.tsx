@@ -14,7 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import React, { useState, useMemo, useCallback } from "react";
-import { useLeaderboard, type TimePeriod } from "@/hooks/use-leaderboard";
+import { useLeaderboard, LeaderboardEntry as NewLeaderboardEntry, LeaderboardResponse, LeaderboardTimeframe as TimePeriod } from "@/hooks/queries/useLeaderboard";
 import { getTierFromWager, getTierIcon } from "@/lib/tier-utils";
 import { QuickProfile } from "@/components/profile/QuickProfile";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,21 +23,6 @@ import { motion, AnimatePresence } from "framer-motion";
 const ITEMS_PER_PAGE = 10;
 
 // Types
-interface WagerData {
-  today: number;
-  this_week: number;
-  this_month: number;
-  all_time: number;
-}
-
-interface LeaderboardEntry {
-  uid: string;
-  name: string;
-  wagered: WagerData;
-  isWagering?: boolean;
-  wagerChange?: number;
-}
-
 interface LeaderboardTableProps {
   timePeriod: TimePeriod;
 }
@@ -90,18 +75,34 @@ export const LeaderboardTable = React.memo(function LeaderboardTable({ timePerio
   const [currentPage, setCurrentPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch leaderboard data
-  const { data, isLoading, error, metadata } = useLeaderboard(timePeriod);
+  // Fetch leaderboard data using the new hook, now with pagination params
+  const { 
+    data: leaderboardApiResponse, 
+    isLoading, 
+    error 
+  } = useLeaderboard(timePeriod, {
+    limit: ITEMS_PER_PAGE,
+    page: currentPage + 1, // API expects 1-indexed page
+  });
 
-  // Filter data based on search query (memoized)
+  const leaderboardEntries = leaderboardApiResponse?.entries;
+  const apiTotalPages = leaderboardApiResponse?.totalPages;
+  const apiCurrentPage = leaderboardApiResponse?.page; // 1-indexed from API
+  const totalEntriesFromApi = leaderboardApiResponse?.total;
+
+  // Filter data based on search query (memoized) - This filters the current page data
   const filteredData = useMemo(() => {
-    if (!data) return [];
-    return data.filter((entry: LeaderboardEntry) =>
-      entry.name.toLowerCase().includes(searchQuery.toLowerCase())
+    if (!leaderboardEntries) return [];
+    return leaderboardEntries.filter((entry: NewLeaderboardEntry) =>
+      entry.username.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [data, searchQuery]);
+  }, [leaderboardEntries, searchQuery]);
 
-  const totalPages = Math.ceil((filteredData.length || 0) / ITEMS_PER_PAGE);
+  // totalPages should now primarily come from the API if available, 
+  // fallback to client-side calculation if search reduces items on a page significantly
+  // and we are not showing all items from API (e.g. if client-side filter is very aggressive)
+  // However, for server-side pagination, totalPages from API is the source of truth for overall pagination.
+  const displayTotalPages = apiTotalPages || Math.ceil((filteredData.length || 0) / ITEMS_PER_PAGE) || 1;
 
   /**
    * Returns the appropriate trophy icon based on rank
@@ -146,31 +147,24 @@ export const LeaderboardTable = React.memo(function LeaderboardTable({ timePerio
   }, []);
 
   const handleNextPage = useCallback(() => {
-    setCurrentPage((prev) => Math.min(totalPages - 1, prev + 1));
-  }, [totalPages]);
+    setCurrentPage((prev) => {
+      const nextPage = prev + 1;
+      // Ensure nextPage does not exceed total pages from API if available
+      return apiTotalPages ? Math.min(nextPage, apiTotalPages -1) : nextPage;
+    });
+  }, [apiTotalPages]);
 
   /**
    * Gets the wager amount based on the selected time period
    */
-  const getWagerAmount = useCallback((entry: LeaderboardEntry) => {
-    if (!entry?.wagered) return 0;
-    switch (timePeriod) {
-      case "weekly":
-        return entry.wagered.this_week;
-      case "monthly":
-        return entry.wagered.this_month;
-      case "today":
-        return entry.wagered.today;
-      case "all_time":
-        return entry.wagered.all_time;
-      default:
-        return 0;
-    }
-  }, [timePeriod]);
+  const getWagerAmount = useCallback((entry: NewLeaderboardEntry) => {
+    return entry.wagered || 0;
+  }, []);
 
-  const getLastUpdateTime = (timestamp?: string) => {
+  const getLastUpdateTime = (timestamp?: string | number) => {
     if (!timestamp) return 'recently';
-    const diff = Date.now() - new Date(timestamp).getTime();
+    const ts = typeof timestamp === 'string' ? new Date(timestamp).getTime() : timestamp;
+    const diff = Date.now() - ts;
     const minutes = Math.floor(diff / 60000);
     if (minutes < 1) return 'just now';
     if (minutes < 60) return `${minutes}m ago`;
@@ -227,8 +221,10 @@ export const LeaderboardTable = React.memo(function LeaderboardTable({ timePerio
         className="flex items-center gap-2 max-w-md mx-auto w-full mb-4"
       >
         <div className="relative w-full group">
+          <label htmlFor="leaderboard-search" className="sr-only">Search Players</label>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-hover:text-[#D7FF00]" />
           <Input
+            id="leaderboard-search"
             type="text"
             placeholder="Search players..."
             value={searchQuery}
@@ -275,12 +271,11 @@ export const LeaderboardTable = React.memo(function LeaderboardTable({ timePerio
             <TableBody>
               <AnimatePresence mode="popLayout">
                 {filteredData
-                  .slice(currentPage * ITEMS_PER_PAGE, (currentPage + 1) * ITEMS_PER_PAGE)
-                  .map((entry: LeaderboardEntry, index: number) => {
-                    const rank = index + 1 + currentPage * ITEMS_PER_PAGE;
+                  .map((entry: NewLeaderboardEntry, index: number) => {
+                    const rank = entry.rank;
                     return (
                       <motion.tr
-                        key={entry.uid}
+                        key={entry.userId}
                         variants={getTableRowVariants(index)}
                         initial="initial"
                         animate="animate"
@@ -308,18 +303,18 @@ export const LeaderboardTable = React.memo(function LeaderboardTable({ timePerio
                           </motion.div>
                         </TableCell>
                         <TableCell>
-                          <QuickProfile userId={entry.uid} username={entry.name}>
+                          <QuickProfile userId={entry.userId} username={entry.username}>
                             <motion.div 
                               whileHover={{ scale: 1.02 }}
                               className="flex items-center gap-2 cursor-pointer"
                             >
                               <img
-                                src={getTierIcon(getTierFromWager(entry.wagered.all_time))}
+                                src={getTierIcon(getTierFromWager(entry.wagered))}
                                 alt="Tier"
                                 className="w-5 h-5"
                               />
                               <span className="truncate text-white hover:text-[#D7FF00] transition-colors">
-                                {entry.name}
+                                {entry.username}
                               </span>
                             </motion.div>
                           </QuickProfile>
@@ -345,35 +340,7 @@ export const LeaderboardTable = React.memo(function LeaderboardTable({ timePerio
                               >
                                 ${(getWagerAmount(entry) || 0).toLocaleString()}
                               </motion.span>
-                              {entry.isWagering && (
-                                <motion.div
-                                  className="absolute inset-0"
-                                  animate={{
-                                    boxShadow: ["0 0 0px rgba(215, 255, 0, 0)", "0 0 8px rgba(215, 255, 0, 0.5)", "0 0 0px rgba(215, 255, 0, 0)"]
-                                  }}
-                                  transition={{
-                                    duration: 1.5,
-                                    repeat: Infinity,
-                                    ease: "easeInOut"
-                                  }}
-                                />
-                              )}
                             </motion.div>
-                            <AnimatePresence>
-                              {entry.isWagering && entry.wagerChange && entry.wagerChange > 0 && (
-                                <motion.div
-                                  initial={{ opacity: 0, scale: 0.8, x: -20 }}
-                                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                                  exit={{ opacity: 0, scale: 0.8, x: 20 }}
-                                  className="text-green-500 flex items-center gap-1"
-                                >
-                                  <TrendingUp className="h-4 w-4" />
-                                  <span className="text-xs font-bold">
-                                    +${entry.wagerChange.toLocaleString()}
-                                  </span>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
                           </div>
                         </TableCell>
                       </motion.tr>
@@ -390,13 +357,13 @@ export const LeaderboardTable = React.memo(function LeaderboardTable({ timePerio
               <div>
                 <h4 className="text-[#8A8B91] font-heading text-sm mb-1">TOTAL WAGERED THIS PERIOD</h4>
                 <p className="text-2xl font-bold text-[#D7FF00]">
-                  ${filteredData.reduce((sum: number, entry: LeaderboardEntry) => 
-                    sum + getWagerAmount(entry), 0).toLocaleString()}
+                  ${leaderboardEntries?.reduce((sum: number, entry: NewLeaderboardEntry) => 
+                    sum + getWagerAmount(entry), 0).toLocaleString() || '0'}
                 </p>
               </div>
               <div className="flex items-center gap-3 text-white/70">
                 <TrendingUp className="h-5 w-5 text-[#D7FF00]" />
-                <span className="text-sm">Last updated {metadata?.lastUpdated ? getLastUpdateTime(metadata.lastUpdated) : 'recently'}</span>
+                <span className="text-sm">Last updated {leaderboardApiResponse?.timestamp ? getLastUpdateTime(leaderboardApiResponse.timestamp) : 'recently'}</span>
               </div>
             </div>
           </div>
@@ -411,7 +378,7 @@ export const LeaderboardTable = React.memo(function LeaderboardTable({ timePerio
             <div className="flex items-center gap-2 text-[#8A8B91]">
               <Users className="h-4 w-4" />
               <span className="text-sm">
-                {metadata?.totalUsers || filteredData.length} Players
+                {totalEntriesFromApi ? `${totalEntriesFromApi.toLocaleString()} Players` : `${filteredData.length} Players on this page`}
               </span>
             </div>
 
@@ -421,18 +388,20 @@ export const LeaderboardTable = React.memo(function LeaderboardTable({ timePerio
               size="icon"
               onClick={handlePrevPage}
               disabled={currentPage === 0}
+              aria-label="Previous page"
               className="h-9 w-9 bg-[#D7FF00] border-[#D7FF00] text-black hover:bg-[#D7FF00]/90 hover:border-[#D7FF00]/90 hover:text-black transition-all duration-200 transform active:scale-95 shadow-lg disabled:opacity-50 disabled:shadow-none disabled:transform-none"
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
             <span className="text-[#8A8B91] text-sm font-medium px-2 min-w-[100px] text-center">
-              Page {currentPage + 1} of {totalPages || 1}
+              Page {currentPage + 1} of {displayTotalPages || 1}
             </span>
             <Button
               variant="outline"
               size="icon"
               onClick={handleNextPage}
-              disabled={currentPage >= totalPages - 1}
+              disabled={currentPage + 1 >= (apiTotalPages || 0)} // Disable if on the last page according to API
+              aria-label="Next page"
               className="h-9 w-9 bg-[#D7FF00] border-[#D7FF00] text-black hover:bg-[#D7FF00]/90 hover:border-[#D7FF00]/90 hover:text-black transition-all duration-200 transform active:scale-95 shadow-lg disabled:opacity-50 disabled:shadow-none disabled:transform-none"
             >
               <ChevronRight className="h-5 w-5" />

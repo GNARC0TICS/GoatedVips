@@ -127,6 +127,51 @@ class ProfileService {
     return this.currentUser;
   }
 
+  async checkGoatedUsername(username: string): Promise<{ exists: boolean; goatedId?: string }> {
+    const response = await fetch(`/api/account-linking/check-goated-username/${username}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Failed to check username' }));
+      throw new ProfileError(errorData.message || 'Failed to check username');
+    }
+    return response.json();
+  }
+
+  async requestGoatedAccountLink(goatedUsername: string, privacySettings?: { profilePublic: boolean; showStats: boolean }): Promise<{ message: string }> {
+    if (!this.currentUser) {
+      throw new ProfileError("User not authenticated");
+    }
+    const response = await fetch('/api/account-linking/request-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        userId: this.currentUser.id, 
+        goatedUsername,
+        privacySettings // Include privacy settings in the request
+      }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Failed to request account link' }));
+      throw new ProfileError(errorData.message || 'Failed to request account link');
+    }
+    return response.json();
+  }
+
+  async unlinkGoatedAccount(): Promise<{ message: string }> {
+    if (!this.currentUser) {
+      throw new ProfileError("User not authenticated");
+    }
+    const response = await fetch('/api/account-linking/unlink-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: this.currentUser.id }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Failed to unlink account' }));
+      throw new ProfileError(errorData.message || 'Failed to unlink account');
+    }
+    return response.json();
+  }
+  
   /**
    * Check if a profile is owned by the current user
    * Safely handles both string and numeric IDs, including Goated IDs

@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { profileService } from '@/services/profileService';
 import { colors, cardStyles, textStyles } from '@/lib/style-constants';
 import { ClickableUsername } from '@/components/username';
+import { LeaderboardResponse } from "@/hooks/queries/useLeaderboard";
 
 /**
  * MVP type definition with standardized properties
@@ -45,7 +46,11 @@ export interface MVPCardProps {
   mvp: MVP | undefined;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  leaderboardData: any;
+  leaderboardData: {
+    daily?: LeaderboardResponse;
+    weekly?: LeaderboardResponse;
+    monthly?: LeaderboardResponse;
+  };
 }
 
 /**
@@ -69,15 +74,6 @@ export function MVPCard({
     staleTime: 60000, // 1 minute
     gcTime: 300000 // 5 minutes
   });
-
-  // Show increase indicator for 10 seconds when wager amount changes
-  React.useEffect(() => {
-    if (mvp?.lastWagerChange) {
-      setShowIncrease(true);
-      const timer = setTimeout(() => setShowIncrease(false), 10000);
-      return () => clearTimeout(timer);
-    }
-  }, [mvp?.lastWagerChange]);
 
   // Calculate tier information based on all-time wagered amount
   const tierLevel = React.useMemo(() => {
@@ -243,9 +239,6 @@ export function MVPCard({
                   <span className="text-white font-mono font-bold">
                     ${mvp.wagerAmount.toLocaleString()}
                   </span>
-                  {showIncrease && (
-                    <TrendingUp className="h-4 w-4 text-emerald-500 animate-pulse" />
-                  )}
                 </div>
               </div>
             </div>
@@ -311,10 +304,26 @@ export function MVPCard({
               {/* Statistics section */}
               <div className="space-y-4">
                 {[
-                  { label: "Daily Rank", value: leaderboardData?.data?.today?.data?.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: colors.mvpPeriod.daily.primary },
-                  { label: "Weekly Rank", value: leaderboardData?.data?.weekly?.data?.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: colors.mvpPeriod.weekly.primary },
-                  { label: "Monthly Rank", value: leaderboardData?.data?.monthly?.data?.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: colors.mvpPeriod.monthly.primary },
-                  { label: "All-Time Rank", value: leaderboardData?.data?.all_time?.data?.findIndex((p: any) => p.uid === mvp.uid) + 1 || '-', color: colors.mvpPeriod.allTime.primary }
+                  { 
+                    label: "Daily Rank", 
+                    value: (leaderboardData?.daily?.entries?.findIndex((p: any) => p.userId === mvp.uid) ?? -1) + 1 || '-', 
+                    color: colors.mvpPeriod.daily.primary 
+                  },
+                  { 
+                    label: "Weekly Rank", 
+                    value: (leaderboardData?.weekly?.entries?.findIndex((p: any) => p.userId === mvp.uid) ?? -1) + 1 || '-', 
+                    color: colors.mvpPeriod.weekly.primary 
+                  },
+                  { 
+                    label: "Monthly Rank", 
+                    value: (leaderboardData?.monthly?.entries?.findIndex((p: any) => p.userId === mvp.uid) ?? -1) + 1 || '-', 
+                    color: colors.mvpPeriod.monthly.primary 
+                  },
+                  { 
+                    label: "All-Time Rank", 
+                    value: '-',
+                    color: colors.mvpPeriod.allTime?.primary || colors.brand.primary
+                  }
                 ].map((stat, index) => (
                   <div 
                     key={index} 

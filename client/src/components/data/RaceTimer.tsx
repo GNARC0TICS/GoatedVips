@@ -2,38 +2,13 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, History, Clock, ChevronRight, ChevronLeft } from "lucide-react";
 import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useRaceConfig, RaceConfig } from "@/hooks/queries/useRaceConfig";
+import { useLeaderboard, LeaderboardEntry } from "@/hooks/queries/useLeaderboard";
 
 import { SpeedIcon } from "../icons/SpeedIcon";
 
-interface RaceParticipant {
-  uid: string;
-  name: string;
-  wagered: number | {
-    today: number;
-    this_week: number;
-    this_month: number;
-    all_time: number;
-  };
-  position: number;
-}
-
-interface RaceData {
-  id: string;
-  status: 'live' | 'ended' | 'upcoming';
-  startDate: string;
-  endDate: string;
-  prizePool: number;
-  participants: RaceParticipant[];
-  totalWagered?: number;
-  participantCount?: number;
-  metadata?: {
-    transitionEnds?: string;
-    nextRaceStarts?: string;
-    prizeDistribution?: number[];
-  };
-}
+interface WidgetRaceParticipant extends LeaderboardEntry {}
 
 /**
  * RaceTimer Component
@@ -45,119 +20,92 @@ export function RaceTimer() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showPrevious, setShowPrevious] = useState(false);
   const [timeLeft, setTimeLeft] = useState("");
-  const [isContentVisible, setIsContentVisible] = useState(false); // Start hidden
+  const [isContentVisible, setIsContentVisible] = useState(false);
   const [isAnimationReady, setIsAnimationReady] = useState(false);
   const { toast } = useToast();
 
-  // Handle click on speed icon - 3-state cycle
+  const { 
+    data: raceConfig,
+    error: raceConfigError,
+    isLoading: isLoadingRaceConfig 
+  } = useRaceConfig();
+
+  const { 
+    data: leaderboardResponse,
+    error: leaderboardError,
+    isLoading: isLoadingLeaderboard
+  } = useLeaderboard("monthly", { limit: 5, enabled: !showPrevious });
+
+  const currentRaceParticipants = leaderboardResponse?.entries;
+
+  const isLoading = isLoadingRaceConfig || (isLoadingLeaderboard && !showPrevious);
+  const error = raceConfigError || (leaderboardError && !showPrevious);
+  
+  const displayRaceData = useMemo(() => {
+    if (showPrevious) {
+      return {
+        name: "Previous Race",
+        status: raceConfig?.status === 'ended' || raceConfig?.status === 'transition' ? raceConfig.status : 'ended',
+        prizePool: raceConfig?.prizePool,
+        participants: [],
+        startDate: undefined,
+        endDate: undefined,
+      };
+    }
+    return {
+      name: raceConfig?.name || "Monthly Race",
+      status: raceConfig?.status,
+      startDate: raceConfig?.startDate,
+      endDate: raceConfig?.endDate,
+      prizePool: raceConfig?.prizePool,
+      participants: currentRaceParticipants || [],
+    };
+  }, [showPrevious, raceConfig, currentRaceParticipants]);
+
   const handleSpeedIconClick = useCallback(() => {
     if (!isContentVisible) {
-      // State 1 → State 2: Show header only
       setIsContentVisible(true);
       setIsExpanded(false);
     } else if (!isExpanded) {
-      // State 2 → State 3: Expand to full view
       setIsExpanded(true);
     } else {
-      // State 3 → State 1: Collapse completely
       setIsContentVisible(false);
       setIsExpanded(false);
     }
     setHasSeenNotification(true);
   }, [isContentVisible, isExpanded]);
 
-  // API request function - memoized to prevent unnecessary recreations
-  const fetchRaceData = useCallback(async (endpoint: string): Promise<RaceData> => {
-    try {
-      const response = await fetch(endpoint);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch race data: ${response.status}`);
-      }
-      
-      // DEBUG: Log the raw response before parsing
-      const textResponse = await response.text();
-      console.log(`DEBUG: Raw response from ${endpoint}:`, textResponse.substring(0, 500));
-      
-      let json;
-      try {
-        json = JSON.parse(textResponse);
-      } catch (parseError) {
-        console.error(`DEBUG: JSON parse error for ${endpoint}:`, parseError);
-        console.error(`DEBUG: Response was:`, textResponse);
-        throw new Error(`Invalid JSON response from ${endpoint}`);
-      }
-      
-      return json.data; // Ensure we're extracting the data property from the response
-    } catch (error) {
-      console.error(`Error fetching from ${endpoint}:`, error);
-      throw error;
-    }
-  }, []);
-
-  // Query for current race data
-  const { 
-    data: currentRaceData, 
-    error: currentError, 
-    isLoading: isCurrentLoading 
-  } = useQuery({
-    queryKey: ["/api/wager-races/current"],
-    queryFn: () => fetchRaceData('/api/wager-races/current'),
-    refetchInterval: 5 * 60 * 1000, // 5 minutes - aligned with server cache time
-    retry: 3,
-    enabled: true, // Always keep this query active so animation starts
-    staleTime: 4 * 60 * 1000, // 4 minutes
-  });
-
-  // Query for previous race data
-  const { 
-    data: previousRaceData, 
-    error: previousError, 
-    isLoading: isPreviousLoading 
-  } = useQuery({
-    queryKey: ["/api/wager-races/previous"],
-    queryFn: () => fetchRaceData('/api/wager-races/previous'),
-    enabled: showPrevious,
-    staleTime: Infinity, // Previous race data doesn't change often
-    retry: 3,
-  });
-
-  // Handle errors
   useEffect(() => {
-    if (currentError) {
-      console.error('Race data fetch error:', currentError);
+    if (raceConfigError) {
+      console.error('Race config fetch error:', raceConfigError);
       toast({
-        title: "Error loading race data",
-        description: currentError.message || "Please try again later",
+        title: "Error loading race configuration",
+        description: raceConfigError.message || "Please try again later",
       });
     }
-    if (previousError && showPrevious) {
-      console.error('Previous race data fetch error:', previousError);
+    if (leaderboardError && !showPrevious) {
+      console.error('Leaderboard data fetch error for RaceTimer:', leaderboardError);
       toast({
-        title: "Error loading previous race data",
-        description: previousError.message || "Please try again later",
+        title: "Error loading race participants",
+        description: leaderboardError.message || "Please try again later",
       });
     }
-  }, [currentError, previousError, toast, showPrevious]);
+  }, [raceConfigError, leaderboardError, toast, showPrevious]);
 
-  // Memoized values to prevent unnecessary re-renders
-  const raceData = useMemo(() => 
-    showPrevious ? previousRaceData : currentRaceData, 
-  [showPrevious, previousRaceData, currentRaceData]);
-  
-  const error = useMemo(() => 
-    showPrevious ? previousError : currentError, 
-  [showPrevious, previousError, currentError]);
-  
-  const isLoading = useMemo(() => 
-    showPrevious ? isPreviousLoading : isCurrentLoading, 
-  [showPrevious, isPreviousLoading, isCurrentLoading]);
-
-  // Update timer effect
   useEffect(() => {
-    if (!currentRaceData?.endDate) return;
+    if (showPrevious || !raceConfig?.endDate || raceConfig?.status !== 'active') {
+      if (raceConfig?.status === 'ended' || raceConfig?.status === 'transition' || (showPrevious && displayRaceData.status === 'ended')) {
+          setTimeLeft("Race Ended");
+      } else if (raceConfig?.status === 'upcoming' && raceConfig?.startDate) {
+          setTimeLeft("Starts Soon");
+      } else {
+          setTimeLeft("--:--:--");
+      }
+      return;
+    }
 
     const updateTimer = () => {
-      const end = new Date(currentRaceData.endDate);
+      const end = new Date(raceConfig.endDate!);
       const now = new Date();
       const diff = end.getTime() - now.getTime();
 
@@ -176,29 +124,25 @@ export function RaceTimer() {
     updateTimer();
     setIsAnimationReady(true);
 
-    // Update every minute
     const interval = setInterval(updateTimer, 60000);
     return () => clearInterval(interval);
-  }, [currentRaceData?.endDate]);
+  }, [raceConfig, showPrevious, displayRaceData.status]);
 
-  // Toggle handler for showing/hiding the content panel
   const toggleContentVisibility = useCallback(() => {
     setIsContentVisible(prev => !prev);
   }, []);
 
-  // Toggle handler for switching between current and previous race
   const toggleRaceView = useCallback(() => {
     setShowPrevious(prev => !prev);
   }, []);
 
   const [hasSeenNotification, setHasSeenNotification] = useState(false);
 
-  // Reset notification when new data loads
   useEffect(() => {
-    if (currentRaceData && !isLoading) {
+    if (raceConfig && !isLoadingRaceConfig) {
       setHasSeenNotification(false);
     }
-  }, [currentRaceData, isLoading]);
+  }, [raceConfig, isLoadingRaceConfig]);
 
   const handleNotificationClick = useCallback(() => {
     setIsContentVisible(true);
@@ -228,7 +172,7 @@ export function RaceTimer() {
               }
               className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-2.5 flex items-center justify-center hover:bg-[#1A1B21] transition-colors group relative"
             >
-              {!isLoading && currentRaceData && !hasSeenNotification && !isContentVisible && (
+              {!isLoading && raceConfig && !hasSeenNotification && !isContentVisible && (
                 <span className="absolute -top-0.5 -left-1.5 w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite] ring-2 ring-red-400/50" />
               )}
               {isLoading ? (
@@ -248,13 +192,12 @@ export function RaceTimer() {
                 <div className="flex items-center gap-1.5">
                   <Trophy className="h-4 w-4 text-[#D7FF00]" />
                   <span className="font-heading text-white text-sm">
-                    {showPrevious ? 'Previous Race' : 'Monthly Race'}
+                    {displayRaceData.name}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {!showPrevious && (
+                  {!showPrevious && raceConfig?.status === 'active' && (
                     <>
-                      {/* Changed from SpeedIcon to Clock icon */}
                       <Clock className="h-3.5 w-3.5 text-[#D7FF00]" />
                       <span className="text-white font-mono text-sm">{timeLeft}</span>
                     </>
@@ -264,9 +207,9 @@ export function RaceTimer() {
 
               <div className="flex justify-between items-center mt-1.5">
                 <span className="text-[#8A8B91] text-sm">
-                  {raceData && raceData.startDate 
-                    ? new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) 
-                    : isLoading ? 'Loading...' : error ? 'Error loading data' : ''}
+                  {displayRaceData.startDate 
+                    ? new Date(displayRaceData.startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) 
+                    : isLoading ? 'Loading...' : error ? 'Error' : ''}
                 </span>
                 <button 
                   onClick={toggleRaceView}
@@ -287,46 +230,43 @@ export function RaceTimer() {
                   className="overflow-hidden"
                 >
                   <div className="p-3 border-t border-[#2A2B31]">
-                    {/* Race Details Section */}
                     <div className="flex justify-between items-center mb-3">
                       <span className="text-[#8A8B91] text-sm">
-                        {raceData && raceData.prizePool 
-                          ? `Prize Pool: $${raceData.prizePool.toLocaleString()}` 
-                          : isLoading ? 'Loading prize pool...' : ''}
+                        {displayRaceData.prizePool 
+                          ? `Prize Pool: $${displayRaceData.prizePool.toLocaleString()}` 
+                          : isLoading ? 'Loading prize...' : 'Prize N/A'}
                       </span>
-                      {/* Improved status badge styling */}
-                      {raceData?.status && (
+                      {displayRaceData.status && (
                         <span className={`
                           text-xs px-2 py-1 rounded-full font-medium flex items-center
-                          ${raceData.status === 'live' 
+                          ${displayRaceData.status === 'live' || displayRaceData.status === 'active' 
                             ? 'bg-green-500/30 text-green-300 border border-green-500/40' : 
-                            raceData.status === 'ended' 
+                            displayRaceData.status === 'ended' || displayRaceData.status === 'transition'
                             ? 'bg-gray-500/30 text-gray-300 border border-gray-500/40' :
                             'bg-blue-500/30 text-blue-300 border border-blue-500/40'
                           }`}
                         >
-                          {raceData.status === 'live' && (
+                          {(displayRaceData.status === 'live' || displayRaceData.status === 'active') && (
                             <span className="w-2 h-2 bg-green-400 rounded-full mr-1.5 animate-pulse"></span>
                           )}
-                          {raceData.status.toUpperCase()}
+                          {displayRaceData.status.toUpperCase()}
                         </span>
                       )}
                     </div>
                     
-                    {/* Participants List */}
-                    {isLoading ? (
+                    {isLoading && !showPrevious ? (
                       <div className="flex justify-center py-4">
                         <div className="h-8 w-8 rounded-full border-2 border-[#D7FF00] border-t-transparent animate-spin"></div>
                       </div>
-                    ) : error ? (
+                    ) : error && !showPrevious ? (
                       <div className="text-center text-red-400 py-4">
-                        Error loading race data. Please try again.
+                        Error loading participants.
                       </div>
-                    ) : raceData && raceData.participants && raceData.participants.length > 0 ? (
+                    ) : displayRaceData.participants && displayRaceData.participants.length > 0 ? (
                       <div className="space-y-0.5">
-                        {raceData.participants.map((participant, index) => (
+                        {displayRaceData.participants.map((participant: WidgetRaceParticipant, index) => (
                           <div 
-                            key={participant.uid}
+                            key={participant.userId}
                             className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-[#2A2B31]/50 transition-colors group"
                           >
                             <div className="flex items-center gap-1.5">
@@ -337,27 +277,28 @@ export function RaceTimer() {
                                 ${index === 2 ? 'bg-amber-700 text-white shadow-sm shadow-amber-700/50' : ''}
                                 ${index > 2 ? 'bg-[#2A2B31] text-white group-hover:bg-[#3A3B41] transition-colors' : ''}
                               `}>
-                                {index + 1}
+                                {participant.rank}
                               </span>
                               <span className="text-white truncate max-w-[110px] group-hover:text-[#D7FF00] transition-colors text-sm">
-                                {participant.name}
+                                {participant.username}
                               </span>
                             </div>
                             <span className="text-[#D7FF00] font-mono text-sm">
-                              ${typeof participant.wagered === 'object' 
-                                ? (participant.wagered.this_month || 0).toLocaleString()
-                                : (participant.wagered || 0).toLocaleString()}
+                              ${(participant.wagered || 0).toLocaleString()}
                             </span>
                           </div>
                         ))}
                       </div>
+                    ) : showPrevious ? (
+                      <div className="text-center text-[#8A8B91] py-4">
+                        Previous race details not available.
+                      </div>
                     ) : (
                       <div className="text-center text-[#8A8B91] py-4">
-                        No participants found
+                        No participants yet or data unavailable.
                       </div>
                     )}
                     
-                    {/* Footer Action */}
                     <Link href="/wager-races">
                       <a className="block text-center text-[#D7FF00] mt-3 py-1.5 px-3 rounded-md hover:bg-[#D7FF00]/10 transition-colors text-sm">
                         View Full Leaderboard →

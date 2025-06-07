@@ -17,6 +17,7 @@ export interface FeatureCardData {
   ctaLink?: string; // Optional: if CTA is a separate link from the main card link
   ctaRequiresAuthAction?: boolean; // If CTA behavior changes significantly based on auth (e.g. Link vs Tooltip)
   className?: string; // Additional styling for the card
+  group: number; // Group number for layout organization
 }
 
 export const homeFeatures: FeatureCardData[] = [
@@ -34,6 +35,7 @@ export const homeFeatures: FeatureCardData[] = [
     authSensitiveLink: true, // The link behavior changes (Link vs Tooltip)
     ctaText: (isAuthenticated) => (isAuthenticated ? "View Codes" : "Locked"),
     ctaRequiresAuthAction: true,
+    group: 1,
   },
   {
     id: "vip-transfer",
@@ -43,6 +45,7 @@ export const homeFeatures: FeatureCardData[] = [
     description: "Transfer your VIP status from other platforms and get cash bonuses.",
     link: "/vip-transfer",
     ctaText: "Find out more",
+    group: 1,
   },
   {
     id: "wager-races",
@@ -54,6 +57,7 @@ export const homeFeatures: FeatureCardData[] = [
     badgeText: "LIVE",
     badgeType: "LIVE",
     ctaText: "How it works",
+    group: 1,
   },
   {
     id: "challenges",
@@ -65,6 +69,7 @@ export const homeFeatures: FeatureCardData[] = [
     badgeText: "NEW",
     badgeType: "NEW",
     ctaText: "View Challenges",
+    group: 1,
   },
   {
     id: "wheel-spin",
@@ -79,6 +84,7 @@ export const homeFeatures: FeatureCardData[] = [
     badgeType: (isAuthenticated) => (isAuthenticated ? "PLAY NOW" : "SIGN IN TO PLAY"),
     ctaText: (isAuthenticated) => (isAuthenticated ? "Try Your Luck" : "Sign In to Play"),
     authSensitiveLink: true, // The CTA text and badge change
+    group: 1,
   },
   {
     id: "provably-fair",
@@ -88,6 +94,7 @@ export const homeFeatures: FeatureCardData[] = [
     description: "All in-house games use a provably fair algorithm to ensure complete transparency and fairness. Each game outcome can be independently verified.",
     link: "/provably-fair",
     ctaText: "Learn More",
+    group: 1,
   },
   {
     id: "goated-airdrop",
@@ -99,6 +106,7 @@ export const homeFeatures: FeatureCardData[] = [
     badgeText: "COMING SOON",
     badgeType: "COMING SOON",
     ctaText: "Learn About Airdrops",
+    group: 2,
   },
   {
     id: "promotions",
@@ -110,6 +118,7 @@ export const homeFeatures: FeatureCardData[] = [
     badgeText: "DAILY",
     badgeType: "DAILY",
     ctaText: "View Promotions",
+    group: 2,
   },
   {
     id: "telegram-group",
@@ -121,6 +130,7 @@ export const homeFeatures: FeatureCardData[] = [
     badgeText: "JOIN NOW",
     badgeType: "JOIN NOW",
     ctaText: "Join Community",
+    group: 2,
   },
   {
     id: "crypto-swap",
@@ -132,5 +142,6 @@ export const homeFeatures: FeatureCardData[] = [
     badgeText: "NEW",
     badgeType: "NEW",
     ctaText: "Start Swapping",
+    group: 2,
   },
 ]; 

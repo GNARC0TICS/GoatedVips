@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth"; // Hypothetical auth context
 import { useToast } from "@/hooks/use-toast";
+import { Play, Pause } from "lucide-react";
 
 // Custom hook to get the total wager amount
 const useWagerTotal = () => {
@@ -20,7 +21,9 @@ const useWagerTotal = () => {
       );
       return total || 0;
     },
-    refetchInterval: 86400000,
+    refetchInterval: 300000, // Reduced from 24 hours to 5 minutes for fresher data
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
   
   // Animate the total when data changes
@@ -76,6 +79,7 @@ export const FeatureCarousel = () => {
   const [, setLocation] = useLocation();
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
 
@@ -96,15 +100,48 @@ export const FeatureCarousel = () => {
     [items.length]
   );
 
+  // Auto-rotation with pause functionality
   useEffect(() => {
+    if (isPaused || isDragging) return;
+    
     const interval = setInterval(() => {
-      if (!isDragging) {
-        setDirection("next");
-        setCurrentIndex((prev) => wrap(prev + 1));
-      }
+      setDirection("next");
+      setCurrentIndex((prev) => wrap(prev + 1));
     }, 5000);
+    
     return () => clearInterval(interval);
-  }, [isDragging, wrap]);
+  }, [isDragging, isPaused, wrap]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.target !== document.activeElement) return;
+      
+      switch (event.key) {
+        case "ArrowLeft":
+          event.preventDefault();
+          setDirection("prev");
+          setCurrentIndex((prev) => wrap(prev - 1));
+          break;
+        case "ArrowRight":
+          event.preventDefault();
+          setDirection("next");
+          setCurrentIndex((prev) => wrap(prev + 1));
+          break;
+        case " ": // Spacebar
+          event.preventDefault();
+          setIsPaused(!isPaused);
+          break;
+        case "Enter":
+          event.preventDefault();
+          handleClick(items[currentIndex].link);
+          break;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [currentIndex, isPaused, items, wrap]);
 
   const handleDragStart = useCallback((event: React.TouchEvent | React.MouseEvent) => {
     setIsDragging(true);
@@ -115,7 +152,8 @@ export const FeatureCarousel = () => {
     if (!isDragging) return;
     const endX = "changedTouches" in event ? event.changedTouches[0].clientX : event.clientX;
     const diff = endX - dragStart;
-    const threshold = window.innerWidth * 0.15;
+    // Dynamic threshold: percentage with min/max pixel values
+    const threshold = Math.max(50, Math.min(window.innerWidth * 0.15, 150));
 
     if (Math.abs(diff) > threshold) {
       if (diff > 0) {
@@ -178,8 +216,31 @@ export const FeatureCarousel = () => {
 
   return (
     <div className="relative h-24 overflow-hidden mb-8 select-none" style={{ perspective: "1000px" }}>
+      {/* Accessibility: Screen reader live region */}
       <div 
-        className="flex justify-center items-center h-full relative"
+        aria-live="polite" 
+        aria-atomic="true" 
+        className="sr-only"
+      >
+        {items[currentIndex]?.text}
+      </div>
+      
+      {/* Pause/Play Control */}
+      <button
+        onClick={() => setIsPaused(!isPaused)}
+        className="absolute top-2 right-2 z-10 p-2 rounded-full bg-[#1A1B21]/80 text-[#D7FF00] hover:bg-[#1A1B21] transition-colors"
+        aria-label={isPaused ? "Resume carousel" : "Pause carousel"}
+        title={isPaused ? "Resume carousel" : "Pause carousel"}
+      >
+        {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+      </button>
+
+      <div 
+        className="flex justify-center items-center h-full relative focus-within:outline-none"
+        tabIndex={0}
+        role="region"
+        aria-label="Feature carousel"
+        aria-describedby="carousel-instructions"
         onTouchStart={handleDragStart}
         onTouchEnd={handleDragEnd}
         onMouseDown={handleDragStart}
@@ -204,12 +265,18 @@ export const FeatureCarousel = () => {
               <button
                 onClick={() => handleClick(items[currentIndex].link)}
                 className="text-3xl md:text-4xl font-heading font-extrabold bg-gradient-to-r from-[#D7FF00] via-[#D7FF00]/80 to-[#D7FF00]/60 bg-clip-text text-transparent hover:from-[#D7FF00]/80 hover:to-[#D7FF00]/40 transition-all px-4"
+                aria-label={`${items[currentIndex].text} - Click to navigate`}
               >
                 {items[currentIndex].text}
               </button>
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* Hidden instructions for screen readers */}
+      <div id="carousel-instructions" className="sr-only">
+        Use arrow keys to navigate, spacebar to pause/resume, and Enter to activate the current item.
       </div>
     </div>
   );

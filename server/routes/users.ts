@@ -87,9 +87,11 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-/**
- * Get leaderboard data from our database
- */
+/*
+DEPRECATED: This route is now replaced by the GET /api/leaderboard endpoint in apiRoutes.ts.
+Please migrate to the new /api/leaderboard?timeframe=<period> endpoint which 
+provides a unified data structure and more robust implementation.
+
 router.get('/leaderboard/:timeframe', async (req, res, next) => {
   try {
     const { timeframe } = req.params;
@@ -108,6 +110,7 @@ router.get('/leaderboard/:timeframe', async (req, res, next) => {
     next(err);
   }
 });
+*/
 
 /**
  * Get user stats

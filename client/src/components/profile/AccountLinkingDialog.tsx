@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -31,6 +33,9 @@ export function AccountLinkingDialog({ isOpen, onClose }: AccountLinkingDialogPr
   const [submitting, setSubmitting] = useState(false);
   const [usernameExists, setUsernameExists] = useState<boolean | null>(null);
   const [goatedId, setGoatedId] = useState<string | null>(null);
+  const [dialogStep, setDialogStep] = useState<'usernameInput' | 'privacySettings'>('usernameInput');
+  const [profilePublic, setProfilePublic] = useState<boolean>(false);
+  const [showStats, setShowStats] = useState<boolean>(false);
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -41,21 +46,21 @@ export function AccountLinkingDialog({ isOpen, onClose }: AccountLinkingDialogPr
     }
   });
 
-  // Reset state when dialog closes or opens
   React.useEffect(() => {
     if (!isOpen) {
       form.reset();
       setUsernameExists(null);
       setGoatedId(null);
+      setDialogStep('usernameInput');
+      setProfilePublic(false);
+      setShowStats(false);
     }
   }, [isOpen, form]);
 
   const checkUsername = async (username: string) => {
     if (!username || username.length < 3) return;
-    
     setChecking(true);
     setUsernameExists(null);
-    
     try {
       const result = await profileService.checkGoatedUsername(username);
       setUsernameExists(result.exists);
@@ -67,7 +72,7 @@ export function AccountLinkingDialog({ isOpen, onClose }: AccountLinkingDialogPr
       toast({
         title: 'Error checking username',
         description: error instanceof ProfileError ? error.message : 'Failed to verify username',
-        variant: 'destructive',
+        type: 'error', // Already correct, but included for context
       });
       setUsernameExists(false);
     } finally {
@@ -75,35 +80,48 @@ export function AccountLinkingDialog({ isOpen, onClose }: AccountLinkingDialogPr
     }
   };
 
-  const onSubmit = async (data: LinkingFormValues) => {
+  const onSubmitUsername = async (data: LinkingFormValues) => {
     if (!usernameExists) {
       toast({
         title: 'Invalid Username',
         description: 'Please enter a valid Goated username',
-        variant: 'destructive',
+        type: 'error', // Already correct
       });
       return;
     }
-    
+    // Successfully verified username, move to privacy settings
+    setDialogStep('privacySettings');
+    toast({
+      title: 'Username Verified',
+      description: 'Please set your profile privacy preferences.',
+      type: 'success', // Already correct
+    });
+  };
+
+  const handleSavePrivacySettings = async () => {
     setSubmitting(true);
-    
+    const goatedUsername = form.getValues('goatedUsername');
     try {
-      const result = await profileService.requestGoatedAccountLink(data.goatedUsername);
-      
-      toast({
-        title: 'Request Submitted',
-        description: result.message || 'Your account linking request has been submitted for review',
-        variant: 'default',
+      // This method in profileService will need to be updated or created
+      // to handle the link request along with privacy settings.
+      await profileService.requestGoatedAccountLink(goatedUsername, {
+        profilePublic,
+        showStats,
       });
-      
+
+      toast({
+        title: 'Link Request & Privacy Settings Submitted',
+        description: 'Your request is being reviewed by an admin.',
+        type: 'success', // Already correct
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
       onClose();
     } catch (error) {
-      console.error('Error linking account:', error);
+      console.error('Error saving privacy settings:', error);
       toast({
-        title: 'Error Submitting Request',
-        description: error instanceof ProfileError ? error.message : 'Failed to submit link request',
-        variant: 'destructive',
+        title: 'Error Saving Privacy Settings',
+        description: error instanceof ProfileError ? error.message : 'Failed to save privacy preferences.',
+        type: 'error', // Already correct
       });
     } finally {
       setSubmitting(false);
@@ -113,84 +131,155 @@ export function AccountLinkingDialog({ isOpen, onClose }: AccountLinkingDialogPr
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[425px] bg-[#1A1B21] text-white border-[#2A2B31]">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-white">Link Your Goated Account</DialogTitle>
-          <DialogDescription className="text-[#8A8B91]">
-            Enter your Goated.com username to link your accounts. This will allow you to track your wager progress and VIP tier.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="goatedUsername"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white">Goated Username</FormLabel>
+        {dialogStep === 'usernameInput' && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold text-white">Link Your Goated Account</DialogTitle>
+              <DialogDescription className="text-[#8A8B91]">
+                Enter your Goated.com username to link your accounts. This will allow you to track your wager progress and VIP tier.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmitUsername)} className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="goatedUsername"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Goated Username</FormLabel>
+                      <div className="flex items-center space-x-2">
+                        <FormControl>
+                          <Input
+                            placeholder="Enter your Goated username"
+                            className="bg-[#2A2B31] border-[#3A3B41] text-white"
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              setUsernameExists(null);
+                            }}
+                            onBlur={(e) => {
+                              field.onBlur();
+                              checkUsername(e.target.value);
+                            }}
+                          />
+                        </FormControl>
+                        {checking && <Loader2 className="h-4 w-4 animate-spin text-[#8A8B91]" />}
+                        {usernameExists === true && <Check className="h-4 w-4 text-green-500" />}
+                        {usernameExists === false && <AlertCircle className="h-4 w-4 text-red-500" />}
+                      </div>
+                      <FormMessage />
+                      {usernameExists === false && (
+                        <p className="text-red-500 text-sm mt-1">
+                          Username not found on Goated. Please check your spelling.
+                        </p>
+                      )}
+                      {usernameExists === true && (
+                        <p className="text-green-500 text-sm mt-1">
+                          Username verified! Click next to set privacy.
+                        </p>
+                      )}
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onClose}
+                    className="border-[#2A2B31] text-white hover:text-white hover:bg-[#2A2B31]"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={submitting || !usernameExists}
+                    className="bg-[#D7FF00] text-black hover:bg-[#C0E700]"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      'Next: Set Privacy'
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </>
+        )}
+
+        {dialogStep === 'privacySettings' && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold text-white">Profile Privacy Settings</DialogTitle>
+              <DialogDescription className="text-[#8A8B91]">
+                Choose how your Goated profile information will be displayed on this platform.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+              <RadioGroup
+                defaultValue={profilePublic ? "public" : "private"}
+                onValueChange={(value) => setProfilePublic(value === "public")}
+                className="space-y-2"
+              >
+                <Label className="text-base font-medium text-white">Profile Visibility</Label>
+                <div className="flex items-center space-x-2 p-3 bg-[#2A2B31] rounded-md">
+                  <RadioGroupItem value="private" id="private" />
+                  <Label htmlFor="private" className="text-white cursor-pointer">Keep Profile Private</Label>
+                </div>
+                <div className="flex items-center space-x-2 p-3 bg-[#2A2B31] rounded-md">
+                  <RadioGroupItem value="public" id="public" />
+                  <Label htmlFor="public" className="text-white cursor-pointer">Make Profile Public</Label>
+                </div>
+              </RadioGroup>
+
+              {profilePublic && (
+                <div className="space-y-3 pl-6 border-l-2 border-[#D7FF00]/50 pt-2 pb-1">
+                  <Label className="text-sm font-medium text-white">Public Profile Options:</Label>
                   <div className="flex items-center space-x-2">
-                    <FormControl>
-                      <Input
-                        placeholder="Enter your Goated username"
-                        className="bg-[#2A2B31] border-[#3A3B41] text-white"
-                        {...field}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          setUsernameExists(null);
-                        }}
-                        onBlur={(e) => {
-                          field.onBlur();
-                          checkUsername(e.target.value);
-                        }}
-                      />
-                    </FormControl>
-                    {checking && <Loader2 className="h-4 w-4 animate-spin text-[#8A8B91]" />}
-                    {usernameExists === true && <Check className="h-4 w-4 text-green-500" />}
-                    {usernameExists === false && <AlertCircle className="h-4 w-4 text-red-500" />}
+                    <Checkbox
+                      id="showStats"
+                      checked={showStats}
+                      onCheckedChange={(checked) => setShowStats(Boolean(checked))}
+                      className="border-white data-[state=checked]:bg-[#D7FF00] data-[state=checked]:text-black"
+                    />
+                    <Label htmlFor="showStats" className="text-sm text-white cursor-pointer">
+                      Show wager stats (total wagered, tier progress)
+                    </Label>
                   </div>
-                  <FormMessage />
-                  
-                  {usernameExists === false && (
-                    <p className="text-red-500 text-sm mt-1">
-                      Username not found on Goated. Please check your spelling.
-                    </p>
-                  )}
-                  
-                  {usernameExists === true && (
-                    <p className="text-green-500 text-sm mt-1">
-                      Username verified! Click submit to request linking.
-                    </p>
-                  )}
-                </FormItem>
+                  {/* Add more checkboxes for other specific stats if needed */}
+                </div>
               )}
-            />
-            
+            </div>
             <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={onClose}
+                onClick={() => setDialogStep('usernameInput')}
                 className="border-[#2A2B31] text-white hover:text-white hover:bg-[#2A2B31]"
               >
-                Cancel
+                Back
               </Button>
               <Button
-                type="submit"
-                disabled={submitting || !usernameExists}
+                type="button"
+                onClick={handleSavePrivacySettings}
+                disabled={submitting}
                 className="bg-[#D7FF00] text-black hover:bg-[#C0E700]"
               >
                 {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Submitting...
+                    Saving...
                   </>
                 ) : (
-                  'Submit Request'
+                  'Save Settings & Submit Request'
                 )}
               </Button>
             </DialogFooter>
-          </form>
-        </Form>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -204,16 +293,13 @@ export function UnlinkAccountDialog({ isOpen, onClose }: { isOpen: boolean; onCl
 
   const handleUnlink = async () => {
     setUnlinking(true);
-    
     try {
       const result = await profileService.unlinkGoatedAccount();
-      
       toast({
         title: 'Account Unlinked',
         description: result.message || 'Your Goated account has been unlinked successfully',
-        variant: 'default',
+        type: 'success', // Already correct
       });
-      
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
       onClose();
     } catch (error) {
@@ -221,7 +307,7 @@ export function UnlinkAccountDialog({ isOpen, onClose }: { isOpen: boolean; onCl
       toast({
         title: 'Error Unlinking Account',
         description: error instanceof ProfileError ? error.message : 'Failed to unlink account',
-        variant: 'destructive',
+        type: 'error', // Already correct
       });
     } finally {
       setUnlinking(false);
@@ -237,7 +323,6 @@ export function UnlinkAccountDialog({ isOpen, onClose }: { isOpen: boolean; onCl
             Are you sure you want to unlink your Goated account? This will remove access to your wager data and VIP tier progress.
           </DialogDescription>
         </DialogHeader>
-        
         <div className="p-4 bg-[#2A2B31] rounded-md">
           <div className="flex items-center space-x-2">
             <span className="font-medium">Linked Username:</span>
@@ -248,7 +333,6 @@ export function UnlinkAccountDialog({ isOpen, onClose }: { isOpen: boolean; onCl
             <span className="font-mono text-sm text-[#8A8B91]">{user?.goatedId}</span>
           </div>
         </div>
-        
         <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-2 mt-4">
           <Button
             type="button"

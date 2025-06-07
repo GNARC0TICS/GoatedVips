@@ -8,19 +8,13 @@ export function FeatureCardGrid() {
   const { user } = useAuth();
   const isAuthenticated = !!user;
 
-  // The original Home.tsx had two distinct grids of cards.
-  // We need to decide if homeFeatures.ts should distinguish these or if FeatureCardGrid handles it.
-  // For now, let's assume homeFeatures contains all cards and we might need to split them or add a grouping key.
-  // Based on Home.tsx, there was one grid of 6, then another grid of 3.
-  // Let's split them for now, assuming the first 6 are for the first grid, and the next 3 (or more) for the second.
-  // This logic should ideally be driven by the data in homeFeatures.ts (e.g., a 'group' property).
-
-  const firstGridFeatures = homeFeatures.slice(0, 6);
-  const secondGridFeatures = homeFeatures.slice(6);
+  // Use data-driven grouping instead of hardcoded array slicing
+  const firstGridFeatures = homeFeatures.filter(feature => feature.group === 1);
+  const secondGridFeatures = homeFeatures.filter(feature => feature.group === 2);
 
   return (
     <>
-      {/* First Grid of Features (originally 6 cards) */}
+      {/* First Grid of Features */}
       <motion.div
         variants={staggerContainer(0.1, 0.2)} // delay: 0.2 from original, stagger for items
         initial="hidden"
@@ -34,7 +28,7 @@ export function FeatureCardGrid() {
         ))}
       </motion.div>
 
-      {/* Second Grid of Features (originally 3 cards, then 2 more were added to this grid in Home.tsx) */}
+      {/* Second Grid of Features */}
       {secondGridFeatures.length > 0 && (
         <motion.div
           variants={staggerContainer(0.1, 0.3)} // delay: 0.3 from original

@@ -15,12 +15,20 @@ export const LeaderboardEntrySchema = z.object({
   isCurrentUser: z.boolean().optional().default(false),
 });
 
-// Schema for the overall leaderboard response
+// Schema for the actual leaderboard data structure (what the hook should return)
 export const LeaderboardResponseSchema = z.object({
   entries: z.array(LeaderboardEntrySchema),
   timeframe: z.enum(['today', 'weekly', 'monthly', 'all_time']),
   total: z.number(),
   timestamp: z.number().optional(),
+  page: z.number().optional(),
+  limit: z.number().optional(),
+  totalPages: z.number().optional(),
+});
+
+// Schema for the API envelope that includes the 'status' field
+const ApiLeaderboardEnvelopeSchema = LeaderboardResponseSchema.extend({
+  status: z.literal("success"), // Or z.string() if status can vary
 });
 
 // TypeScript types derived from the schemas
@@ -39,24 +47,45 @@ export type LeaderboardTimeframe = 'today' | 'weekly' | 'monthly' | 'all_time';
  */
 export function useLeaderboard(
   timeframe: LeaderboardTimeframe = 'today',
-  options: Omit<UseQueryOptions<LeaderboardResponse, Error>, 'queryKey' | 'queryFn'> = {}
+  options: Omit<UseQueryOptions<LeaderboardResponse, Error>, 'queryKey' | 'queryFn'> & 
+           { limit?: number; page?: number } = {}
 ) {
-  return useQuery<LeaderboardResponse, Error>({
-    queryKey: ['/api/leaderboard', { timeframe }],
+  const { limit, page, ...queryOptions } = options;
+  // The queryFn returns the full API response (including the envelope)
+  return useQuery<z.infer<typeof ApiLeaderboardEnvelopeSchema>, Error, LeaderboardResponse>({
+    queryKey: ['/api/leaderboard', { timeframe, limit, page }],
     queryFn: createQueryFn(),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchInterval: 2 * 60 * 1000, // 2 minutes
-    select: (data) => {
+    staleTime: 2 * 60 * 1000, 
+    refetchInterval: 2 * 60 * 1000, 
+    select: (data) => { // data is the full API response e.g. { status: "success", entries: [], ... }
       try {
-        // Validate and transform the data using Zod
-        return LeaderboardResponseSchema.parse(data);
+        console.log("[useLeaderboard] Full API response received in select:", data);
+        const parsedEnvelope = ApiLeaderboardEnvelopeSchema.parse(data);
+        console.log("[useLeaderboard] Envelope parsed successfully. Extracting data for LeaderboardResponseSchema.");
+        
+        // Construct the object that LeaderboardResponseSchema expects
+        const leaderboardData: LeaderboardResponse = {
+          entries: parsedEnvelope.entries,
+          timeframe: parsedEnvelope.timeframe,
+          total: parsedEnvelope.total,
+          timestamp: parsedEnvelope.timestamp,
+          page: parsedEnvelope.page,
+          limit: parsedEnvelope.limit,
+          totalPages: parsedEnvelope.totalPages,
+        };
+        // Optionally, re-validate with LeaderboardResponseSchema if needed, but fields are already covered by ApiLeaderboardEnvelopeSchema
+        // LeaderboardResponseSchema.parse(leaderboardData); 
+        console.log("[useLeaderboard] Returning data matching LeaderboardResponseSchema:", leaderboardData);
+        return leaderboardData;
       } catch (error) {
-        console.error('Leaderboard data validation error:', error);
-        // Return the raw data if validation fails but log the error
-        return data as LeaderboardResponse;
+        console.error('Leaderboard data validation error in useLeaderboard select:', error);
+        if (error instanceof z.ZodError) {
+          throw new Error(`Leaderboard data validation failed: ${error.issues.map(i => `${i.path.join('.')} - ${i.message}`).join(', ')}`);
+        }
+        throw error; 
       }
     },
-    ...options,
+    ...queryOptions,
   });
 }
 

@@ -34,6 +34,9 @@ export function Footer() {
                     src="/images/Goated Logo - Black.png"
                     alt="Goated"
                     className="h-6 w-auto sm:h-5 lg:h-6"
+                    loading="lazy"
+                    width="auto"
+                    height="24"
                   />
                 </a>
               </div>
@@ -79,6 +82,9 @@ export function Footer() {
                     src="/images/Goated logo with text.png"
                     alt="Goated"
                     className="h-12 sm:h-14 lg:h-16 w-auto object-contain"
+                    loading="lazy"
+                    width="auto"
+                    height="64"
                   />
                 </a>
               </div>
@@ -87,16 +93,25 @@ export function Footer() {
                 Subscribe to our newsletter for exclusive offers, updates, and VIP rewards!
               </p>
               
-              {/* Enhanced newsletter form */}
+              {/* Enhanced newsletter form with proper submission logic placeholder */}
               <form 
-                onSubmit={(e) => e.preventDefault()} 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  // TODO: Implement actual newsletter subscription logic
+                  console.log("Newsletter subscription submitted");
+                }} 
                 className="flex flex-col sm:flex-row gap-3 sm:gap-2"
               >
                 <div className="relative flex-1">
+                  <label htmlFor="newsletter-email" className="sr-only">
+                    Email address
+                  </label>
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#14151A]/60" />
                   <input
+                    id="newsletter-email"
                     type="email"
                     placeholder="Enter your email"
+                    required
                     className="w-full pl-10 pr-4 py-3 sm:py-2 rounded-lg border border-[#14151A]/20 focus:outline-none focus:ring-2 focus:ring-[#14151A] focus:border-transparent transition-all duration-300 text-sm sm:text-base"
                     style={{ 
                       fontSize: '16px', // Prevent iOS zoom
@@ -140,6 +155,9 @@ export function Footer() {
                     src="/images/Goated logo with text.png"
                     alt="Goated"
                     className="h-10 sm:h-12 lg:h-14 w-auto object-contain max-w-[200px] sm:max-w-[250px]"
+                    loading="lazy"
+                    width="250"
+                    height="56"
                   />
                 </a>
                 <a
@@ -156,6 +174,9 @@ export function Footer() {
                     src="/images/Goated logo with text1.png"
                     alt="Goated Partner"
                     className="h-10 sm:h-12 lg:h-14 w-auto object-contain max-w-[200px] sm:max-w-[250px]"
+                    loading="lazy"
+                    width="250"
+                    height="56"
                   />
                 </a>
               </div>

@@ -277,6 +277,88 @@ export class GoatedApiService {
     console.log("updateAllWagerData method called (placeholder)");
     return 0; // Number of records updated
   }
+
+  /**
+   * Checks if a Goated username exists and returns its Goated ID.
+   * This is a simplified implementation that searches within the fetched referral data.
+   * A more robust solution would query a dedicated API endpoint if available.
+   */
+  async checkGoatedUsername(username: string): Promise<{ exists: boolean; goatedId?: string }> {
+    console.log(`GoatedApiService: Checking username ${username}`);
+    try {
+      const referralData = await this.fetchReferralData();
+      if (referralData && referralData.data && referralData.data.all_time && referralData.data.all_time.data) {
+        const users = referralData.data.all_time.data;
+        const foundUser = users.find((u: any) => u.name && u.name.toLowerCase() === username.toLowerCase());
+        if (foundUser) {
+          console.log(`GoatedApiService: Username ${username} found with ID ${foundUser.uid}`);
+          return { exists: true, goatedId: foundUser.uid };
+        }
+      }
+      console.log(`GoatedApiService: Username ${username} not found`);
+      return { exists: false };
+    } catch (error) {
+      console.error(`GoatedApiService: Error checking username ${username}:`, error);
+      throw error; // Re-throw to be handled by the caller
+    }
+  }
+
+  /**
+   * Fetches detailed information for a specific user by their Goated ID.
+   * This implementation searches within the fetched referral data.
+   */
+  async getUserInfo(goatedId: string): Promise<any | null> {
+    console.log(`GoatedApiService: Getting user info for Goated ID ${goatedId}`);
+    try {
+      const referralData = await this.fetchReferralData();
+      if (referralData && referralData.data) {
+        // Search across all timeframes in the data structure
+        const timeframes = ['all_time', 'monthly', 'weekly', 'today'];
+        for (const timeframe of timeframes) {
+          if (referralData.data[timeframe] && referralData.data[timeframe].data) {
+            const users = referralData.data[timeframe].data;
+            const foundUser = users.find((u: any) => u.uid === goatedId);
+            if (foundUser) {
+              console.log(`GoatedApiService: User info found for ID ${goatedId}`);
+              return foundUser; // Returns the user object which includes name, uid, wager data etc.
+            }
+          }
+        }
+      }
+      console.log(`GoatedApiService: User info not found for ID ${goatedId}`);
+      return null;
+    } catch (error) {
+      console.error(`GoatedApiService: Error getting user info for ID ${goatedId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Alias for getUserInfo, as findUserByGoatedId is used in profileService.
+   */
+  async findUserByGoatedId(goatedId: string): Promise<any | null> {
+    return this.getUserInfo(goatedId);
+  }
+
+  /**
+   * Fetches wager data for a specific user by their Goated ID.
+   * This implementation extracts wager data from the user info.
+   */
+  async getUserWagerData(goatedId: string): Promise<any | null> {
+    console.log(`GoatedApiService: Getting wager data for Goated ID ${goatedId}`);
+    try {
+      const userInfo = await this.getUserInfo(goatedId);
+      if (userInfo && userInfo.wagered) {
+        console.log(`GoatedApiService: Wager data found for ID ${goatedId}`);
+        return userInfo.wagered; // Assuming 'wagered' object is part of userInfo
+      }
+      console.log(`GoatedApiService: Wager data not found for ID ${goatedId}`);
+      return null;
+    } catch (error) {
+      console.error(`GoatedApiService: Error getting wager data for ID ${goatedId}:`, error);
+      throw error;
+    }
+  }
 }
 
 // Create a singleton instance

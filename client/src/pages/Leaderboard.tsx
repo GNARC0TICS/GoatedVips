@@ -4,18 +4,11 @@ import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { LeaderboardTable } from "@/components/data";
-import type { TimePeriod } from "@/hooks/use-leaderboard";
+import type { LeaderboardTimeframe as TimePeriod } from "@/hooks/queries/useLeaderboard";
 
 export default function Leaderboard() {
   const [location] = useLocation();
   const [period, setPeriod] = useState<TimePeriod>("today");
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Simulate loading time for data fetch
-    const timer = setTimeout(() => setIsLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, [period]);
 
   // Update period based on URL parameters
   useEffect(() => {
@@ -47,7 +40,7 @@ export default function Leaderboard() {
   };
 
   return (
-    <PageTransition isLoading={isLoading}>
+    <PageTransition>
       <div className="min-h-screen bg-[#14151A]">
       <main className="container mx-auto px-4 py-12">
         <motion.div

@@ -1,12 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Trophy, User, RefreshCw } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
 import { useAuth } from '@/hooks/use-auth';
 import { useProfile } from '@/hooks/use-profile';
 import { colors, cardStyles, textStyles, buttonStyles } from '@/lib/style-constants';
 import { MVPCard, MVP, TimePeriod } from './MVPCard';
+import { useLeaderboard, LeaderboardEntry, LeaderboardResponse } from "@/hooks/queries/useLeaderboard";
 
 /**
  * Time period definitions for different MVP cards
@@ -41,116 +41,79 @@ export function MVPCards() {
   const [openCard, setOpenCard] = useState<string | null>(null);
   const dialogTimeoutRef = React.useRef<NodeJS.Timeout>();
 
-  // Enhanced data fetching with refresh interval and error handling
   const { 
-    data: leaderboardData, 
-    isLoading, 
-    error, 
-    isError,
-    refetch
-  } = useQuery<any>({
-    queryKey: ["/api/affiliate/stats"],
-    queryFn: async () => {
-      const response = await fetch('/api/affiliate/stats', {
-        headers: {
-          'Accept': 'application/json'
-        }
-      });
+    data: dailyLeaderboardResponse, 
+    isLoading: isLoadingDaily, 
+    error: errorDaily, 
+    isError: isErrorDaily,
+    refetch: refetchDaily
+  } = useLeaderboard("daily");
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+  const { 
+    data: weeklyLeaderboardResponse, 
+    isLoading: isLoadingWeekly, 
+    error: errorWeekly, 
+    isError: isErrorWeekly,
+    refetch: refetchWeekly
+  } = useLeaderboard("weekly");
 
-      return response.json();
-    },
-    staleTime: 30000, // 30 seconds cache
-    refetchInterval: 60000, // 1 minute refresh interval
-    retry: 3
-  });
+  const { 
+    data: monthlyLeaderboardResponse, 
+    isLoading: isLoadingMonthly, 
+    error: errorMonthly, 
+    isError: isErrorMonthly,
+    refetch: refetchMonthly
+  } = useLeaderboard("monthly");
+  
+  const isLoading = isLoadingDaily || isLoadingWeekly || isLoadingMonthly;
+  const isError = isErrorDaily || isErrorWeekly || isErrorMonthly;
+  const error = errorDaily || errorWeekly || errorMonthly;
+  
+  const refetchAll = () => {
+    refetchDaily();
+    refetchWeekly();
+    refetchMonthly();
+  };
 
-  // Extract and normalize MVP data with robust error handling
+  const combinedLeaderboardDataForDialog = useMemo(() => {
+    return {
+      daily: dailyLeaderboardResponse,
+      weekly: weeklyLeaderboardResponse,
+      monthly: monthlyLeaderboardResponse,
+      // all_time data is not fetched here, so rank in dialog will be affected
+    };
+  }, [dailyLeaderboardResponse, weeklyLeaderboardResponse, monthlyLeaderboardResponse]);
+
   const mvps = React.useMemo(() => {
-    if (!leaderboardData || typeof leaderboardData !== 'object') {
-      return { daily: undefined, weekly: undefined, monthly: undefined };
-    }
-
-    const data = leaderboardData as any;
-
-    // Extract users from appropriate data paths
-    let dailyUsers = data?.data?.today?.data || [];
-    let weeklyUsers = data?.data?.weekly?.data || [];
-    let monthlyUsers = data?.data?.monthly?.data || [];
-
-    // Fallback logic for different API response formats
-    if (dailyUsers.length === 0 && data?.data?.today) {
-      if (Array.isArray(data.data.today)) {
-        dailyUsers = data.data.today;
-      }
-    }
-
-    if (weeklyUsers.length === 0 && data?.data?.weekly) {
-      if (Array.isArray(data.data.weekly)) {
-        weeklyUsers = data.data.weekly;
-      } else if (data.data.weekly?.this_week && Array.isArray(data.data.weekly.this_week)) {
-        weeklyUsers = data.data.weekly.this_week;
-      }
-    }
-
-    if (monthlyUsers.length === 0 && data?.data?.monthly) {
-      if (Array.isArray(data.data.monthly)) {
-        monthlyUsers = data.data.monthly;
-      }
-    }
-
-    // Extract first user from each group if available
-    const dailyMVP = dailyUsers.length > 0 ? formatMVPData(dailyUsers[0], 'daily') : undefined;
-    const weeklyMVP = weeklyUsers.length > 0 ? formatMVPData(weeklyUsers[0], 'weekly') : undefined;
-    const monthlyMVP = monthlyUsers.length > 0 ? formatMVPData(monthlyUsers[0], 'monthly') : undefined;
+    const dailyMVPData = dailyLeaderboardResponse?.entries?.[0];
+    const weeklyMVPData = weeklyLeaderboardResponse?.entries?.[0];
+    const monthlyMVPData = monthlyLeaderboardResponse?.entries?.[0];
 
     return {
-      daily: dailyMVP,
-      weekly: weeklyMVP,
-      monthly: monthlyMVP
+      daily: dailyMVPData ? formatMVPData(dailyMVPData, 'daily') : undefined,
+      weekly: weeklyMVPData ? formatMVPData(weeklyMVPData, 'weekly') : undefined,
+      monthly: monthlyMVPData ? formatMVPData(monthlyMVPData, 'monthly') : undefined,
     };
-  }, [leaderboardData]);
+  }, [dailyLeaderboardResponse, weeklyLeaderboardResponse, monthlyLeaderboardResponse]);
 
   // Helper function to format MVP data in a consistent structure
-  function formatMVPData(mvpData: any, period: 'daily' | 'weekly' | 'monthly'): MVP {
-    // Try to determine the structure of the data and extract needed fields
-    const username = mvpData.name || mvpData.username || '';
-    const uid = mvpData.uid || mvpData.id || '';
-
-    // Figure out the wager amount based on what's available and the period
-    let wagerAmount = 0;
-    if (period === 'daily' && typeof mvpData.wagered?.today === 'number') {
-      wagerAmount = mvpData.wagered.today;
-    } else if (period === 'weekly' && typeof mvpData.wagered?.this_week === 'number') {
-      wagerAmount = mvpData.wagered.this_week;
-    } else if (period === 'monthly' && typeof mvpData.wagered?.this_month === 'number') {
-      wagerAmount = mvpData.wagered.this_month;
-    } else if (typeof mvpData.wagerAmount === 'number') {
-      wagerAmount = mvpData.wagerAmount;
-    } else if (typeof mvpData.amount === 'number') {
-      wagerAmount = mvpData.amount;
-    }
-
-    // Create a standard wagered object or use what we have
-    const wagered = mvpData.wagered || {
-      today: typeof mvpData.today === 'number' ? mvpData.today : 0,
-      this_week: typeof mvpData.this_week === 'number' ? mvpData.this_week : 0,
-      this_month: typeof mvpData.this_month === 'number' ? mvpData.this_month : 0,
-      all_time: typeof mvpData.all_time === 'number' ? mvpData.all_time : 
-                (typeof mvpData.wagered?.all_time === 'number' ? mvpData.wagered.all_time : wagerAmount)
-    };
-
+  function formatMVPData(entry: LeaderboardEntry, period: 'daily' | 'weekly' | 'monthly'): MVP {
+    // TODO: The 'wagered.all_time' field is crucial for ProfileTierProgress in MVPCard.
+    // The current API (useLeaderboard) does not provide this unless timeframe is 'all_time'.
+    // This will lead to inaccurate tier display. Consider fetching all_time stats for MVPs separately.
     return {
-      username,
-      uid,
-      wagerAmount,
-      wagered,
-      avatarUrl: mvpData.avatarUrl || mvpData.avatar || '',
-      rank: 1, // MVP is always rank 1
-      lastWagerChange: mvpData.lastWagerChange
+      username: entry.username,
+      uid: entry.userId,
+      wagerAmount: entry.wagered, // This is the period-specific wager
+      avatarUrl: entry.avatarUrl || '', // Assuming avatarUrl is part of LeaderboardEntry
+      rank: entry.rank,
+      // lastWagerChange: entry.lastWagerChange, // This field is not in LeaderboardEntry
+      wagered: {
+        today: period === 'daily' ? entry.wagered : 0,
+        this_week: period === 'weekly' ? entry.wagered : 0,
+        this_month: period === 'monthly' ? entry.wagered : 0,
+        all_time: 0, // Placeholder: This will cause inaccurate tier display in MVPCard
+      },
     };
   }
 
@@ -195,7 +158,7 @@ export function MVPCards() {
             <Button 
               className="mt-3 bg-red-900/30 hover:bg-red-900/50 text-red-200"
               size="sm"
-              onClick={() => refetch()}
+              onClick={refetchAll}
               style={{
                 WebkitTapHighlightColor: 'transparent',
                 touchAction: 'manipulation',
@@ -248,7 +211,7 @@ export function MVPCards() {
             mvp={mvps[timeframe.period as keyof typeof mvps]}
             isOpen={openCard === timeframe.period}
             onOpenChange={(open) => handleDialogChange(open, timeframe.period)}
-            leaderboardData={leaderboardData}
+            leaderboardData={combinedLeaderboardDataForDialog}
           />
         </div>
       ))}

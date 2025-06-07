@@ -42,6 +42,7 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const [, setLocation] = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -85,8 +86,61 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
     saveRecentSearch(user);
     setQuery("");
     setIsFocused(false);
+    setSelectedIndex(-1);
     setLocation(`/user/${user.id}`);
   };
+
+  // Get all selectable items (results + recent searches)
+  const getSelectableItems = () => {
+    if (query && results.length > 0) {
+      return results;
+    } else if (!query && recentSearches.length > 0) {
+      return recentSearches;
+    }
+    return [];
+  };
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isFocused) return;
+
+      const selectableItems = getSelectableItems();
+      
+      switch (event.key) {
+        case "ArrowDown":
+          event.preventDefault();
+          setSelectedIndex(prev => 
+            prev < selectableItems.length - 1 ? prev + 1 : prev
+          );
+          break;
+        case "ArrowUp":
+          event.preventDefault();
+          setSelectedIndex(prev => prev > 0 ? prev - 1 : -1);
+          break;
+        case "Enter":
+          event.preventDefault();
+          if (selectedIndex >= 0 && selectedIndex < selectableItems.length) {
+            handleProfileClick(selectableItems[selectedIndex]);
+          }
+          break;
+        case "Escape":
+          event.preventDefault();
+          setIsFocused(false);
+          setSelectedIndex(-1);
+          inputRef.current?.blur();
+          break;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isFocused, selectedIndex, results, recentSearches, query]);
+
+  // Reset selected index when results change
+  useEffect(() => {
+    setSelectedIndex(-1);
+  }, [results, recentSearches, query]);
   
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -221,6 +275,9 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
   return (
     <div className="w-full relative">
       <div className="relative mb-1">
+        <label htmlFor={isMobile ? "mobile-search-input" : "desktop-search-input"} className="sr-only">
+          Search for users
+        </label>
         <SearchIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[#D7FF00] transition-colors duration-200" />
         <Input
           id={isMobile ? "mobile-search-input" : "desktop-search-input"}
@@ -236,6 +293,11 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
             touchAction: 'manipulation' // Improve touch handling
           }}
           autoComplete="off" // Prevents autocomplete issues on mobile
+          role="combobox"
+          aria-expanded={isFocused}
+          aria-haspopup="listbox"
+          aria-controls="search-results"
+          aria-activedescendant={selectedIndex >= 0 ? `search-result-${selectedIndex}` : undefined}
           // Handle click event to ensure proper focusing
           onClick={(e) => {
             e.stopPropagation();
@@ -264,6 +326,9 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
             exit={{ opacity: 0, y: -5 }}
             transition={{ duration: 0.15 }}
             className="max-h-64 overflow-y-auto bg-[#14151A] border border-[#2A2B31] rounded-md py-1 absolute w-full z-20 shadow-lg"
+            role="listbox"
+            id="search-results"
+            aria-label="Search results"
           >
             {isLoading && (
               <div className="flex items-center justify-center text-[#8A8B91] text-sm py-4">
@@ -287,15 +352,22 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
                   <span>Search Results</span>
                   <span className="text-xs">{totalResults > 0 ? `${totalResults} found` : `${results.length} found`}</span>
                 </div>
-                {results.map((user) => (
+                {results.map((user, index) => (
                   <motion.div 
                     key={user.id} 
+                    id={`search-result-${index}`}
                     onClick={() => handleProfileClick(user)}
-                    className="flex items-center gap-3 p-3 hover:bg-[#1A1B21] cursor-pointer transition-colors"
-                    whileHover={{ backgroundColor: "#1A1B21" }}
+                    className={`flex items-center gap-3 p-3 cursor-pointer transition-colors ${
+                      selectedIndex === index 
+                        ? "bg-[#D7FF00]/10 border-l-2 border-[#D7FF00]" 
+                        : "hover:bg-[#1A1B21]"
+                    }`}
+                    whileHover={{ backgroundColor: selectedIndex === index ? "#D7FF00" + "20" : "#1A1B21" }}
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 * results.indexOf(user) }}
+                    transition={{ delay: 0.05 * index }}
+                    role="option"
+                    aria-selected={selectedIndex === index}
                   >
                     <ProfileEmblem 
                       username={user.username}
@@ -350,12 +422,19 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
                 {recentSearches.map((user, index) => (
                   <motion.div 
                     key={user.id} 
+                    id={`search-result-${index}`}
                     onClick={() => handleProfileClick(user)}
-                    className="flex items-center gap-3 p-3 hover:bg-[#1A1B21] cursor-pointer transition-colors"
-                    whileHover={{ backgroundColor: "#1A1B21" }}
+                    className={`flex items-center gap-3 p-3 cursor-pointer transition-colors ${
+                      selectedIndex === index 
+                        ? "bg-[#D7FF00]/10 border-l-2 border-[#D7FF00]" 
+                        : "hover:bg-[#1A1B21]"
+                    }`}
+                    whileHover={{ backgroundColor: selectedIndex === index ? "#D7FF00" + "20" : "#1A1B21" }}
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.05 * index }}
+                    role="option"
+                    aria-selected={selectedIndex === index}
                   >
                     <div className="relative">
                       <ProfileEmblem 

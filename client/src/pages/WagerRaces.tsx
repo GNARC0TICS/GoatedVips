@@ -26,50 +26,40 @@ import {
   Zap,
 } from "lucide-react";
 import { CountdownTimer } from "@/components/data";
-import { useLeaderboard } from "@/hooks/use-leaderboard";
+import { useLeaderboard, LeaderboardEntry, LeaderboardResponse } from "@/hooks/queries/useLeaderboard";
+import { useRaceConfig, RaceConfig } from "@/hooks/queries/useRaceConfig";
 import { Card } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { QuickProfile } from "@/components/profile/QuickProfile";
 import { Link } from "wouter";
 import { getTierFromWager, getTierIcon } from "@/lib/tier-utils";
 
-type WageredData = {
-  today: number;
-  this_week: number;
-  this_month: number;
-  all_time: number;
-};
-
-type LeaderboardEntry = {
-  uid: string;
-  name: string;
-  wagered: WageredData;
-  lastUpdate?: string;
-};
-
 import { PageTransition } from "@/components/effects";
 
 export default function WagerRaces() {
-  const [raceType] = useState<"weekly" | "monthly" | "weekend">("monthly");
   const [showCompletedRace, setShowCompletedRace] = useState(false);
   const ws = useRef<WebSocket | null>(null);
   
-  // Extended metadata type with status field
-  type ExtendedMetadata = {
-    totalUsers: number;
-    lastUpdated: string;
-    status?: 'live' | 'completed' | 'transition';
-  };
-  
   const { 
-    data: leaderboardData, 
-    isLoading, 
-    metadata 
-  } = useLeaderboard("monthly") as { 
-    data: LeaderboardEntry[], 
-    isLoading: boolean, 
-    metadata?: ExtendedMetadata 
-  };
+    data: leaderboardApiResponse,
+    isLoading: isLoadingLeaderboard,
+  } = useLeaderboard("monthly");
+
+  const { 
+    data: raceConfig,
+    isLoading: isLoadingRaceConfig,
+    error: errorRaceConfig 
+  } = useRaceConfig();
+
+  const isLoading = isLoadingLeaderboard || isLoadingRaceConfig;
+
+  const leaderboardData = leaderboardApiResponse?.entries;
+  const leaderboardMetadata = leaderboardApiResponse
+    ? { 
+        totalUsers: leaderboardApiResponse.total, 
+        lastUpdated: leaderboardApiResponse.timestamp ? new Date(leaderboardApiResponse.timestamp).toISOString() : new Date().toISOString()
+      } 
+    : undefined;
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -120,17 +110,28 @@ export default function WagerRaces() {
     }
   });
 
-  // Auto-show completed race when race ends
+  // Auto-show completed race when race ends, driven by raceConfig
   useEffect(() => {
-    // Since it's April 30th, 2025 now, we want to show the race as completed
-    // The race is completed exactly on April 30th (not after)
-    const now = new Date();
-    // The race ends on April 30th, 2025 at end of day
-    const endOfMonth = new Date(2025, 3, 30, 23, 59, 59); // April 30, 2025
-    
-    // Today is April 30th, so the race should be shown as completed
-    setShowCompletedRace(true);
-  }, []);
+    if (raceConfig) {
+      if (raceConfig.status === 'ended' || raceConfig.status === 'transition') {
+        setShowCompletedRace(true);
+      } else if (raceConfig.status === 'active' && raceConfig.endDate) {
+        const now = new Date();
+        const end = new Date(raceConfig.endDate);
+        if (now > end) {
+          setShowCompletedRace(true);
+          // If status hasn't updated yet from backend, refetch to get latest status
+           queryClient.invalidateQueries({ queryKey: ['/api/race-config'] });
+        } else {
+          setShowCompletedRace(false);
+        }
+      } else if (raceConfig.status === 'upcoming') {
+          setShowCompletedRace(false);
+      }
+    }
+    // Fallback logic for when raceConfig is not yet loaded is removed
+    // The UI will show loading state until raceConfig is available
+  }, [raceConfig]);
 
   useEffect(() => {
     // Listen for race completion events
@@ -154,32 +155,22 @@ export default function WagerRaces() {
     };
   }, []);
 
-  const prizePool = 500;
-  const prizeDistribution: Record<number, number> = {
-    1: 0.425, // $212.50
-    2: 0.2,   // $100
-    3: 0.15,  // $60
-    4: 0.075, // $30
-    5: 0.06,  // $24
-    6: 0.04,  // $16
-    7: 0.0275, // $11
-    8: 0.0225, // $9
-    9: 0.0175, // $7
-    10: 0.0175, // $7
+  const prizePool = raceConfig?.prizePool || 0;
+  const prizeDistribution = raceConfig?.prizeDistribution || {};
+
+  const getLastUpdateTime = (timestamp?: string | number) => {
+    if (!timestamp) return 'recently';
+    const timestampDate = typeof timestamp === 'string' ? new Date(timestamp) : new Date(timestamp);
+    const diff = Date.now() - timestampDate.getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
   };
 
-  const getLastUpdateTime = (timestamp?: string) => {
-  if (!timestamp) return 'recently';
-  const diff = Date.now() - new Date(timestamp).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-};
-
-const getTrophyIcon = (rank: number) => {
+  const getTrophyIcon = (rank: number) => {
     switch (rank) {
       case 1:
         return <Crown className="h-8 w-8 text-yellow-400 animate-pulse" />;
@@ -192,29 +183,19 @@ const getTrophyIcon = (rank: number) => {
     }
   };
 
-  const getWagerAmount = (player: LeaderboardEntry) => {
-    if (!player || !player.wagered) {
-      return 0; // Return 0 if player or wagered data is missing
+  const getWagerAmount = (player?: LeaderboardEntry) => {
+    if (!player || typeof player.wagered !== 'number') {
+      return 0;
     }
-    
-    let amount = 0;
-    switch (raceType) {
-      case "weekly":
-        amount = player.wagered.this_week || 0;
-        break;
-      case "monthly":
-        amount = player.wagered.this_month || 0;
-        break;
-      default:
-        amount = player.wagered.this_week || 0;
-    }
-    
-    // Make sure we're returning a number, not an object
-    return typeof amount === 'number' ? amount : 0;
+    return player.wagered;
   };
 
   const getPrizeAmount = (rank: number) => {
-    return Math.round(prizePool * (prizeDistribution[rank] || 0) * 100) / 100;
+    const rankStr = String(rank);
+    if (Object.keys(prizeDistribution).length === 0 || !prizeDistribution[rankStr]) {
+        return 0;
+    }
+    return Math.round(prizePool * (prizeDistribution[rankStr] || 0) * 100) / 100;
   };
   
   // Display full usernames
@@ -225,7 +206,7 @@ const getTrophyIcon = (rank: number) => {
     };
   }, []);
 
-  if (isLoading || !leaderboardData) {
+  if (isLoading || !leaderboardData || !raceConfig) {
     return (
       <div className="min-h-screen bg-[#14151A] flex items-center justify-center">
         <LoadingSpinner />
@@ -234,19 +215,19 @@ const getTrophyIcon = (rank: number) => {
   }
 
   // Process participants for display with proper wager data
-  const raceStatus = showCompletedRace ? 'completed' : 'live';
+  const currentRaceDisplayStatus = raceConfig?.status || (showCompletedRace ? 'completed' : 'live');
   
-  const top10Players = showCompletedRace 
+  const top10Players: LeaderboardEntry[] = (currentRaceDisplayStatus === 'completed' || currentRaceDisplayStatus === 'ended' || currentRaceDisplayStatus === 'transition') && previousRace?.participants?.length > 0 
     ? (previousRace?.participants || []).map((p: any) => ({
         uid: p.uid || '',
+        userId: p.uid || '',
         name: p.name || 'Unknown',
-        wagered: {
-          today: 0,
-          this_week: 0,
-          this_month: p.wagered || 0,
-          all_time: p.wagered_full?.all_time || p.allTimeWagered || 0
-        },
-        lastUpdate: p.lastUpdate || new Date().toISOString()
+        username: p.name || 'Unknown',
+        wagered: p.wagered || 0,
+        rank: p.rank || 0,
+        avatarUrl: p.avatarUrl || null,
+        won: p.won || 0,
+        profit: p.profit || 0,
       }))
     : (leaderboardData || []).slice(0, 10);
   const currentLeader = top10Players[0];
@@ -304,57 +285,64 @@ const getTrophyIcon = (rank: number) => {
                   className="text-center"
                 >
                   <h1 className="text-6xl font-heading font-extrabold text-white mb-2 uppercase tracking-tighter font-mona-sans-expanded">
-                    $500
+                    ${raceConfig?.prizePool ? raceConfig.prizePool.toLocaleString() : '...'}
                   </h1>
                   <h2 className="text-5xl font-heading font-extrabold text-[#D7FF00] leading-tight uppercase tracking-tighter font-mona-sans-expanded">
-                    Monthly
-                    <br />
-                    Race
+                    {(raceConfig?.name || "Monthly Race").split(" ").map((word, index, arr) => (
+                      <React.Fragment key={index}>
+                        {word}
+                        {index < arr.length -1 && <br />}
+                      </React.Fragment>
+                    ))}
                   </h2>
                 </motion.div>
 
                 <div className="flex flex-col items-center gap-6 mt-8">
                   {/* Race Status */}
-                  {showCompletedRace ? (
+                  {currentRaceDisplayStatus === 'ended' || (currentRaceDisplayStatus === 'completed' && showCompletedRace) ? (
                     <div className="space-y-2">
                       <div className="bg-[#D7FF00]/10 text-[#D7FF00] px-6 py-2 rounded-full border border-[#D7FF00] backdrop-blur-sm">
                         Race Completed
                       </div>
                       <div className="bg-[#1A1B21]/80 text-[#D7FF00]/80 px-6 py-3 rounded-lg text-sm">
-                        Winners will receive their prizes directly to their Goated account within 24 hours of race completion
+                        Winners will receive their prizes directly to their Goated account within 24 hours of race completion.
+                        {/* Accessing metadata on raceConfig like this might not be standard, ensure API provides it or remove */}
+                        {/* {raceConfig?.metadata?.transitionEnds && new Date(raceConfig.metadata.transitionEnds) > new Date() ? ` Results are provisional until ${new Date(raceConfig.metadata.transitionEnds).toLocaleTimeString()}` : '' } */}
                       </div>
                     </div>
-                  ) : showCompletedRace || false ? (
+                  ) : currentRaceDisplayStatus === 'transition' ? (
                     <div className="bg-orange-500/10 text-orange-500 px-6 py-2 rounded-full border border-orange-500 backdrop-blur-sm">
-                      In Transition Period
+                      Race Ended - Results Processing
                     </div>
-                  ) : (
+                  ) : currentRaceDisplayStatus === 'active' && raceConfig?.endDate ? (
                     <div className="bg-[#1A1B21]/80 backdrop-blur-sm px-6 py-4 rounded-lg">
                       <div className="text-4xl font-bold text-[#D7FF00]">
                         <CountdownTimer
-                          endDate={new Date(
-                            2025, // Fixed year to 2025
-                            3,    // April (0-indexed, so 3 is April)
-                            30,   // End of April
-                          ).toISOString()}
+                          endDate={raceConfig.endDate}
                           large={true}
-                          onComplete={() => setShowCompletedRace(true)}
+                          onComplete={() => {
+                            queryClient.invalidateQueries({ queryKey: ['/api/race-config'] });
+                          }}
                         />
                       </div>
+                    </div>
+                  ) : currentRaceDisplayStatus === 'upcoming' && raceConfig?.startDate ? (
+                     <div className="bg-blue-500/10 text-blue-400 px-6 py-2 rounded-full border border-blue-500 backdrop-blur-sm">
+                        Race Starts In <CountdownTimer endDate={raceConfig.startDate} small={true} />
+                      </div>
+                  ) : (
+                    <div className="bg-gray-500/10 text-gray-400 px-6 py-2 rounded-full border border-gray-500 backdrop-blur-sm">
+                      Loading Race Status...
                     </div>
                   )}
 
                   {/* Next Race Countdown */}
-                  {(showCompletedRace) && (
-                    <div className="text-center">
-                      <div className="text-[#8A8B91] mb-2">Next Race Starts Tomorrow</div>
+                  {(currentRaceDisplayStatus === 'ended' || currentRaceDisplayStatus === 'completed' || currentRaceDisplayStatus === 'transition') && raceConfig?.nextRaceStartDate && (
+                    <div className="text-center mt-6">
+                      <div className="text-[#8A8B91] mb-2">Next Race Starts In</div>
                       <div className="bg-[#1A1B21]/80 backdrop-blur-sm px-6 py-4 rounded-lg">
                         <CountdownTimer
-                          endDate={new Date(
-                            2025, // Fixed year to 2025
-                            4,    // May (0-indexed, so 4 is May)
-                            1,    // First day of May
-                          ).toISOString()}
+                          endDate={raceConfig.nextRaceStartDate}
                           large={true}
                         />
                       </div>
@@ -378,7 +366,7 @@ const getTrophyIcon = (rank: number) => {
                   <div className="flex items-center justify-center gap-2">
                     <Trophy className="h-5 w-5 text-[#D7FF00]" />
                     <p className="text-xl font-bold">
-                      $500
+                      ${raceConfig?.prizePool ? raceConfig.prizePool.toLocaleString() : '...'}
                     </p>
                   </div>
                 </div>
@@ -388,7 +376,7 @@ const getTrophyIcon = (rank: number) => {
                   </h3>
                   <div className="flex items-center justify-center gap-2">
                     <Medal className="h-5 w-5 text-[#D7FF00]" />
-                    <p className="text-xl font-bold">10</p>
+                    <p className="text-xl font-bold">{raceConfig?.totalWinners || '...'}</p>
                   </div>
                 </div>
                 <div className="text-center">
@@ -423,7 +411,10 @@ const getTrophyIcon = (rank: number) => {
                   transition: { duration: 0.2 },
                   boxShadow: "0 0 20px rgba(215, 255, 0, 0.2)"
                 }}
-                className="relative bg-gradient-to-b from-[#1A1B21]/90 to-[#1A1B21]/70 backdrop-blur-sm p-3 md:p-6 rounded-2xl border-2 border-[#C0C0C0] w-[120px] md:w-[180px] h-[180px] md:h-[220px] transform -translate-y-4"
+                className={`relative bg-gradient-to-b from-[#1A1B21]/90 to-[#1A1B21]/70 backdrop-blur-sm p-3 md:p-6 rounded-2xl border-2 border-[#C0C0C0] w-[120px] md:w-[180px] h-[180px] md:h-[220px] transform -translate-y-4 ${
+                  currentRaceDisplayStatus === "completed" ? "bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-600 text-black font-semibold shadow-lg shadow-yellow-500/30"
+                  : "bg-[#1A1B21]/80 border border-[#2A2B31]"
+                }`}
               >
                 <div className="absolute -top-12 left-1/2 -translate-x-1/2">
                   <span className="bg-[#C0C0C0] text-black font-heading px-6 py-2 rounded-full text-sm whitespace-nowrap">
@@ -445,12 +436,10 @@ const getTrophyIcon = (rank: number) => {
                     </p>
                     <p className="text-sm text-white/60 mt-1 flex items-center justify-center gap-1">
                       <TrendingUp className="h-3 w-3" />
-                      ${getWagerAmount(
-                        top10Players[1] || { wagered: { this_month: 0 } },
-                      ).toLocaleString()}
+                      ${(top10Players[1] ? getWagerAmount(top10Players[1]) : 0).toLocaleString()}
                     </p>
                     <p className="text-[10px] text-white/40 mt-1">
-                      Updated {getLastUpdateTime(top10Players[1]?.lastUpdate)}
+                      {leaderboardMetadata?.lastUpdated ? `Updated ${getLastUpdateTime(leaderboardMetadata.lastUpdated)}` : ''}
                     </p>
                   </div>
                 </div>
@@ -465,7 +454,10 @@ const getTrophyIcon = (rank: number) => {
                   transition: { duration: 0.2 },
                   boxShadow: "0 0 20px rgba(215, 255, 0, 0.2)"
                 }}
-                className="relative bg-gradient-to-b from-[#1A1B21]/90 to-[#1A1B21]/70 backdrop-blur-sm p-3 md:p-6 rounded-2xl border-2 border-[#FFD700] w-[140px] md:w-[220px] h-[200px] md:h-[240px] z-10 glow-gold"
+                className={`relative bg-gradient-to-b from-[#1A1B21]/90 to-[#1A1B21]/70 backdrop-blur-sm p-3 md:p-6 rounded-2xl border-2 border-[#FFD700] w-[140px] md:w-[220px] h-[200px] md:h-[240px] z-10 glow-gold ${
+                  currentRaceDisplayStatus === "completed" ? "bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-600 text-black font-semibold shadow-lg shadow-yellow-500/30"
+                  : "bg-[#1A1B21]/80 border border-[#2A2B31]"
+                }`}
               >
                 <div className="absolute -top-12 left-1/2 -translate-x-1/2">
                   <span className="bg-[#FFD700] text-black font-heading px-6 py-2 rounded-full text-sm whitespace-nowrap">
@@ -487,16 +479,12 @@ const getTrophyIcon = (rank: number) => {
                   </p>
                   <p className="text-sm text-white/60 mt-1">
                     $
-                    {getWagerAmount(
-                      top10Players[0] || { wagered: { this_month: 0 } },
-                    ).toLocaleString()}{" "}
+                    {(top10Players[0] ? getWagerAmount(top10Players[0]) : 0).toLocaleString()}{" "}
                     wagered
                   </p>
                   </div>
                 </div>
               </motion.div>
-
-
 
               {/* 3rd Place */}
               <motion.div
@@ -507,7 +495,10 @@ const getTrophyIcon = (rank: number) => {
                   transition: { duration: 0.2 },
                   boxShadow: "0 0 20px rgba(215, 255, 0, 0.2)"
                 }}
-                className="relative bg-gradient-to-b from-[#1A1B21]/90 to-[#1A1B21]/70 backdrop-blur-sm p-3 md:p-6 rounded-2xl border-2 border-[#CD7F32] w-[120px] md:w-[180px] h-[160px] md:h-[200px] transform -translate-y-8"
+                className={`relative bg-gradient-to-b from-[#1A1B21]/90 to-[#1A1B21]/70 backdrop-blur-sm p-3 md:p-6 rounded-2xl border-2 border-[#CD7F32] w-[120px] md:w-[180px] h-[160px] md:h-[200px] transform -translate-y-8 ${
+                  currentRaceDisplayStatus === "completed" ? "bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-600 text-black font-semibold shadow-lg shadow-yellow-500/30"
+                  : "bg-[#1A1B21]/80 border border-[#2A2B31]"
+                }`}
               >
                 <div className="absolute -top-12 left-1/2 -translate-x-1/2">
                   <span className="bg-[#CD7F32] text-black font-heading px-6 py-2 rounded-full text-sm whitespace-nowrap">
@@ -524,17 +515,15 @@ const getTrophyIcon = (rank: number) => {
                         {getAnonymizedName(top10Players[2]?.name || "-", 3)}
                       </p>
                     </QuickProfile>
-                    <p className="text-sm md:text-base font-heading text-[#D7FF00] mt-1">
+                    <p className="text-sm md:text-base font-heading text-[#D7FF00] mt-2">
                       ${getPrizeAmount(3).toLocaleString()}
                     </p>
                     <p className="text-sm text-white/60 mt-1 flex items-center justify-center gap-1">
                       <TrendingUp className="h-3 w-3" />
-                      ${getWagerAmount(
-                        top10Players[2] || { wagered: { this_month: 0 } },
-                      ).toLocaleString()}
+                      ${(top10Players[2] ? getWagerAmount(top10Players[2]) : 0).toLocaleString()}
                     </p>
                     <p className="text-[10px] text-white/40 mt-1">
-                      Updated {getLastUpdateTime(top10Players[2]?.lastUpdate)}
+                      {leaderboardMetadata?.lastUpdated ? `Updated ${getLastUpdateTime(leaderboardMetadata.lastUpdated)}` : ''}
                     </p>
                   </div>
                 </div>
@@ -550,7 +539,7 @@ const getTrophyIcon = (rank: number) => {
           >
             <div className="bg-[#2A2B31] px-6 py-4">
               <h3 className="text-xl font-heading font-bold text-[#D7FF00] text-center">
-                {`${raceType.charAt(0).toUpperCase() + raceType.slice(1)} Race Leaderboard`}
+                {`${raceConfig?.name || "Monthly Race"} Leaderboard`}
               </h3>
             </div>
             <Table>
@@ -574,44 +563,26 @@ const getTrophyIcon = (rank: number) => {
                 {top10Players.map((player: LeaderboardEntry, index: number) => (
                   <TableRow
                     key={player.uid}
-                    className="bg-[#1A1B21]/50 backdrop-blur-sm hover:bg-[#1A1B21]"
+                    className={`bg-[#1A1B21]/50 backdrop-blur-sm hover:bg-[#1A1B21] ${
+                      currentRaceDisplayStatus === "completed" ? (index === 0 ? "bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-600 text-black font-semibold shadow-lg shadow-yellow-500/30" : "") : ""
+                    }`}
                   >
-                    <TableCell className="font-heading">
-                      <div className="flex items-center gap-2">
+                    <TableCell className="w-16 text-center py-5">
+                      <div className="flex items-center justify-center">
                         {getTrophyIcon(index + 1)}
-                        {index + 1}
                       </div>
                     </TableCell>
-                    <TableCell className="font-sans text-white">
-                      <QuickProfile userId={player.uid} username={player.name}>
-                        <div className="flex items-center gap-2 cursor-pointer min-w-0">
-                          <div className="flex items-center gap-2">
-                            <img 
-                              src={getTierIcon(getTierFromWager(player.wagered?.all_time || 0))} 
-                              alt="Tier" 
-                              className="h-4 w-4"
-                            />
-                            <span className="truncate">{getAnonymizedName(player.name, index + 1)}</span>
-                          </div>
-                        </div>
+                    <TableCell className="py-5">
+                      <QuickProfile userId={player.userId} username={player.username}>
+                        <span className="font-semibold text-white/90 cursor-pointer hover:text-[#D7FF00] transition-colors">
+                          {getAnonymizedName(player.username, index + 1)}
+                        </span>
                       </QuickProfile>
                     </TableCell>
-                    <TableCell className="text-right font-sans">
-                      <motion.span
-                        animate={{
-                          scale: [1, 1.1, 1],
-                          backgroundColor: [
-                            "transparent",
-                            "#008000",
-                            "transparent",
-                          ],
-                        }}
-                        transition={{ duration: 5, repeat: 1, repeatDelay: 0 }}
-                      >
-                        ${getWagerAmount(player).toLocaleString()}
-                      </motion.span>
+                    <TableCell className="text-right py-5 text-lg font-semibold text-[#D7FF00]">
+                      ${getWagerAmount(player).toLocaleString()}
                     </TableCell>
-                    <TableCell className={`text-right font-sans text-[#D7FF00] ${showCompletedRace ? 'font-bold' : ''}`}>
+                    <TableCell className="text-right py-5 text-lg font-bold text-white/90">
                       ${getPrizeAmount(index + 1).toLocaleString()}
                     </TableCell>
                   </TableRow>
@@ -631,7 +602,7 @@ const getTrophyIcon = (rank: number) => {
                 </div>
                 <div className="flex items-center gap-3 text-white/70">
                   <TrendingUp className="h-5 w-5 text-[#D7FF00]" />
-                  <span className="text-sm">Last updated {metadata?.lastUpdated ? getLastUpdateTime(metadata.lastUpdated) : 'recently'}</span>
+                  <span className="text-sm">Last updated {leaderboardMetadata?.lastUpdated ? getLastUpdateTime(leaderboardMetadata.lastUpdated) : 'recently'}</span>
                 </div>
               </div>
             </div>

@@ -25,9 +25,10 @@ const withPostRateLimit = (handler: (req: Request, res: Response, next: NextFunc
  */
 router.post("/request-link", requireAuth, withPostRateLimit(async (req, res, next) => {
   try {
-    const { goatedUsername } = req.body;
+    const { goatedUsername, privacySettings } = req.body; // Extract privacySettings
     const userId = String(req.user!.id);
-    const result = await profileService.requestGoatedAccountLink(userId, goatedUsername);
+    // Pass privacySettings to the service method
+    const result = await profileService.requestGoatedAccountLink(userId, goatedUsername, privacySettings); 
     return res.json(result);
   } catch (err) {
     next(err);

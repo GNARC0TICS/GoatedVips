@@ -29,9 +29,11 @@ import { PromoBanner } from "@/components/home/PromoBanner";
 import { FeatureCardGrid } from "@/components/home/FeatureCardGrid";
 import { CallToAction } from "@/components/home/CallToAction";
 import { AnimatedSection } from "@/components/shared/AnimatedSection";
+import { PageTransition } from "@/components/effects";
 
 export default function Home() {
   return (
+    <PageTransition>
     <div className="min-h-screen bg-[#14151A]">
       <main className="container mx-auto px-4 py-12">
         <div className="text-center mb-24 max-w-6xl mx-auto px-4">
@@ -66,6 +68,11 @@ export default function Home() {
               preset="fadeInUp" 
               delay={0.2}
               className="mb-24"
+              whileInView={{
+                opacity: 1,
+                y: 0,
+              }}
+              viewport={{ once: true, margin: "-100px" }}
             >
               <h2 className="text-4xl font-heading text-white mb-12 text-center flex items-center justify-center gap-3">
                 <Crown className="w-8 h-8 text-[#D7FF00] animate-wiggle" />
@@ -78,6 +85,11 @@ export default function Home() {
               preset="fadeInUp" 
               delay={0.3}
               className="mb-24"
+              whileInView={{
+                opacity: 1,
+                y: 0,
+              }}
+              viewport={{ once: true, margin: "-100px" }}
             >
               <h2 className="text-4xl font-heading text-white mb-12 text-center flex items-center justify-center gap-3">
                 <Zap className="w-8 h-8 text-[#D7FF00] animate-flicker" />
@@ -90,6 +102,10 @@ export default function Home() {
               preset="fadeIn"
               delay={0.4}
               className="mb-16"
+              whileInView={{
+                opacity: 1,
+              }}
+              viewport={{ once: true, margin: "-100px" }}
             >
               <div className="rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm p-8 max-w-7xl mx-auto">
                 <h2 className="text-3xl font-heading text-white mb-8 text-center flex items-center justify-center gap-3">
@@ -100,12 +116,20 @@ export default function Home() {
               </div>
             </AnimatedSection>
             
-            <CallToAction /> 
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ delay: 0.2 }}
+            >
+              <CallToAction />
+            </motion.div>
             
           </motion.div>
         </div>
       </main>
       {/* RaceTimer moved to Layout component for app-wide availability */}
     </div>
+    </PageTransition>
   );
 }

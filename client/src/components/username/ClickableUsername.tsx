@@ -38,7 +38,7 @@ export function ClickableUsername({
     // Otherwise if not using QuickProfile, navigate to profile page directly
     else if (!withQuickProfile) {
       // Use window.location for more direct navigation
-      window.location.href = `/profile/${userId}`;
+      window.location.href = `/user-profile/${userId}`;
     }
     // When withQuickProfile=true, the QuickProfile component handles the click
   };
@@ -86,7 +86,7 @@ export function ClickableUsername({
   
   // Simple link to profile
   return (
-    <Link href={`/profile/${userId}`}>
+    <Link href={`/user-profile/${userId}`}>
       <a 
         className={className}
         onClick={handleClick}
