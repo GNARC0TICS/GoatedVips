@@ -1,6 +1,7 @@
 import { pgTable, text, timestamp, integer, boolean, jsonb, index, serial } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { relations } from 'drizzle-orm';
+import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 
 export const sessions = pgTable('sessions', {
   id: text('id').primaryKey(),
