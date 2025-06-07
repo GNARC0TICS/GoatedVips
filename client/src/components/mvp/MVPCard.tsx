@@ -66,14 +66,10 @@ export function MVPCard({
 }: MVPCardProps) {
   const [showIncrease, setShowIncrease] = useState(false);
   
-  // Use React Query for profile data fetching
-  const { data: profile, isLoading: loadingProfile } = useQuery({
-    queryKey: ['profile', mvp?.uid],
-    queryFn: () => profileService.getProfile(mvp!.uid),
-    enabled: !!mvp?.uid,
-    staleTime: 60000, // 1 minute
-    gcTime: 300000 // 5 minutes
-  });
+  // Temporarily disable profile service to avoid validation errors
+  // The MVP cards now use authentic leaderboard data directly
+  const profile = null;
+  const loadingProfile = false;
 
   // Calculate tier information based on all-time wagered amount
   const tierLevel = React.useMemo(() => {
