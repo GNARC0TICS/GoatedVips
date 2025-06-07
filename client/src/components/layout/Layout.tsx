@@ -7,10 +7,10 @@ import { useToast } from "@/hooks/use-toast";
 // Component imports
 import { Header } from "./Header";
 import { Footer } from "./Footer";
-import { ParticleBackground } from "./ParticleBackground";
-import { RaceTimer } from "./RaceTimer";
-import { Toaster } from "./ui/toaster";
-import { ScrollToTop } from "./ScrollToTop";
+import { ParticleBackground } from "../effects/ParticleBackground";
+import { RaceTimer } from "../data/RaceTimer";
+import { Toaster } from "../ui/toaster";
+import { ScrollToTop } from "../effects/ScrollToTop";
 import { AuthSection } from "./AuthSection";
 
 interface LayoutProps {

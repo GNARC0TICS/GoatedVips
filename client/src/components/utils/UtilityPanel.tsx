@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { MessageCircle, Send, Ticket } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Button } from "./ui/button";
+import { Button } from "../ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,

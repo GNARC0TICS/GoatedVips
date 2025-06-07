@@ -16,7 +16,7 @@ import {
 import React, { useState, useMemo, useCallback } from "react";
 import { useLeaderboard, type TimePeriod } from "@/hooks/use-leaderboard";
 import { getTierFromWager, getTierIcon } from "@/lib/tier-utils";
-import { QuickProfile } from "@/components/QuickProfile";
+import { QuickProfile } from "@/components/profile/QuickProfile";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Constants

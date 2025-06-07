@@ -1,4 +1,4 @@
-import { LeaderboardTable } from "@/components/LeaderboardTable";
+import { LeaderboardTable } from "@/components/data/LeaderboardTable";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
@@ -17,8 +17,8 @@ import {
   Search,
 } from "lucide-react";
 import { CryptoSwapHomeWidget } from "@/components/CryptoSwapHomeWidget";
-import { FeatureCarousel } from "@/components/FeatureCarousel";
-import { MVPCards } from "@/components/mvp";
+import { FeatureCarousel } from "@/components/features/FeatureCarousel";
+import { MVPCards } from "@/components/mvp/MVPCards";
 import { RaceTimer } from "@/components/RaceTimer";
 import { BonusCodeHeroCard } from "@/components/BonusCodeHeroCard";
 import {
@@ -28,7 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
-import { UserSearch } from "@/components/UserSearch";
+import { UserSearch } from "@/components/interactive/UserSearch";
 
 export default function Home() {
     const { user } = useAuth();

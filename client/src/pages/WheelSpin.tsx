@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { PageTransition } from "@/components/PageTransition";
+import { PageTransition } from "@/components/effects/PageTransition";
 import { motion } from "framer-motion";
 import { Gift, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";

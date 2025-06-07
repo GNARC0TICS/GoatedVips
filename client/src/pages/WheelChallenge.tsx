@@ -1,4 +1,4 @@
-import { PageTransition } from "@/components/PageTransition";
+import { PageTransition } from "@/components/effects/PageTransition";
 
 export default function WheelChallenge() {
   return (

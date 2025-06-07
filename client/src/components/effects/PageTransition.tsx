@@ -1,8 +1,7 @@
-
 import { motion, AnimatePresence } from "framer-motion";
 import type { ReactNode } from "react";
 import { useState, useEffect } from "react";
-import { LoadingSpinner } from "./LoadingSpinner";
+import { LoadingSpinner } from "../ui/loading-spinner";
 
 interface PageTransitionProps {
   children: ReactNode;

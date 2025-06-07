@@ -326,11 +326,33 @@ export class ProfileService {
       // Fetch leaderboard data if not provided
       if (!leaderboardData) {
         console.log("ProfileService: Fetching transformed leaderboard data for profile sync");
-        leaderboardData = await statSyncService.getLeaderboardData();
-        if (!leaderboardData?.data) {
+        try {
+          leaderboardData = await statSyncService.getLeaderboardData();
+          console.log("ProfileService: Received leaderboard data:", !!leaderboardData);
+        } catch (fetchError) {
+          console.error("ProfileService: Error fetching leaderboard data:", fetchError);
           await this.logProfileOperation('profile-sync', 'error', 
-            'Failed to fetch leaderboard data', Date.now() - startTime);
-          throw new Error('Failed to fetch leaderboard data');
+            `Failed to fetch leaderboard data: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`, 
+            Date.now() - startTime);
+          throw new Error(`Failed to fetch leaderboard data: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+        }
+        
+        if (!leaderboardData) {
+          await this.logProfileOperation('profile-sync', 'error', 
+            'Leaderboard data is null/undefined', Date.now() - startTime);
+          throw new Error('Leaderboard data is null/undefined');
+        }
+        
+        if (!leaderboardData.data) {
+          await this.logProfileOperation('profile-sync', 'error', 
+            'Leaderboard data.data is missing', Date.now() - startTime);
+          throw new Error('Leaderboard data.data is missing');
+        }
+        
+        if (!leaderboardData.data.all_time) {
+          await this.logProfileOperation('profile-sync', 'error', 
+            'Leaderboard data.data.all_time is missing', Date.now() - startTime);
+          throw new Error('Leaderboard data.data.all_time is missing');
         }
       }
       

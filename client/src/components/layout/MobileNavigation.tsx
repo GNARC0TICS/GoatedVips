@@ -11,7 +11,7 @@ import {
   SheetTrigger 
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { AuthSection } from "./AuthSection";
+import { AuthSection } from "../auth/AuthSection";
 import giftIcon from '/images/GIFT.png';
 import {
   Tooltip,

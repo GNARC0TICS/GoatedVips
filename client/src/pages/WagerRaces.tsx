@@ -29,7 +29,7 @@ import { CountdownTimer } from "@/components/data";
 import { useLeaderboard } from "@/hooks/use-leaderboard";
 import { Card } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { QuickProfile } from "@/components/utils";
+import { QuickProfile } from "@/components/profile/QuickProfile";
 import { Link } from "wouter";
 import { getTierFromWager, getTierIcon } from "@/lib/tier-utils";
 

@@ -5,15 +5,15 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import AuthModal from "@/components/AuthModal";
 import type { SelectUser } from "@db/schema";
-import { UserSearch } from "./UserSearch";
-import { UtilityPanelButton } from "./UtilityPanel";
+import { UserSearch } from "../interactive/UserSearch";
+import { UtilityPanelButton } from "../utils/UtilityPanel";
 import { headerClasses, dropdownClasses } from "@/lib/style-constants";
 import { AdminMenu } from "./AdminMenu";
 import { UserMenu } from "./UserMenu";
 import { MobileNavigation } from "./MobileNavigation";
-import { MobileSearchDropdown } from "./MobileSearchDropdown";
+import { MobileSearchDropdown } from "../interactive/MobileSearchDropdown";
 import { DesktopNavLinks } from "./NavigationLinks";
-import { AuthSection } from "./AuthSection";
+import { AuthSection } from "../auth/AuthSection";
 
 type HeaderProps = {
   isAuthenticated: boolean;

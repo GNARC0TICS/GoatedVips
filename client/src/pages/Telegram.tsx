@@ -1,8 +1,7 @@
-
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { MessageCircle, Twitter, Star, Zap, Gift, Users } from "lucide-react";
-import { PageTransition } from "@/components/PageTransition";
+import { PageTransition } from "@/components/effects/PageTransition";
 
 const features = [
   {

@@ -54,6 +54,13 @@ components/
 - MobileSearchDropdown.tsx
 - WheelSpinIndicator.tsx
 
+### **Profile** (`profile/`)
+- QuickProfile.tsx
+- QuickProfileCard.tsx
+- AccountLinkingDialog.tsx
+- EnhancedProfileLayout.tsx
+- ProfileEmblem.tsx
+
 ### **Effects & Animation** (`effects/`)
 - ParticleBackground.tsx
 - PageTransition.tsx

@@ -77,9 +77,23 @@ export class StatSyncService {
     try {
       // Fetch raw data from external API
       const rawData = await goatedApiService.fetchReferralData();
+      console.log("StatSyncService: Raw data received:", !!rawData);
+      
+      if (!rawData) {
+        throw new Error('No raw data received from external API');
+      }
       
       // Transform the data to our standardized format
       const transformedData = this.transformToLeaderboard(rawData);
+      console.log("StatSyncService: Data transformed successfully:", !!transformedData);
+      
+      if (!transformedData) {
+        throw new Error('Failed to transform data - transformToLeaderboard returned null/undefined');
+      }
+      
+      if (!transformedData.data || !transformedData.data.all_time) {
+        throw new Error('Transformed data is missing required structure');
+      }
       
       // Log successful transformation
       await this.logTransformation('leaderboard', 'success', 
@@ -88,6 +102,8 @@ export class StatSyncService {
       
       return transformedData;
     } catch (error) {
+      console.error("StatSyncService: Error in getLeaderboardData:", error);
+      
       // Log transformation error
       await this.logTransformation('leaderboard', 'error', 
         `Failed to transform leaderboard data: ${error instanceof Error ? error.message : String(error)}`, 
@@ -275,36 +291,67 @@ export class StatSyncService {
   private transformToLeaderboard(rawData: any): LeaderboardData {
     console.log("StatSyncService: Transforming raw API data to leaderboard format");
     
-    // Extract data from the API response
-    const dataArray = this.extractDataArray(rawData);
-    console.log(`StatSyncService: Extracted ${dataArray.length} users from raw data`);
-    
-    // Transform each entry to standard format
-    const transformedData = dataArray.map((entry) => ({
-      uid: entry.uid || "",
-      name: entry.name || "",
-      wagered: {
-        today: entry.wagered?.today || 0,
-        this_week: entry.wagered?.this_week || 0,
-        this_month: entry.wagered?.this_month || 0,
-        all_time: entry.wagered?.all_time || 0,
-      },
-    }));
-    
-    // Return data structured by time periods with proper sorting
-    return {
-      status: "success",
-      metadata: {
-        totalUsers: transformedData.length,
-        lastUpdated: new Date().toISOString(),
-      },
-      data: {
-        today: { data: this.sortByWagered(transformedData, "today") },
-        weekly: { data: this.sortByWagered(transformedData, "this_week") },
-        monthly: { data: this.sortByWagered(transformedData, "this_month") },
-        all_time: { data: this.sortByWagered(transformedData, "all_time") },
-      },
-    };
+    try {
+      // Extract data from the API response
+      const dataArray = this.extractDataArray(rawData);
+      console.log(`StatSyncService: Extracted ${dataArray.length} users from raw data`);
+      
+      if (!Array.isArray(dataArray)) {
+        throw new Error('extractDataArray did not return an array');
+      }
+      
+      // Transform each entry to standard format
+      const transformedData = dataArray
+        .filter(entry => entry && typeof entry === 'object') // Filter out invalid entries
+        .map((entry) => ({
+          uid: entry.uid || "",
+          name: entry.name || "",
+          wagered: {
+            today: entry.wagered?.today || 0,
+            this_week: entry.wagered?.this_week || 0,
+            this_month: entry.wagered?.this_month || 0,
+            all_time: entry.wagered?.all_time || 0,
+          },
+        }))
+        .filter(entry => entry.uid && entry.name); // Only keep entries with valid uid and name
+      
+      console.log(`StatSyncService: Filtered to ${transformedData.length} valid users`);
+      
+      // Return data structured by time periods with proper sorting
+      const leaderboardData: LeaderboardData = {
+        status: "success",
+        metadata: {
+          totalUsers: transformedData.length,
+          lastUpdated: new Date().toISOString(),
+        },
+        data: {
+          today: { data: this.sortByWagered(transformedData, "today") },
+          weekly: { data: this.sortByWagered(transformedData, "this_week") },
+          monthly: { data: this.sortByWagered(transformedData, "this_month") },
+          all_time: { data: this.sortByWagered(transformedData, "all_time") },
+        },
+      };
+      
+      console.log("StatSyncService: Leaderboard data structure created successfully");
+      return leaderboardData;
+    } catch (error) {
+      console.error("StatSyncService: Error in transformToLeaderboard:", error);
+      
+      // Return a safe fallback structure
+      return {
+        status: "error",
+        metadata: {
+          totalUsers: 0,
+          lastUpdated: new Date().toISOString(),
+        },
+        data: {
+          today: { data: [] },
+          weekly: { data: [] },
+          monthly: { data: [] },
+          all_time: { data: [] },
+        },
+      };
+    }
   }
   
   /**

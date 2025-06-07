@@ -5,7 +5,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { QuickProfile } from "./QuickProfile";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { ProfileEmblem } from "./profile/ProfileEmblem";
+import { ProfileEmblem } from "../profile/ProfileEmblem";
 
 interface UserResult {
   id: string;

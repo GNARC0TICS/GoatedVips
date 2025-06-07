@@ -5,7 +5,7 @@ import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
-import { SpeedIcon } from './icons/SpeedIcon';
+import { SpeedIcon } from "../icons/SpeedIcon";
 
 interface RaceParticipant {
   uid: string;
