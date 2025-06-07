@@ -1,17 +1,19 @@
 import { db } from '../../db';
 import { goatedWagerLeaderboard } from '../../db/schema';
+import { eq } from 'drizzle-orm';
 import goatedApiService from './goatedApiService';
 
 // Sync interval in ms (10 minutes)
 const SYNC_INTERVAL = 10 * 60 * 1000;
 
 export async function syncGoatedWagerLeaderboard() {
-  const apiData = await goatedApiService.fetchReferralData(true);
+  const response = await goatedApiService.fetchReferralData(true);
+  const apiData = response.data || response; // Handle both response.data and direct array
 
   for (const user of apiData) {
-    const dbUser = await db.query.goatedWagerLeaderboard.findFirst({ where: { uid: user.uid } });
+    const dbUser = await db.select().from(goatedWagerLeaderboard).where(eq(goatedWagerLeaderboard.uid, user.uid)).limit(1);
 
-    if (!dbUser) {
+          if (!dbUser || dbUser.length === 0) {
       // Insert new user
       await db.insert(goatedWagerLeaderboard).values({
         uid: user.uid,
@@ -22,13 +24,14 @@ export async function syncGoatedWagerLeaderboard() {
         wagered_all_time: user.wagered.all_time,
         last_synced: new Date(),
       });
-    } else {
-      // Only update wager fields if changed
-      const wagerChanged =
-        dbUser.wagered_today !== user.wagered.today ||
-        dbUser.wagered_this_week !== user.wagered.this_week ||
-        dbUser.wagered_this_month !== user.wagered.this_month ||
-        dbUser.wagered_all_time !== user.wagered.all_time;
+          } else {
+        // Only update wager fields if changed
+        const currentUser = dbUser[0];
+        const wagerChanged =
+          currentUser.wagered_today !== user.wagered.today ||
+          currentUser.wagered_this_week !== user.wagered.this_week ||
+          currentUser.wagered_this_month !== user.wagered.this_month ||
+          currentUser.wagered_all_time !== user.wagered.all_time;
 
       if (wagerChanged) {
         await db.update(goatedWagerLeaderboard)
@@ -39,7 +42,7 @@ export async function syncGoatedWagerLeaderboard() {
             wagered_all_time: user.wagered.all_time,
             last_synced: new Date(),
           })
-          .where({ uid: user.uid });
+          .where(eq(goatedWagerLeaderboard.uid, user.uid));
       }
     }
   }

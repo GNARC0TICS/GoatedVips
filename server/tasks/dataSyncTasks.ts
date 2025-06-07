@@ -7,7 +7,7 @@
 
 import schedule from 'node-schedule';
 import profileService from '../services/profileService';
-import wagerLeaderboardSync from '../services/wagerLeaderboardSync';
+import { syncGoatedWagerLeaderboard } from '../services/wagerLeaderboardSync';
 
 /**
  * Initialize all data synchronization tasks
@@ -31,7 +31,7 @@ export function initializeDataSyncTasks() {
   schedule.scheduleJob('*/5 * * * *', async () => {
     console.log('Starting scheduled wager data sync...');
     try {
-      await wagerLeaderboardSync.syncWagerData();
+      await syncGoatedWagerLeaderboard();
       console.log('Scheduled wager sync completed');
     } catch (error) {
       console.error('Error in scheduled wager sync:', error);
@@ -54,7 +54,7 @@ export async function performManualSync() {
     console.log(`Manual profile sync completed: ${profileResult.created} created, ${profileResult.updated} updated`);
 
     // Sync wager data
-    await wagerLeaderboardSync.syncWagerData();
+    await syncGoatedWagerLeaderboard();
     console.log('Manual wager sync completed');
 
     return {
@@ -97,8 +97,8 @@ export async function syncUserProfiles() {
  * @deprecated Use wagerLeaderboardSync.syncWagerData() directly
  */
 export async function syncWagerData() {
-  console.warn('syncWagerData() in dataSyncTasks is deprecated. Use wagerLeaderboardSync.syncWagerData() directly.');
-  return await wagerLeaderboardSync.syncWagerData();
+  console.warn('syncWagerData() in dataSyncTasks is deprecated. Use syncGoatedWagerLeaderboard() directly.');
+  return await syncGoatedWagerLeaderboard();
 }
 
 // For compatibility with the sync functions in platformApiService

@@ -1,4 +1,4 @@
-import { AffiliateStats } from "@/components/AffiliateStats";
+import { AffiliateStats } from "@/components/data";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/hooks/use-user";
 import { motion } from "framer-motion";

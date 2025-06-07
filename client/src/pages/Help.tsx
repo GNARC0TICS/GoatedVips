@@ -1,4 +1,4 @@
-import { PageTransition } from "@/components/PageTransition";
+import { PageTransition } from "@/components/effects";
 import { motion } from "framer-motion";
 
 export default function Help() {

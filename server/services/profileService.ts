@@ -313,7 +313,7 @@ export class ProfileService {
    * Synchronize all user profiles from Goated API
    * Creates/updates profiles based on current leaderboard data
    */
-  async syncUserProfiles(leaderboardData: LeaderboardData): Promise<SyncStats> {
+  async syncUserProfiles(leaderboardData?: LeaderboardData): Promise<SyncStats> {
     const startTime = Date.now();
     console.log("ProfileService: Starting profile synchronization");
     
@@ -321,6 +321,18 @@ export class ProfileService {
       let created = 0;
       let updated = 0;
       let existing = 0;
+      
+      // Fetch leaderboard data if not provided
+      if (!leaderboardData) {
+        console.log("ProfileService: Fetching leaderboard data for profile sync");
+        const rawData = await goatedApiService.fetchReferralData();
+        if (!rawData?.data) {
+          await this.logProfileOperation('profile-sync', 'error', 
+            'Failed to fetch leaderboard data', Date.now() - startTime);
+          throw new Error('Failed to fetch leaderboard data');
+        }
+        leaderboardData = rawData;
+      }
       
       const profiles = leaderboardData.data.all_time.data || [];
       

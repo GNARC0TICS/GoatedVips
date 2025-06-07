@@ -25,11 +25,11 @@ import {
   Diamond,
   Zap,
 } from "lucide-react";
-import { CountdownTimer } from "@/components/CountdownTimer";
+import { CountdownTimer } from "@/components/data";
 import { useLeaderboard } from "@/hooks/use-leaderboard";
 import { Card } from "@/components/ui/card";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { QuickProfile } from "@/components/QuickProfile";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { QuickProfile } from "@/components/utils";
 import { Link } from "wouter";
 import { getTierFromWager, getTierIcon } from "@/lib/tier-utils";
 
@@ -47,7 +47,7 @@ type LeaderboardEntry = {
   lastUpdate?: string;
 };
 
-import { PageTransition } from "@/components/PageTransition";
+import { PageTransition } from "@/components/effects";
 
 export default function WagerRaces() {
   const [raceType] = useState<"weekly" | "monthly" | "weekend">("monthly");

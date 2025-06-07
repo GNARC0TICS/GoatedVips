@@ -3,7 +3,7 @@ import { Trophy, Timer, ArrowRight, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PageTransition } from "@/components/PageTransition";
+import { PageTransition } from "@/components/effects";
 
 // Challenge data structure
 const CHALLENGES = [

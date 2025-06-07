@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { profileService } from "@/services/profileService";
 import { ProfileSkeleton } from "@/components/skeletons/ProfileSkeleton";
-import { ErrorFallback } from "@/components/ErrorFallback";
+import { ErrorFallback } from "@/components/utils";
 import { useProfile } from "@/hooks/use-profile";
 import { ErrorBoundary } from "react-error-boundary";
 import { EnhancedProfileLayout } from "@/components/profile/EnhancedProfileLayout";

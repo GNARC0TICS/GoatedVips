@@ -7,9 +7,8 @@
  */
 
 import { Router } from "express";
-import { cache } from "../middleware/cache";
 import goatedApiService from "../services/goatedApiService";
-import cacheService from "../services/cacheService";
+import { cacheService } from "../services/cacheService";
 import statSyncService from "../services/statSyncService";
 import raceService from "../services/raceService";
 import profileService from "../services/profileService";
@@ -20,7 +19,7 @@ const router = Router();
  * Get affiliate stats and leaderboard data
  * Used by the admin dashboard and leaderboard components
  */
-router.get("/affiliate/stats", cache(15 * 60 * 1000), async (req, res) => {
+router.get("/affiliate/stats", async (req, res) => {
   try {
     console.log("Fetching affiliate stats");
     
@@ -53,7 +52,7 @@ router.get("/affiliate/stats", cache(15 * 60 * 1000), async (req, res) => {
  * Get current wager race data
  * Used by the wager race page to display current competition
  */
-router.get("/wager-races/current", cache(15 * 60 * 1000), async (req, res) => {
+router.get("/wager-races/current", async (req, res) => {
   try {
     console.log("Fetching current wager race data");
     
@@ -89,7 +88,7 @@ router.get("/wager-races/current", cache(15 * 60 * 1000), async (req, res) => {
  * Get previous wager race data
  * Used by the wager race page to display historical results
  */
-router.get("/wager-races/previous", cache(15 * 60 * 1000), async (req, res) => {
+router.get("/wager-races/previous", async (req, res) => {
   try {
     console.log("Fetching previous wager race data");
     

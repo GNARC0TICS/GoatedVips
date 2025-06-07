@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { PageTransition } from "@/components/PageTransition";
+import { PageTransition } from "@/components/effects";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { LeaderboardTable } from "@/components/LeaderboardTable";
+import { LeaderboardTable } from "@/components/data";
 import type { TimePeriod } from "@/hooks/use-leaderboard";
 
 export default function Leaderboard() {

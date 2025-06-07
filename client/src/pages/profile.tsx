@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { SelectUser } from "@db/schema";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ProfileEmblem, ProfileEmblemEditor } from "@/components/ProfileEmblem";
 import { RankProgressDisplay } from "@/components/RankProgressDisplay";
 import { SessionHistory } from "@/components/SessionHistory";

@@ -1,4 +1,4 @@
-import { PageTransition } from "@/components/PageTransition";
+import { PageTransition } from "@/components/effects";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
