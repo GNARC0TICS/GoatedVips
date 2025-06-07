@@ -32,7 +32,7 @@ router.get("/affiliate/stats", async (req, res) => {
     // Get all users from database, sorted by monthly wager (primary sort)
     const allUsers = await db.select()
       .from(leaderboardUsers)
-      .orderBy(desc(leaderboardUsers.wager_month), desc(leaderboardUsers.wager_all_time))
+      .orderBy(desc(leaderboardUsers.wagerMonth), desc(leaderboardUsers.wagerAllTime))
       .limit(3000); // Get more than needed for safety
 
     console.log(`DEBUG: Retrieved ${allUsers.length} users from database`);
@@ -42,9 +42,9 @@ router.get("/affiliate/stats", async (req, res) => {
       uid: user.uid,
       name: user.name,
       wagered: {
-        today: parseFloat(user.wager_today?.toString() || "0"),
-        this_week: parseFloat(user.wager_week?.toString() || "0"),
-        this_month: parseFloat(user.wager_month?.toString() || "0"),
+        today: parseFloat(user.wagerToday?.toString() || "0"),
+        this_week: parseFloat(user.wagerWeek?.toString() || "0"),
+        this_month: parseFloat(user.wagerMonth?.toString() || "0"),
         all_time: parseFloat(user.wager_all_time?.toString() || "0")
       },
       rank: index + 1
@@ -98,7 +98,7 @@ router.get("/affiliate/stats", async (req, res) => {
     // Get all users from database, sorted by monthly wager (primary sort)
     const allUsers = await db.select()
       .from(leaderboardUsers)
-      .orderBy(desc(leaderboardUsers.wager_month), desc(leaderboardUsers.wager_all_time))
+      .orderBy(desc(leaderboardUsers.wagerMonth), desc(leaderboardUsers.wagerAllTime))
       .limit(3000); // Get more than needed for safety
 
     console.log(`DEBUG: Retrieved ${allUsers.length} users from database`);
@@ -108,9 +108,9 @@ router.get("/affiliate/stats", async (req, res) => {
       uid: user.uid,
       name: user.name,
       wagered: {
-        today: parseFloat(user.wager_today?.toString() || "0"),
-        this_week: parseFloat(user.wager_week?.toString() || "0"),
-        this_month: parseFloat(user.wager_month?.toString() || "0"),
+        today: parseFloat(user.wagerToday?.toString() || "0"),
+        this_week: parseFloat(user.wagerWeek?.toString() || "0"),
+        this_month: parseFloat(user.wagerMonth?.toString() || "0"),
         all_time: parseFloat(user.wager_all_time?.toString() || "0")
       },
       rank: index + 1
@@ -454,12 +454,12 @@ router.get("/leaderboard", async (req, res, next) => {
             break;
           case "all_time":
             wagerField = "wager_all_time";
-            wagerColumn = leaderboardUsers.wager_all_time;
+            wagerColumn = leaderboardUsers.wagerAllTime;
             break;
           case "monthly":
           default:
             wagerField = "wager_month";
-            wagerColumn = leaderboardUsers.wager_month;
+            wagerColumn = leaderboardUsers.wagerMonth;
             break;
         }
 
