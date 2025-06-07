@@ -77,7 +77,9 @@ _Add new files, directories, and details as the codebase evolves._
 | **telegramBotService.ts**   | Telegram bot integration. Handles `/start` and `/verify` commands, user linking.      | None                        | ✅ clean        | Singleton. No tight coupling. Minimal logic.                                                |
 | **userService.ts**          | Central user DB service. CRUD, search, profile ensure, Goated linking, verification.  | Calls goatedApiService.     | 🧹 needs cleanup| Some overlap with platformApiService. Some logic could be further modularized.              |
 | **goatedApiService.ts**     | Handles all external Goated.com API calls. Retry logic, token mgmt, error handling.   | Exponential backoff retry.  | ✅ clean        | No business logic, just API. Good separation.                                               |
-| **platformApiService.ts**   | All internal business logic: transforms, syncs, race logic, DB ops, endpoints.        | Uses goatedApiService.      | 🧹 needs cleanup| Large, some tight coupling (API+DB+logic). Some duplication with userService.               |
+| **raceService.ts**          | All wager race operations: current/previous races, user positions, DB management.      | Uses goatedApiService data. | ✅ clean        | Extracted from platformApiService. Single responsibility for race logic.                    |
+| **profileService.ts**       | Profile creation, Goated account linking, profile sync, wager data updates.            | Uses goatedApiService.      | ✅ clean        | Extracted from platformApiService & userService. Consolidates all profile operations.       |
+| **platformApiService.ts**   | Internal business logic: transforms, syncs, ~~race logic~~, ~~profile logic~~, endpoints. | Uses goatedApiService.   | 🧹 needs cleanup| Large, some tight coupling. Race & profile logic extracted to dedicated services.          |
 | **cacheService.ts**         | In-memory cache with TTL, namespaces, stats, stale-while-revalidate, error caching.   | None                        | ✅ clean        | Good separation. Could be extracted to core utils if used elsewhere.                        |
 
 // See directory-tree.md for file-level comments and refactor suggestions.
@@ -92,16 +94,16 @@ _Add new files, directories, and details as the codebase evolves._
 | `/:id`                              | GET    | 🟢🟡                | none                      | db                      | Fat (direct DB/logic)  | Should call userService for lookup/formatting.                                                           |
 | `/leaderboard/:timeframe`            | GET    | 🟡                 | none                      | db                      | Fat (direct DB/logic)  | Should call leaderboard/stat service.                                                                    |
 | `/admin/all`                        | GET    | 🔴                 | requireAuth, requireAdmin | db                      | Fat (direct DB/logic)  | Should call userService for admin queries.                                                               |
-| `/ensure-profile`                    | POST   | 🟢                 | none                      | ensureUserProfile       | Service-wrapped        | Should call a dedicated profileService, not index.                                                       |
+| `/ensure-profile`                    | POST   | 🟢                 | none                      | profileService          | Service-wrapped        | ✅ Should migrate to use profileService.ensureUserProfile().                                             |
 | `/:id/stats`                        | GET    | 🟡                 | none                      | db                      | Fat (direct DB/logic)  | Should call userService for stats/tier logic.                                                            |
 | `/:id`                              | PATCH  | 🟢                 | none                      | db                      | Fat (direct DB/logic)  | Should call userService for updates.                                                                     |
 | `/batch`                            | GET    | 🟢🟡                | none                      | db                      | Fat (direct DB/logic)  | Should call userService for batch fetch.                                                                 |
 | **account-linking.ts**               |        |                    |                           |                         |                        |                                                                                                          |
-| `/request-link`                     | POST   | 🟢                 | (auth via req.user)        | userService             | Service-wrapped        | Good, but should use explicit middleware for auth.                                                       |
-| `/unlink-account`                    | POST   | 🟢                 | (auth via req.user)        | db                      | Fat (direct DB/logic)  | Should use userService for unlink logic.                                                                 |
+| `/request-link`                     | POST   | 🟢                 | (auth via req.user)        | profileService          | Service-wrapped        | ✅ Now uses dedicated profileService. Should add explicit auth middleware.                               |
+| `/unlink-account`                    | POST   | 🟢                 | (auth via req.user)        | profileService          | Service-wrapped        | ✅ Should migrate to use profileService.unlinkGoatedAccount().                                           |
 | `/check-goated-username/:username`   | GET    | 🟢                 | (auth via req.user)        | goatedApiService        | Service-wrapped        | Good, but should use explicit middleware for auth.                                                       |
-| `/admin-approve-link`                | POST   | 🟢🔴               | (admin via req.user)       | userService             | Service-wrapped        | Good, but should use explicit admin middleware.                                                          |
-| `/admin-reject-link`                 | POST   | 🟢🔴               | (admin via req.user)       | userService             | Service-wrapped        | Good, but should use explicit admin middleware.                                                          |
+| `/admin-approve-link`                | POST   | 🟢🔴               | (admin via req.user)       | profileService          | Service-wrapped        | ✅ Now uses dedicated profileService. Should add explicit admin middleware.                              |
+| `/admin-reject-link`                 | POST   | 🟢🔴               | (admin via req.user)       | profileService          | Service-wrapped        | ✅ Now uses dedicated profileService. Should add explicit admin middleware.                              |
 | **goombas-admin.ts**                 |        |                    |                           |                         |                        |                                                                                                          |
 | `/admin/login`                      | POST   | 🔴                 | none                      | auth-utils              | Service-wrapped        | Good, uses utility for validation.                                                                       |
 | `/admin/logout`                     | POST   | requireAdmin        | auth-utils                | Service-wrapped         | Good, uses utility for session clear.                                                                    |
@@ -125,9 +127,9 @@ _Add new files, directories, and details as the codebase evolves._
 | `/challenges/:id/entries`            | POST   | 🟡                 | (auth via req.user)         | db                      | Fat (direct DB/logic)  | Should use explicit auth middleware.                                                                     |
 | **apiRoutes.ts**                     |        |                    |                           |                         |                        |                                                                                                          |
 | `/affiliate/stats`                   | GET    | 🔵🟡               | cache(15min)                | platformApiService       | Service-wrapped         | Good, all logic in service.                                                                              |
-| `/wager-races/current`               | GET    | 🟣                 | cache(15min)                | platformApiService       | Service-wrapped         | Good, all logic in service.                                                                              |
-| `/wager-races/previous`              | GET    | 🟣                 | cache(15min)                | platformApiService       | Service-wrapped         | Good, all logic in service.                                                                              |
-| `/wager-race/position`               | GET    | 🟣                 | none                        | platformApiService       | Service-wrapped         | Good, all logic in service.                                                                              |
+| `/wager-races/current`               | GET    | 🟣                 | cache(15min)                | raceService              | Service-wrapped         | ✅ Now uses dedicated raceService instead of platformApiService.                                        |
+| `/wager-races/previous`              | GET    | 🟣                 | cache(15min)                | raceService              | Service-wrapped         | ✅ Now uses dedicated raceService instead of platformApiService.                                        |
+| `/wager-race/position`               | GET    | 🟣                 | none                        | raceService              | Service-wrapped         | ✅ Now uses dedicated raceService instead of platformApiService.                                        |
 | `/sync/trigger`                      | POST   | 🔴                 | none                        | platformApiService       | Service-wrapped         | Should require admin middleware.                                                                         |
 | `/test/goated-raw`                   | GET    | none                | goatedApiService            | Service-wrapped         | Good, for debugging only.                                                                               |
 
@@ -136,7 +138,9 @@ _Add new files, directories, and details as the codebase evolves._
 - [ ] Move analytics and user management logic in `goombas-admin.ts` to `adminService` or `userService`
 - [ ] Enforce explicit auth/admin middleware in `account-linking.ts` and `challenges.ts`
 - [ ] Add admin middleware to `/sync/trigger` in `apiRoutes.ts`
-- [x] Keep `apiRoutes.ts` as a clean controller layer using proper services 
+- [x] Keep `apiRoutes.ts` as a clean controller layer using proper services
+- [x] Extract profile and account linking logic to dedicated `profileService.ts`
+- [x] Consolidate multiple `ensureUserProfile()` implementations into single service 
 
 // 🧱 Middleware Inventory & Refactor Checklist (June 2025)
 // Added after comprehensive audit of all backend middleware. See directory-tree.md for file-level comments.
@@ -153,4 +157,101 @@ _Add new files, directories, and details as the codebase evolves._
 - [ ] Replace all inline `req.user?.id`/`req.user?.admin` checks with `requireAuth`/`requireAdmin` middleware.
 - [ ] Audit all routes for missing rate limiting (especially login, webhook, and admin actions).
 - [ ] Confirm all domain-specific logic is handled via `domain-handler`, not in routes.
-- [ ] Standardize error throwing to use `AppError` for all custom errors. 
+- [ ] Standardize error throwing to use `AppError` for all custom errors.
+
+---
+
+## 🛠 Service Refactor Sprint: Platform Split (June 2025)
+
+### Objective
+Refactor the monolithic `platformApiService.ts` into focused, single-responsibility services to improve modularity, testability, and maintainability.
+
+### Service Refactor Checklist
+- [x] Create `raceService.ts` and migrate all race logic
+- [x] Create `profileService.ts` and move Goated UID/linking logic  
+- [ ] Create `statSyncService.ts` and handle wager data transform
+- [ ] Refactor `userService.ts` to core user CRUD only
+- [ ] Deprecate `platformApiService.ts`
+- [ ] Update all affected routes to call new services
+
+### Completed: RaceService (✅)
+**File:** `server/services/raceService.ts`
+
+**Extracted Methods:**
+- `getCurrentRace(leaderboardData)` - Current race data with live leaderboard
+- `getPreviousRace()` - Historical or simulated previous race data
+- `getUserRacePosition(uid, leaderboardData)` - User's position in current race
+- `getRaceById(raceId)` - Fetch race from database
+- `getRaceParticipants(raceId)` - Get all participants for a race
+- `createRace(config)` - Create new race record
+- `updateRaceStatus(raceId, status)` - Update race status (upcoming/live/completed)
+
+**Private Helpers:**
+- `transformToRaceData()` - Transform leaderboard to race format
+- `getLastCompletedRace()` - Get most recent completed race from DB
+- `buildRaceDataFromDB()` - Build race data from DB record
+- `getSimulatedPreviousRace()` - Fallback for missing historical data
+- `saveCompletedRaceData()` - Save race completion snapshot
+- `updateRaceParticipants()` - Update/insert race participants
+- `createCompletedRace()` - Create new completed race with participants
+- `calculatePrizeAmount()` - Calculate prize for position
+- `getCurrentRaceConfig()` - Get race configuration (TODO: move to DB)
+- `getCurrentRaceEndDate()` - Get current race end date
+- `logRaceOperation()` - Log race operations to transformation_logs
+
+**Interfaces Exported:**
+- `RaceData` - Complete race information
+- `RacePositionData` - User position data
+- `RaceConfig` - Race configuration structure
+
+**Dependencies:**
+- Uses `db` for database operations
+- Requires `LeaderboardData` from platformApiService (TODO: extract to shared types)
+- Logs operations to `transformationLogs` table
+
+### Completed: ProfileService (✅)
+**File:** `server/services/profileService.ts`
+
+**Extracted Methods:**
+- `ensureUserProfile(userId)` - Create/find profile from Goated API or placeholder
+- `requestGoatedAccountLink(userId, goatedUsername)` - User-initiated account linking
+- `approveGoatedAccountLink(userId, goatedId, approvedBy)` - Admin approval of linking
+- `rejectGoatedAccountLink(userId, reason, rejectedBy)` - Admin rejection of linking
+- `unlinkGoatedAccount(userId)` - Unlink Goated account
+- `syncUserProfiles(leaderboardData)` - Bulk profile sync from API data
+- `updateWagerData(leaderboardData)` - Update user wager statistics
+- `refreshGoatedUserData(userId, goatedId)` - Refresh individual user data
+
+**Private Helpers:**
+- `findExistingProfile()` - Find profile by ID or Goated ID
+- `createFromGoatedData()` - Create profile from Goated API data
+- `createPlaceholderProfile()` - Create temporary profile placeholder
+- `findUserInLeaderboard()` - Locate user in leaderboard data
+- `buildRankMaps()` - Build ranking maps for all timeframes
+- `profileNeedsUpdate()` - Check if profile data needs updating
+- `updateExistingProfile()` - Update existing profile with new data
+- `createNewProfile()` - Create new profile from leaderboard data
+- `findUserById()`, `findUserByGoatedId()`, `updateUser()` - Basic user operations
+- `logProfileOperation()` - Log profile operations to transformation_logs
+
+**Interfaces Exported:**
+- `SyncStats` - Profile synchronization statistics
+- `LinkingResult` - Account linking operation results
+- `ProfileCreateOptions` - Profile creation configuration
+
+**Dependencies:**
+- Uses `db` for database operations
+- Requires `goatedApiService` for external API calls
+- Uses `preparePassword` for secure password hashing
+- Logs operations to `transformationLogs` table
+
+**Consolidates Logic From:**
+- `platformApiService.syncUserProfiles()` and `updateWagerData()`
+- `userService` account linking methods
+- Multiple `ensureUserProfile()` implementations
+- Various profile creation utilities
+
+### Next Steps
+1. **statSyncService.ts**: Extract wager data synchronization and transformation
+2. **Refactor userService.ts**: Reduce to core CRUD operations only
+3. **Update routes**: Migrate to use new profileService and raceService 
