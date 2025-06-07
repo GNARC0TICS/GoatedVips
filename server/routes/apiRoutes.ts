@@ -473,10 +473,9 @@ router.get("/leaderboard", async (req, res, next) => {
             userId: leaderboardUsers.uid,
             username: leaderboardUsers.name,
             wagered: wagerColumn,
-            avatarUrl: mainUsersTable.profileImage,
+            avatarUrl: sql`NULL`, // Temporarily disable avatar lookup
           })
           .from(leaderboardUsers)
-          .leftJoin(mainUsersTable, eq(leaderboardUsers.uid, mainUsersTable.goatedId))
           .orderBy(desc(wagerColumn))
           .limit(limit)
           .offset(offset);

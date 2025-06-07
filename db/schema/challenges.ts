@@ -1,23 +1,7 @@
 import { pgTable, text, timestamp, boolean, serial, integer } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
-import { users } from "@db/schema";
-import { relations } from "drizzle-orm";
-
-export const bonusCodes = pgTable('bonus_codes', {
-  id: serial('id').primaryKey(),
-  code: text('code').notNull().unique(),
-  description: text('description'),
-  bonusAmount: text('bonus_amount').notNull(),
-  requiredWager: text('required_wager'),
-  totalClaims: integer('total_claims'),
-  currentClaims: integer('current_claims').default(0),
-  expiresAt: timestamp('expires_at').notNull(),
-  status: text('status').default('active'),
-  source: text('source').default('web'), // 'web' or 'telegram'
-  createdBy: integer('created_by').references(() => users.id),
-  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`)
-});
+import { sql, relations } from "drizzle-orm";
+import { users } from "./users";
+import { bonusCodes, type BonusCode as ImportedBonusCodeType } from "./bonus";
 
 export const challenges = pgTable('challenges', {
   id: serial('id').primaryKey(),
@@ -26,14 +10,14 @@ export const challenges = pgTable('challenges', {
   multiplier: text('multiplier'),
   prizeAmount: text('prize_amount').notNull(),
   maxWinners: integer('max_winners').notNull(),
-  timeframe: timestamp('timeframe').notNull(),
+  timeframe: timestamp('timeframe', { withTimezone: true }).notNull(),
   description: text('description'),
   status: text('status').default('active'),
-  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
   createdBy: integer('created_by').references(() => users.id),
   bonusCode: text('bonus_code'),
-  source: text('source').default('web'), // 'web' or 'telegram'
-  updatedAt: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`)
+  source: text('source').default('web'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull()
 });
 
 export const challengeEntries = pgTable('challenge_entries', {
@@ -43,10 +27,10 @@ export const challengeEntries = pgTable('challenge_entries', {
   betLink: text('bet_link').notNull(),
   status: text('status').default('pending'),
   bonusCode: text('bonus_code'),
-  submittedAt: timestamp('submitted_at').default(sql`CURRENT_TIMESTAMP`),
-  verifiedAt: timestamp('verified_at'),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }),
   verifiedBy: integer('verified_by').references(() => users.id),
-  updatedAt: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`)
+  updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull()
 });
 
 // Define relations
@@ -73,13 +57,8 @@ export const challengeEntriesRelations = relations(challengeEntries, ({ one }) =
   })
 }));
 
-export const bonusCodeRelations = relations(bonusCodes, ({ one }) => ({
-  creator: one(users, {
-    fields: [bonusCodes.createdBy],
-    references: [users.id],
-  }),
-}));
-
 export type Challenge = typeof challenges.$inferSelect;
+export type InsertChallenge = typeof challenges.$inferInsert;
 export type ChallengeEntry = typeof challengeEntries.$inferSelect;
-export type BonusCode = typeof bonusCodes.$inferSelect;
+export type InsertChallengeEntry = typeof challengeEntries.$inferInsert;
+export type BonusCode = ImportedBonusCodeType;

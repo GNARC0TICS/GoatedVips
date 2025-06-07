@@ -1,11 +1,11 @@
-import { pgTable, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, serial } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { users } from "@db/schema";
+import { users } from "./users";
 import { relations } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
 export const verificationRequests = pgTable('verification_requests', {
-  id: integer('id').primaryKey(),
+  id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id),
   telegramId: text('telegram_id').notNull(),
   telegramUsername: text('telegram_username').notNull(),

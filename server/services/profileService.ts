@@ -177,10 +177,11 @@ export class ProfileService {
       };
 
       if (privacySettings) {
-        updatePayload.profilePublic = privacySettings.profilePublic;
-        updatePayload.showStats = privacySettings.showStats;
-        // If you have a JSONB field like 'profilePrivacySettings' in your schema:
-        // updatePayload.profilePrivacySettings = privacySettings; 
+        // Privacy settings fields exist in schema but not in TypeScript types
+        // Using type assertion to bypass TypeScript until schema types are regenerated
+        (updatePayload as any).profilePublic = privacySettings.profilePublic;
+        (updatePayload as any).showStats = privacySettings.showStats;
+        (updatePayload as any).profilePrivacySettings = privacySettings;
       }
 
       await this.updateUser(userId, updatePayload);
@@ -229,6 +230,8 @@ export class ProfileService {
       }
       
       // Update user with approved linking
+      // Privacy settings (profilePublic, showStats) should have been set during requestGoatedAccountLink
+      // and will persist unless explicitly changed here.
       const updatedUser = await this.updateUser(userId, {
         goatedId,
         goatedUsername: goatedUser.name,
@@ -266,7 +269,7 @@ export class ProfileService {
         throw new Error('No pending link request for this user');
       }
       
-      // Clear the request
+      // Clear the request, but keep existing privacy settings
       await this.updateUser(userId, {
         goatedLinkRequested: false,
         goatedUsernameRequested: null,
@@ -302,17 +305,16 @@ export class ProfileService {
         throw new Error('No linked account to unlink');
       }
       
-      // Unlink the account
+      // Unlink the account and reset privacy settings
       await this.updateUser(userId, {
         goatedId: null,
         goatedUsername: null,
         goatedAccountLinked: false,
         lastActive: new Date(),
-        // Reset privacy settings on unlink
-        profilePublic: false,
-        showStats: false,
-        profilePrivacySettings: {}
-      });
+        profilePublic: true, // Reset to public by default as per new rules
+        showStats: true,     // Reset to show stats by default
+        profilePrivacySettings: {} // Clear specific settings
+      } as Partial<InsertUser>); // Using type assertion for profilePublic, showStats
       
       await this.logProfileOperation('account-unlinked', 'success', 
         `User ${userId} unlinked their Goated account`, 0);
@@ -575,14 +577,15 @@ export class ProfileService {
       const insertedUsers = await db.insert(users).values({
         username: userData.name,
         email: email,
-        password: hashedPassword, // Drizzle requires a password; using a placeholder
+        password: hashedPassword,
         createdAt: new Date(),
-        // profileColor: '#D7FF00', // Rely on schema default
         bio: DEFAULT_BIO_GOATED_PLAYER,
         isAdmin: false,
         goatedId: userId,
         goatedUsername: userData.name,
-        goatedAccountLinked: true
+        goatedAccountLinked: true,
+        profilePublic: true,
+        showStats: true
       }).returning({
         id: users.id,
         username: users.username,
@@ -615,7 +618,7 @@ export class ProfileService {
   private async createPlaceholderProfile(userId: string): Promise<any> {
     try {
       const isNumericId = /^\d+$/.test(userId);
-      const tempUsername = isNumericId ? `User ${userId}` : `User ${userId.substring(0, 8)}`;
+      const tempUsername = `goated_placeholder_${userId}`;
       const email = `userid-${userId}@users.goatedvips.com`;
       const randomPassword = Math.random().toString(36).substring(2, 10); // Placeholder password
       const hashedPassword = await preparePassword(randomPassword);
@@ -623,13 +626,14 @@ export class ProfileService {
       const insertedUsers = await db.insert(users).values({
         username: tempUsername,
         email: email,
-        password: hashedPassword, // Drizzle requires a password; using a placeholder
+        password: hashedPassword,
         createdAt: new Date(),
-        // profileColor: '#D7FF00', // Rely on schema default
         bio: DEFAULT_BIO_USER_PROFILE,
         isAdmin: false,
-        goatedId: userId, // Assuming placeholder profiles might still have a goatedId if it's a Goated user not yet fully synced
-        goatedAccountLinked: false
+        goatedId: userId,
+        goatedAccountLinked: false,
+        profilePublic: true,
+        showStats: true
       }).returning({
         id: users.id,
         username: users.username,
@@ -755,18 +759,11 @@ export class ProfileService {
       goatedId: profile.uid,
       goatedUsername: profile.name,
       goatedAccountLinked: true,
+      profilePublic: true,
+      showStats: true,
       totalWager: String(profile.wagered?.all_time || 0),
-      // dailyWager: String(profile.wagered?.today || 0), // Field not in schema
-      // weeklyWager: String(profile.wagered?.this_week || 0), // Field not in schema
-      // monthlyWager: String(profile.wagered?.this_month || 0), // Field not in schema
-      // dailyRank: rankMaps.daily.get(profile.uid) || null, // Field not in schema
-      // weeklyRank: rankMaps.weekly.get(profile.uid) || null, // Field not in schema
-      // monthlyRank: rankMaps.monthly.get(profile.uid) || null, // Field not in schema
-      // allTimeRank: rankMaps.allTime.get(profile.uid) || null, // Field not in schema
       createdAt: new Date(),
       lastUpdated: new Date(),
-      // lastWagerSync: new Date(), // Field not in schema
-      // profileColor: '#D7FF00', // Rely on schema default
       bio: DEFAULT_BIO_LEADERBOARD_PLAYER
     });
   }
@@ -798,7 +795,7 @@ export class ProfileService {
     }
   }
   
-  private async updateUser(userId: string, updates: Partial<InsertUser>): Promise<SelectUser> {
+  public async updateUser(userId: string, updates: Partial<InsertUser>): Promise<SelectUser> {
     const result = await db.update(users)
       .set({
         ...updates,

@@ -26,9 +26,16 @@ export const LeaderboardResponseSchema = z.object({
   totalPages: z.number().optional(),
 });
 
-// Schema for the API envelope that includes the 'status' field
-const ApiLeaderboardEnvelopeSchema = LeaderboardResponseSchema.extend({
-  status: z.literal("success"), // Or z.string() if status can vary
+// Schema for the API envelope that includes the 'status' field (backend uses different timeframe values)
+const ApiLeaderboardEnvelopeSchema = z.object({
+  status: z.literal("success"),
+  entries: z.array(LeaderboardEntrySchema),
+  timeframe: z.enum(['daily', 'weekly', 'monthly', 'all_time']), // Backend uses 'daily' instead of 'today'
+  total: z.number(),
+  timestamp: z.number().optional(),
+  page: z.number().optional(),
+  limit: z.number().optional(),
+  totalPages: z.number().optional(),
 });
 
 // TypeScript types derived from the schemas
@@ -51,31 +58,34 @@ export function useLeaderboard(
            { limit?: number; page?: number } = {}
 ) {
   const { limit, page, ...queryOptions } = options;
+  
+  // Map frontend timeframes to backend expected timeframes
+  const backendTimeframe = timeframe === 'today' ? 'daily' : timeframe;
+  
   // The queryFn returns the full API response (including the envelope)
   return useQuery<z.infer<typeof ApiLeaderboardEnvelopeSchema>, Error, LeaderboardResponse>({
-    queryKey: ['/api/leaderboard', { timeframe, limit, page }],
+    queryKey: ['/api/leaderboard', { timeframe: backendTimeframe, limit, page }],
     queryFn: createQueryFn(),
     staleTime: 2 * 60 * 1000, 
     refetchInterval: 2 * 60 * 1000, 
     select: (data) => { // data is the full API response e.g. { status: "success", entries: [], ... }
       try {
-        console.log("[useLeaderboard] Full API response received in select:", data);
         const parsedEnvelope = ApiLeaderboardEnvelopeSchema.parse(data);
-        console.log("[useLeaderboard] Envelope parsed successfully. Extracting data for LeaderboardResponseSchema.");
         
         // Construct the object that LeaderboardResponseSchema expects
+        // Map backend timeframe back to frontend timeframe
+        const frontendTimeframe = parsedEnvelope.timeframe === 'daily' ? 'today' : parsedEnvelope.timeframe;
+        
         const leaderboardData: LeaderboardResponse = {
           entries: parsedEnvelope.entries,
-          timeframe: parsedEnvelope.timeframe,
+          timeframe: frontendTimeframe as LeaderboardTimeframe,
           total: parsedEnvelope.total,
           timestamp: parsedEnvelope.timestamp,
           page: parsedEnvelope.page,
           limit: parsedEnvelope.limit,
           totalPages: parsedEnvelope.totalPages,
         };
-        // Optionally, re-validate with LeaderboardResponseSchema if needed, but fields are already covered by ApiLeaderboardEnvelopeSchema
-        // LeaderboardResponseSchema.parse(leaderboardData); 
-        console.log("[useLeaderboard] Returning data matching LeaderboardResponseSchema:", leaderboardData);
+        
         return leaderboardData;
       } catch (error) {
         console.error('Leaderboard data validation error in useLeaderboard select:', error);
@@ -100,8 +110,11 @@ export function useUserLeaderboardPosition(
   timeframe: LeaderboardTimeframe = 'today',
   options: Omit<UseQueryOptions<LeaderboardEntry | null, Error>, 'queryKey' | 'queryFn'> = {}
 ) {
+  // Map frontend timeframes to backend expected timeframes
+  const backendTimeframe = timeframe === 'today' ? 'daily' : timeframe;
+  
   return useQuery<LeaderboardEntry | null, Error>({
-    queryKey: ['/api/leaderboard/user', { userId, timeframe }],
+    queryKey: ['/api/leaderboard/user', { userId, timeframe: backendTimeframe }],
     queryFn: createQueryFn(),
     // Don't fetch if no userId is provided
     enabled: !!userId,

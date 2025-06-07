@@ -73,15 +73,69 @@ router.get('/search', withRateLimit(async (req, res, next) => {
 }));
 
 /**
- * Get user by ID (from our database)
+ * Get user by ID, applying privacy rules based on user's clarification.
  */
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = req.params.id;
-    // TODO: Support lookup by goatedId if needed in userService
-    const user = await userService.findUserById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    return res.json(user);
+    const profileId = req.params.id;
+    const requester = req.user as Express.User | undefined; // Authenticated user, if any
+
+    const userProfile = await profileService.ensureUserProfile(profileId);
+
+    if (!userProfile) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const isOwner = requester && String(requester.id) === String(userProfile.id);
+
+    // Owner sees everything
+    if (isOwner) {
+      return res.json(userProfile);
+    }
+
+    // Not the owner, apply privacy rules
+    // A user can only make a profile private if they link their created account to one of the goated accounts.
+    // If private: name censored, stats hidden. Otherwise, public.
+
+    if (userProfile.goatedAccountLinked && userProfile.profilePublic === false) {
+      // Profile is linked AND explicitly set to private by the user
+      return res.json({
+        id: userProfile.id,
+        username: `User ${String(userProfile.id).slice(-4)}`, // Censored username
+        profileColor: userProfile.profileColor,
+        profilePublic: false,
+        goatedAccountLinked: userProfile.goatedAccountLinked,
+        // No bio, no stats, other sensitive info hidden
+      });
+    } else {
+      // Profile is public by default, or linked and explicitly public
+      const publicProfileData: any = {
+        id: userProfile.id,
+        username: userProfile.username,
+        bio: userProfile.bio,
+        profileColor: userProfile.profileColor,
+        createdAt: userProfile.createdAt, // Assuming createdAt is fine to show
+        goatedId: userProfile.goatedId,
+        goatedUsername: userProfile.goatedUsername,
+        goatedAccountLinked: userProfile.goatedAccountLinked,
+        profilePublic: true, // Explicitly state it's being treated as public in this branch
+        // other generally public fields can be added here
+      };
+
+      // Stats visibility:
+      // If profile is effectively public (this branch), show stats if user has showStats: true OR if it's a Goated profile not yet linked by a site user (where showStats might be default true or not applicable)
+      // The user plan states: "a user can only make a profile private if they link... then they can turn on privacy so they are not shown on leaderboards but instead have their name censored (hidden) as well as their profile stats"
+      // This implies if it's private, stats are hidden. If public, stats are shown based on showStats.
+      // Since this 'else' branch means the profile is effectively public:
+      if (userProfile.showStats) {
+        publicProfileData.totalWager = userProfile.totalWager;
+        // Add other stats like tier, rank if available and showStats is true
+        // publicProfileData.tier = userProfile.tier;
+        // publicProfileData.rank = userProfile.rank; // Example
+      }
+      return res.json(publicProfileData);
+    }
+
   } catch (err) {
     next(err);
   }
@@ -118,8 +172,8 @@ router.get('/leaderboard/:timeframe', async (req, res, next) => {
 router.get('/:id/stats', async (req, res, next) => {
   try {
     const userId = req.params.id;
-    // TODO: profileService.getUserRankings should accept userId
-    const stats = await profileService.getUserRankings(userId);
+    // Corrected to use statSyncService for rankings
+    const stats = await statSyncService.getUserRankings(userId);
     return res.json(stats);
   } catch (err) {
     next(err);

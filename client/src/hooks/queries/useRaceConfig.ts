@@ -48,9 +48,7 @@ export function useRaceConfig(
     select: (response) => {
       try {
         // First, validate the entire envelope of the response.
-        console.log("[useRaceConfig] Full API response received in select:", response);
         const validatedFullResponse = RaceConfigResponseSchema.parse(response);
-        console.log("[useRaceConfig] Full response Zod parsed successfully. Returning nested data field:", validatedFullResponse.data);
         // The hook is typed to return RaceConfig, so we return the nested data object.
         // RaceConfigSchema.parse(validatedFullResponse.data) is implicitly done if RaceConfigResponseSchema is correct.
         return validatedFullResponse.data; 

@@ -1,6 +1,6 @@
 import React, { Suspense } from "react";
 // Imports necessary components for routing and state management
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, useLocation, Redirect } from "wouter";
 // Imports for error handling and boundary
 import { ErrorBoundary } from "react-error-boundary";
 // Imports the authentication provider
@@ -115,6 +115,10 @@ function MainContent() {
                   {/* All user profile routes are public - using enhanced profile component */}
                   <Route path="/user-profile/:id" component={EnhancedUserProfile} />
                   <Route path="/user/:id" component={EnhancedUserProfile} />
+                  {/* Redirect for old profile URLs */}
+                  <Route path="/profile/:id">
+                    {params => <Redirect to={`/user-profile/${params.id}`} />}
+                  </Route>
 
                   {/* Protected Routes - Require Authentication */}
                   <ProtectedRoute path="/bonus-codes" component={BonusCodes} />

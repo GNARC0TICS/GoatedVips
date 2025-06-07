@@ -26,7 +26,6 @@ import {
   Zap,
 } from "lucide-react";
 import { CountdownTimer } from "@/components/data";
-import { useLeaderboard, LeaderboardEntry, LeaderboardResponse } from "@/hooks/queries/useLeaderboard";
 import { useRaceConfig, RaceConfig } from "@/hooks/queries/useRaceConfig";
 import { Card } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -36,14 +35,30 @@ import { getTierFromWager, getTierIcon } from "@/lib/tier-utils";
 
 import { PageTransition } from "@/components/effects";
 
+// Simple type for leaderboard entries
+interface LeaderboardEntry {
+  uid: string;
+  userId: string;
+  username: string;
+  wagered: number;
+  rank: number;
+  avatarUrl?: string | null;
+  won: number;
+  profit: number;
+}
+
 export default function WagerRaces() {
   const [showCompletedRace, setShowCompletedRace] = useState(false);
   const ws = useRef<WebSocket | null>(null);
   
+  // Direct API call for monthly leaderboard data
   const { 
     data: leaderboardApiResponse,
     isLoading: isLoadingLeaderboard,
-  } = useLeaderboard("monthly");
+  } = useQuery({
+    queryKey: ['/api/leaderboard', 'monthly'],
+    queryFn: () => fetch('/api/leaderboard?timeframe=monthly&limit=10').then(res => res.json()),
+  });
 
   const { 
     data: raceConfig,
@@ -229,7 +244,17 @@ export default function WagerRaces() {
         won: p.won || 0,
         profit: p.profit || 0,
       }))
-    : (leaderboardData || []).slice(0, 10);
+    : (leaderboardData || []).slice(0, 10).map((p: any, index: number) => ({
+        uid: p.userId || '',
+        userId: p.userId || '',
+        name: p.username || 'Unknown',
+        username: p.username || 'Unknown',
+        wagered: p.wagered || 0,
+        rank: index + 1,
+        avatarUrl: p.avatarUrl || null,
+        won: p.won || 0,
+        profit: p.profit || 0,
+      }));
   const currentLeader = top10Players[0];
 
   return (

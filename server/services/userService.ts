@@ -9,7 +9,7 @@
 
 import { db } from '../../db';
 import { users, insertUserSchema } from '../../db/schema';
-import { eq, or } from 'drizzle-orm';
+import { eq, or, sql } from 'drizzle-orm';
 
 class UserService {
   /**
@@ -84,13 +84,8 @@ class UserService {
       .set({ ...userData, lastActive: new Date() })
       .where(eq(users.id, parseInt(id, 10)))
       .returning();
-    // Invalidate caches if wager fields are updated
-    if (userData.wageredToday !== undefined || userData.wageredThisWeek !== undefined || userData.wageredThisMonth !== undefined || userData.wageredAllTime !== undefined) {
-      const { cacheService } = await import("./cacheService");
-      cacheService.invalidate("current_race");
-      cacheService.invalidate("previous_race");
-      cacheService.invalidate("leaderboard_top_performers");
-    }
+    // Removed cache invalidation for non-existent wager fields on 'users' table.
+    // Wager-related cache invalidation should be handled by services that directly manage wager data.
     return updatedUser;
   }
   
@@ -117,6 +112,55 @@ class UserService {
       limit,
     });
     
+    return results;
+  }
+
+  /**
+   * Find users by a list of IDs (can be mixed internal numeric IDs or Goated IDs)
+   */
+  async findUsersByIds(ids: string[]) {
+    if (!ids || ids.length === 0) {
+      return [];
+    }
+    // Separate numeric IDs from potentially Goated string IDs
+    const numericIds: number[] = [];
+    const stringIds: string[] = [];
+    ids.forEach(id => {
+      const parsedId = parseInt(id, 10);
+      if (!isNaN(parsedId) && String(parsedId) === id) {
+        numericIds.push(parsedId);
+      } else {
+        stringIds.push(id); // These could be Goated IDs
+      }
+    });
+
+    const conditions = [];
+    if (numericIds.length > 0) {
+      conditions.push(sql`${users.id} IN ${numericIds}`);
+    }
+    if (stringIds.length > 0) {
+      conditions.push(sql`${users.goatedId} IN ${stringIds}`);
+    }
+    
+    if (conditions.length === 0) return [];
+
+    const results = await db.query.users.findMany({
+      where: or(...conditions),
+    });
+    return results;
+  }
+
+  /**
+   * Get all users (primarily for admin purposes)
+   * TODO: Add pagination
+   */
+  async getAllUsers(limit = 50, offset = 0) {
+    const results = await db.query.users.findMany({
+      limit,
+      offset,
+      orderBy: (users, { desc }) => [desc(users.createdAt)],
+    });
+    // TODO: also return total count for pagination
     return results;
   }
   

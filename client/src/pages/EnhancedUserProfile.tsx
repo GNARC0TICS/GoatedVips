@@ -8,7 +8,9 @@ import { ErrorFallback } from "@/components/ui/ErrorFallback";
 import { useProfile } from "@/hooks/use-profile";
 import { ErrorBoundary } from "react-error-boundary";
 import { EnhancedProfileLayout } from "@/components/profile/EnhancedProfileLayout";
-import { ProfileAchievements } from "@/components/profile/ProfileAchievements";
+import { PrivacySettingsDialog } from "@/components/profile/PrivacySettingsDialog"; // Import new dialog
+import { Button } from "@/components/ui/button"; // Import Button
+import { Settings } from "lucide-react"; // Import Settings icon
 
 /**
  * Enhanced user profile page with improved layout and visual design
@@ -18,6 +20,7 @@ export function EnhancedUserProfile() {
   const userId = params.id;
   const { user } = useAuth();
   const { toast } = useToast();
+  const [isPrivacyDialogOpen, setIsPrivacyDialogOpen] = React.useState(false);
 
   // Fetch profile with stats included
   const { profile, isLoading, error, fetchProfile } = useProfile(userId, { includeStats: true });
@@ -72,7 +75,20 @@ export function EnhancedUserProfile() {
               toast({ title: "Reported", description: "Profile has been reported", type: "warning" });
             }}
           >
-            <div className="space-y-6">
+            {isOwner && profile.goatedAccountLinked && (
+              <div className="mt-4 flex justify-center sm:justify-start">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsPrivacyDialogOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Privacy Settings
+                </Button>
+              </div>
+            )}
+            <div className="space-y-6 mt-4">
               <div className="text-center text-muted-foreground pb-6 border-b border-[#2A2B31]/50">
                 <p className="text-[#9A9BA1]">User activity feed will appear here</p>
               </div>
@@ -86,6 +102,13 @@ export function EnhancedUserProfile() {
               </div>
             </div>
           </EnhancedProfileLayout>
+        )}
+        {profile && isOwner && profile.goatedAccountLinked && (
+          <PrivacySettingsDialog
+            isOpen={isPrivacyDialogOpen}
+            onClose={() => setIsPrivacyDialogOpen(false)}
+            profile={profile}
+          />
         )}
       </div>
     </ErrorBoundary>

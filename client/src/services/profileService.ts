@@ -61,6 +61,8 @@ export const ProfileSchema = z.object({
       active: z.number().optional(),
     }).optional(),
   }).optional(),
+  profilePublic: z.boolean().optional(),
+  showStats: z.boolean().optional(),
 });
 
 // Extended profile with more detailed stats

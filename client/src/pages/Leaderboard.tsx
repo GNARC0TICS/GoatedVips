@@ -17,8 +17,9 @@ export default function Leaderboard() {
     if (periodParam) {
       const periodMap: Record<string, TimePeriod> = {
         daily: "today",
-        weekly: "weekly",
+        weekly: "weekly", 
         monthly: "monthly",
+        "all-time": "all_time",
         all_time: "all_time"
       };
       if (periodParam in periodMap) {
@@ -31,8 +32,8 @@ export default function Leaderboard() {
     const urlPeriodMap: Record<string, string> = {
       today: "daily",
       weekly: "weekly",
-      monthly: "monthly",
-      all_time: "all_time"
+      monthly: "monthly", 
+      all_time: "all-time"
     };
 
     setPeriod(newPeriod as TimePeriod);

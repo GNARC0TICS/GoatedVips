@@ -4,11 +4,16 @@ import { Trophy, History, Clock, ChevronRight, ChevronLeft } from "lucide-react"
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useRaceConfig, RaceConfig } from "@/hooks/queries/useRaceConfig";
-import { useLeaderboard, LeaderboardEntry } from "@/hooks/queries/useLeaderboard";
+import { useQuery } from "@tanstack/react-query";
 
 import { SpeedIcon } from "../icons/SpeedIcon";
 
-interface WidgetRaceParticipant extends LeaderboardEntry {}
+interface WidgetRaceParticipant {
+  userId: string;
+  username: string;
+  wagered: number;
+  rank: number;
+}
 
 /**
  * RaceTimer Component
@@ -31,12 +36,22 @@ export function RaceTimer() {
   } = useRaceConfig();
 
   const { 
-    data: leaderboardResponse,
+    data: leaderboardData,
     error: leaderboardError,
     isLoading: isLoadingLeaderboard
-  } = useLeaderboard("monthly", { limit: 5, enabled: !showPrevious });
+  } = useQuery({
+    queryKey: ['monthly-leaderboard'],
+    queryFn: async () => {
+      const response = await fetch('/api/leaderboard?timeframe=monthly&limit=10');
+      if (!response.ok) throw new Error('Failed to fetch leaderboard');
+      const data = await response.json();
+      return data.entries || [];
+    },
+    enabled: !showPrevious,
+    staleTime: 60000,
+  });
 
-  const currentRaceParticipants = leaderboardResponse?.entries;
+  const currentRaceParticipants = leaderboardData || [];
 
   const isLoading = isLoadingRaceConfig || (isLoadingLeaderboard && !showPrevious);
   const error = raceConfigError || (leaderboardError && !showPrevious);
@@ -77,14 +92,12 @@ export function RaceTimer() {
 
   useEffect(() => {
     if (raceConfigError) {
-      console.error('Race config fetch error:', raceConfigError);
       toast({
         title: "Error loading race configuration",
         description: raceConfigError.message || "Please try again later",
       });
     }
     if (leaderboardError && !showPrevious) {
-      console.error('Leaderboard data fetch error for RaceTimer:', leaderboardError);
       toast({
         title: "Error loading race participants",
         description: leaderboardError.message || "Please try again later",

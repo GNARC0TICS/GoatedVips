@@ -122,26 +122,9 @@ export function createQueryFn(options: {
         ? `${endpoint}?${new URLSearchParams(params as Record<string, string>).toString()}`
         : endpoint;
       
-      // --- BEGIN LOGGING ---
       console.log(`[QueryClient] Fetching: ${url}`);
-      const rawResponseForLogging = await fetch(url, {
-        ...(options.useAuth !== false ? { credentials: 'include' } : {}),
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const responseTextForLogging = await rawResponseForLogging.text();
-      console.log(`[QueryClient] Raw response text for ${url}:`, responseTextForLogging.substring(0, 1000)); // Log first 1000 chars
-      try {
-        const jsonResponseForLogging = JSON.parse(responseTextForLogging);
-        console.log(`[QueryClient] Parsed JSON response for ${url}:`, jsonResponseForLogging);
-      } catch (e) {
-        console.error(`[QueryClient] Failed to parse JSON for ${url}:`, e);
-      }
-      // --- END LOGGING ---
-      // The actual apiRequest will re-fetch, or we can use the logged response if careful about cloning
-      // For simplicity and to ensure apiRequest's own logic runs, we'll let it re-fetch.
-      // If performance becomes an issue with double fetch, this can be optimized.
-
-      return await apiRequest(url); // apiRequest will be called by the original logic
+      
+      return await apiRequest(url);
     } catch (error) {
       // Handle specific error cases
       if (error instanceof Error && error.message.includes('401') && shouldReturnNullOn401) {

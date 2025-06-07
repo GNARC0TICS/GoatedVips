@@ -26,6 +26,7 @@ import { wagerRaces, users, transformationLogs, wagerRaceParticipants } from "@d
 import { ensureUserProfile } from "./index";
 // Import focused services for API needs
 import statSyncService from "./services/statSyncService";
+import raceSnapshotRoutes from "./routes/raceSnapshotRoutes";
 
 type RateLimitTier = 'HIGH' | 'MEDIUM' | 'LOW';
 const rateLimits: Record<RateLimitTier, { points: number; duration: number }> = {
@@ -242,6 +243,7 @@ function setupAPIRoutes(app: Express) {
   app.use("/api/users", usersRouter); // For backward compatibility
   app.use("/users", usersRouter);     // New public profile routes
   app.use("/api/account", accountLinkingRouter); // Account linking routes
+  app.use("/api/race-snapshots", raceSnapshotRoutes);
   app.use("/api", router); // Added this line
   
   // Mount our custom admin routes at the non-obvious URL path

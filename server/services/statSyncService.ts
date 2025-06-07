@@ -13,13 +13,15 @@
  */
 
 import { db } from "@db";
-import { transformationLogs, affiliateStats } from "@db/schema";
+import { users, transformationLogs, affiliateStats } from "@db/schema"; // Added users
+import { eq, inArray, and, sql } from "drizzle-orm"; // Added sql, inArray, and, eq
 import goatedApiService from "./goatedApiService";
 
 // TODO: Move to shared types file during future refactor
 interface LeaderboardEntry {
   uid: string;
   name: string;
+  rank?: number; // Added optional rank
   wagered: {
     today: number;
     this_week: number;
@@ -99,6 +101,33 @@ export class StatSyncService {
       await this.logTransformation('leaderboard', 'success', 
         `Transformed leaderboard data with ${transformedData.data.all_time.data.length} users`, 
         Date.now() - startTime);
+
+      // Apply privacy censoring
+      const allUserUids = new Set<string>();
+      Object.values(transformedData.data).forEach(timeframe => {
+        timeframe.data.forEach(user => allUserUids.add(user.uid));
+      });
+
+      if (allUserUids.size > 0) {
+        const privateUsers = await db.select({ goatedId: users.goatedId, id: users.id })
+          .from(users)
+          .where(and(
+            inArray(users.goatedId, Array.from(allUserUids)),
+            eq(users.goatedAccountLinked, true),
+            sql`profile_public = false` // Using raw SQL column name as a workaround for TS error
+          ));
+        
+        const privateGoatedIds = new Map(privateUsers.map(u => [u.goatedId, u.id]));
+
+        Object.values(transformedData.data).forEach(timeframe => {
+          timeframe.data.forEach(user => {
+            if (user.uid && privateGoatedIds.has(user.uid)) {
+              const localId = privateGoatedIds.get(user.uid);
+              user.name = `User ${String(localId).slice(-4)}`; // Censor name
+            }
+          });
+        });
+      }
       
       return transformedData;
     } catch (error) {
@@ -367,7 +396,7 @@ export class StatSyncService {
       return bValue - aValue;
     });
     // Assign positions with tie handling
-    let lastWager = null;
+    let lastWager: number | null = null;
     let lastPosition = 0;
     let skip = 1;
     return sorted.map((entry, idx) => {
@@ -387,11 +416,11 @@ export class StatSyncService {
   /**
    * Generate a map of userId to position for a given leaderboard (for previous position tracking)
    */
-  public getUserPositionMap(leaderboardData: LeaderboardEntry[], period: string): Record<string, number> {
+  public getUserPositionMap(leaderboardData: LeaderboardEntry[], period: string): Record<string, number | null> {
     const sorted = this.sortByWagered(leaderboardData, period);
-    const map: Record<string, number> = {};
+    const map: Record<string, number | null> = {};
     for (const entry of sorted) {
-      map[entry.uid] = entry.rank;
+      map[entry.uid] = entry.rank ?? null;
     }
     return map;
   }
@@ -503,4 +532,4 @@ export class StatSyncService {
 export const statSyncService = new StatSyncService();
 
 // Default export for consistency
-export default statSyncService; 
+export default statSyncService;

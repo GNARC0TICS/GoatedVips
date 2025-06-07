@@ -1,6 +1,6 @@
-import { drizzle } from "drizzle-orm/neon-http";
+import { NeonHttpDatabase, drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
-import * as schema from "@db/schema";
+import * as schemaCollection from "@db/schema";
 import { log } from "../server/vite";
 
 if (!process.env.DATABASE_URL) {
@@ -12,8 +12,8 @@ if (!process.env.DATABASE_URL) {
 // Create SQL connection
 const sql = neon(process.env.DATABASE_URL!);
 
-// Initialize drizzle with neon-http
-export const db = drizzle(sql, { schema });
+// Initialize drizzle with neon-http and explicit typing
+export const db: NeonHttpDatabase<typeof schemaCollection> = drizzle(sql, { schema: schemaCollection });
 
 // Verify connection on startup
 sql`SELECT 1`
