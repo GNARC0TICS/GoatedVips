@@ -6,29 +6,29 @@ import { ErrorBoundary } from "react-error-boundary";
 // Imports the authentication provider
 import { AuthProvider } from "@/hooks/use-auth";
 // Imports a custom error fallback component
-import { ErrorFallback } from "@/components/ErrorFallback";
+import { ErrorFallback } from "@/components/ui/ErrorFallback";
 // Imports the tooltip provider
 import { TooltipProvider } from "@/components/ui/tooltip";
 // Imports for animation
 import { AnimatePresence, motion } from "framer-motion";
 // Imports the toaster for notifications
 import { Toaster } from "@/components/ui/toaster";
-// Imports the main layout component
-import { Layout } from "@/components/Layout";
-// Imports a loading spinner component
-import { LoadingSpinner } from "@/components/LoadingSpinner";
+// Imports organized layout components
+import { Layout } from "@/components/layout";
+// Imports organized UI components
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { PreLoader } from "@/components/ui/PreLoader";
 // Imports a protected route component
 import { ProtectedRoute } from "@/lib/protected-route";
-// Imports a preloader component
-import { PreLoader } from "@/components/PreLoader";
+// Imports organized auth components
+import { AdminRoute } from "@/components/auth";
 // Imports the not found component
 import NotFound from "@/pages/not-found";
 // Imports the home page component
 import Home from "@/pages/Home";
 // Imports the authentication page component
 import AuthPage from "@/pages/auth-page";
-// Import test component
-import { MVPCardsTest } from "@/components/MVPCardsTest";
+// Import pages
 import VipTransfer from "@/pages/VipTransfer";
 import ProvablyFair from "@/pages/ProvablyFair";
 import WagerRaces from "@/pages/WagerRaces";
@@ -41,7 +41,7 @@ import BonusCodeManagement from "@/pages/admin/BonusCodeManagement";
 import SupportManagement from "@/pages/admin/SupportManagement";
 import Leaderboard from "@/pages/Leaderboard";
 import Help from "@/pages/Help";
-import UserProfile from "@/pages/UserProfile";
+import EnhancedUserProfile from "@/pages/EnhancedUserProfile";
 import Telegram from "@/pages/Telegram";
 import HowItWorks from "@/pages/HowItWorks";
 import GoatedToken from "@/pages/GoatedToken";
@@ -55,7 +55,6 @@ import WheelChallenge from "@/pages/WheelChallenge";
 import GoombasAdminLogin from "@/pages/GoombasAdminLogin";
 import GoombasAdminDashboard from "@/pages/GoombasAdminDashboard";
 import CryptoSwap from "@/pages/CryptoSwap";
-import { AdminRoute } from "@/components/AdminRoute";
 
 // MainContent Component
 // Handles the core application rendering logic including preloader and route management
@@ -112,9 +111,9 @@ function MainContent() {
                   <Route path="/faq" component={FAQ} />
                   <Route path="/vip-program" component={VipProgram} />
                   <Route path="/challenges" component={Challenges} />
-                  {/* All user profile routes are public */}
-                  <Route path="/user-profile/:id" component={UserProfile} />
-                  <Route path="/user/:id" component={UserProfile} />
+                  {/* All user profile routes are public - using enhanced profile component */}
+                  <Route path="/user-profile/:id" component={EnhancedUserProfile} />
+                  <Route path="/user/:id" component={EnhancedUserProfile} />
 
                   {/* Protected Routes - Require Authentication */}
                   <ProtectedRoute path="/bonus-codes" component={BonusCodes} />
@@ -136,9 +135,6 @@ function MainContent() {
                   
                   {/* Crypto Swap Feature */}
                   <Route path="/crypto-swap" component={CryptoSwap} />
-                  
-                  {/* Test Route for MVPCards */}
-                  <Route path="/test-mvpcards" component={MVPCardsTest} />
 
                   {/* Fallback Route */}
                   <Route component={NotFound} />
