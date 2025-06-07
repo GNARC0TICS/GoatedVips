@@ -1,0 +1,23 @@
+import React from 'react';
+
+export const TelegramIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" {...props}>
+    <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
+      <path strokeDasharray="20" strokeDashoffset="20" d="M21 5l-2.5 15M21 5l-12 8.5">
+        <animate fill="freeze" attributeName="stroke-dashoffset" dur="1s" values="20;0" />
+      </path>
+      <path strokeDasharray="24" strokeDashoffset="24" d="M21 5l-19 7.5">
+        <animate fill="freeze" attributeName="stroke-dashoffset" dur="1s" values="24;0" />
+      </path>
+      <path strokeDasharray="14" strokeDashoffset="14" d="M18.5 20l-9.5 -6.5">
+        <animate fill="freeze" attributeName="stroke-dashoffset" begin="1s" dur="0.75s" values="14;0" />
+      </path>
+      <path strokeDasharray="10" strokeDashoffset="10" d="M2 12.5l7 1">
+        <animate fill="freeze" attributeName="stroke-dashoffset" begin="1s" dur="0.75s" values="10;0" />
+      </path>
+      <path strokeDasharray="8" strokeDashoffset="8" d="M12 16l-3 3M9 13.5l0 5.5">
+        <animate fill="freeze" attributeName="stroke-dashoffset" begin="1.75s" dur="0.75s" values="8;0" />
+      </path>
+    </g>
+  </svg>
+); 

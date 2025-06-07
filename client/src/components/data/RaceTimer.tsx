@@ -10,7 +10,12 @@ import { SpeedIcon } from "../icons/SpeedIcon";
 interface RaceParticipant {
   uid: string;
   name: string;
-  wagered: number;
+  wagered: number | {
+    today: number;
+    this_week: number;
+    this_month: number;
+    all_time: number;
+  };
   position: number;
 }
 
@@ -37,18 +42,29 @@ interface RaceData {
  * with dynamic timeLeft updates and animation effects.
  */
 export function RaceTimer() {
-  const [isExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [showPrevious, setShowPrevious] = useState(false);
   const [timeLeft, setTimeLeft] = useState("");
   const [isContentVisible, setIsContentVisible] = useState(false); // Start hidden
   const [isAnimationReady, setIsAnimationReady] = useState(false);
   const { toast } = useToast();
 
-  // Handle click on speed icon
+  // Handle click on speed icon - 3-state cycle
   const handleSpeedIconClick = useCallback(() => {
-    setIsContentVisible(prev => !prev);
+    if (!isContentVisible) {
+      // State 1 → State 2: Show header only
+      setIsContentVisible(true);
+      setIsExpanded(false);
+    } else if (!isExpanded) {
+      // State 2 → State 3: Expand to full view
+      setIsExpanded(true);
+    } else {
+      // State 3 → State 1: Collapse completely
+      setIsContentVisible(false);
+      setIsExpanded(false);
+    }
     setHasSeenNotification(true);
-  }, []);
+  }, [isContentVisible, isExpanded]);
 
   // API request function - memoized to prevent unnecessary recreations
   const fetchRaceData = useCallback(async (endpoint: string): Promise<RaceData> => {
@@ -57,7 +73,20 @@ export function RaceTimer() {
       if (!response.ok) {
         throw new Error(`Failed to fetch race data: ${response.status}`);
       }
-      const json = await response.json();
+      
+      // DEBUG: Log the raw response before parsing
+      const textResponse = await response.text();
+      console.log(`DEBUG: Raw response from ${endpoint}:`, textResponse.substring(0, 500));
+      
+      let json;
+      try {
+        json = JSON.parse(textResponse);
+      } catch (parseError) {
+        console.error(`DEBUG: JSON parse error for ${endpoint}:`, parseError);
+        console.error(`DEBUG: Response was:`, textResponse);
+        throw new Error(`Invalid JSON response from ${endpoint}`);
+      }
+      
       return json.data; // Ensure we're extracting the data property from the response
     } catch (error) {
       console.error(`Error fetching from ${endpoint}:`, error);
@@ -177,7 +206,8 @@ export function RaceTimer() {
   }, []);
 
   return (
-    <div className="fixed md:top-1/2 top-20 right-0 md:transform md:-translate-y-1/2 z-50">
+    <div className="fixed top-20 right-4 z-50 
+                    sm:top-24 sm:right-6">
       <AnimatePresence>
         <motion.div
           initial={{ x: "100%" }}
@@ -191,8 +221,12 @@ export function RaceTimer() {
           >
             <button
               onClick={handleSpeedIconClick}
-              aria-label={isContentVisible ? "Hide race timer" : "Show race timer"}
-              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-3 flex items-center justify-center hover:bg-[#1A1B21] transition-colors group relative"
+              aria-label={
+                !isContentVisible ? "Show race timer" :
+                !isExpanded ? "Expand race details" : 
+                "Hide race timer"
+              }
+              className="bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] border-r-0 rounded-l-lg p-2.5 flex items-center justify-center hover:bg-[#1A1B21] transition-colors group relative"
             >
               {!isLoading && currentRaceData && !hasSeenNotification && !isContentVisible && (
                 <span className="absolute -top-0.5 -left-1.5 w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite] ring-2 ring-red-400/50" />
@@ -208,27 +242,27 @@ export function RaceTimer() {
             </button>
           </div>
           
-          <div className="w-80 bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden order-last">
-            <div className="p-4">
+          <div className="w-72 max-w-[calc(100vw-4rem)] bg-[#1A1B21]/90 backdrop-blur-sm border border-[#2A2B31] rounded-l-lg shadow-lg overflow-hidden order-last">
+            <div className="p-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-[#D7FF00]" />
-                  <span className="font-heading text-white">
+                <div className="flex items-center gap-1.5">
+                  <Trophy className="h-4 w-4 text-[#D7FF00]" />
+                  <span className="font-heading text-white text-sm">
                     {showPrevious ? 'Previous Race' : 'Monthly Race'}
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   {!showPrevious && (
                     <>
                       {/* Changed from SpeedIcon to Clock icon */}
-                      <Clock className="h-4 w-4 text-[#D7FF00]" />
-                      <span className="text-white font-mono">{timeLeft}</span>
+                      <Clock className="h-3.5 w-3.5 text-[#D7FF00]" />
+                      <span className="text-white font-mono text-sm">{timeLeft}</span>
                     </>
                   )}
                 </div>
               </div>
 
-              <div className="flex justify-between items-center mt-2">
+              <div className="flex justify-between items-center mt-1.5">
                 <span className="text-[#8A8B91] text-sm">
                   {raceData && raceData.startDate 
                     ? new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) 
@@ -252,9 +286,9 @@ export function RaceTimer() {
                   exit={{ height: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="p-4 border-t border-[#2A2B31]">
+                  <div className="p-3 border-t border-[#2A2B31]">
                     {/* Race Details Section */}
-                    <div className="flex justify-between items-center mb-4">
+                    <div className="flex justify-between items-center mb-3">
                       <span className="text-[#8A8B91] text-sm">
                         {raceData && raceData.prizePool 
                           ? `Prize Pool: $${raceData.prizePool.toLocaleString()}` 
@@ -289,15 +323,15 @@ export function RaceTimer() {
                         Error loading race data. Please try again.
                       </div>
                     ) : raceData && raceData.participants && raceData.participants.length > 0 ? (
-                      <div className="space-y-1">
+                      <div className="space-y-0.5">
                         {raceData.participants.map((participant, index) => (
                           <div 
                             key={participant.uid}
-                            className="flex items-center justify-between py-2 px-2 rounded hover:bg-[#2A2B31]/50 transition-colors group"
+                            className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-[#2A2B31]/50 transition-colors group"
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <span className={`
-                                w-5 h-5 flex items-center justify-center rounded-full text-sm font-medium
+                                w-4 h-4 flex items-center justify-center rounded-full text-xs font-medium
                                 ${index === 0 ? 'bg-yellow-500 text-black shadow-sm shadow-yellow-500/50' : ''}
                                 ${index === 1 ? 'bg-gray-400 text-black shadow-sm shadow-gray-400/50' : ''}
                                 ${index === 2 ? 'bg-amber-700 text-white shadow-sm shadow-amber-700/50' : ''}
@@ -305,12 +339,14 @@ export function RaceTimer() {
                               `}>
                                 {index + 1}
                               </span>
-                              <span className="text-white truncate max-w-[120px] group-hover:text-[#D7FF00] transition-colors">
+                              <span className="text-white truncate max-w-[110px] group-hover:text-[#D7FF00] transition-colors text-sm">
                                 {participant.name}
                               </span>
                             </div>
-                            <span className="text-[#D7FF00] font-mono">
-                              ${participant.wagered.toLocaleString()}
+                            <span className="text-[#D7FF00] font-mono text-sm">
+                              ${typeof participant.wagered === 'object' 
+                                ? (participant.wagered.this_month || 0).toLocaleString()
+                                : (participant.wagered || 0).toLocaleString()}
                             </span>
                           </div>
                         ))}
@@ -323,7 +359,7 @@ export function RaceTimer() {
                     
                     {/* Footer Action */}
                     <Link href="/wager-races">
-                      <a className="block text-center text-[#D7FF00] mt-4 py-2 px-4 rounded-md hover:bg-[#D7FF00]/10 transition-colors">
+                      <a className="block text-center text-[#D7FF00] mt-3 py-1.5 px-3 rounded-md hover:bg-[#D7FF00]/10 transition-colors text-sm">
                         View Full Leaderboard →
                       </a>
                     </Link>

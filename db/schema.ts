@@ -374,3 +374,23 @@ export const goatedWagerLeaderboard = pgTable("goated_wager_leaderboard", {
   wagered_all_time: decimal("wagered_all_time", { precision: 18, scale: 8 }).notNull().default("0"),
   last_synced: timestamp("last_synced").defaultNow().notNull(),
 });
+
+// New leaderboard_users table for API sync
+export const leaderboardUsers = pgTable("leaderboard_users", {
+  id: serial("id").primaryKey(),
+  uid: text("uid").unique().notNull(),
+  name: text("name").notNull(),
+  wager_today: decimal("wager_today", { precision: 18, scale: 8 }).default("0").notNull(),
+  wager_week: decimal("wager_week", { precision: 18, scale: 8 }).default("0").notNull(),
+  wager_month: decimal("wager_month", { precision: 18, scale: 8 }).default("0").notNull(),
+  wager_all_time: decimal("wager_all_time", { precision: 18, scale: 8 }).default("0").notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Schema validation
+export const insertLeaderboardUserSchema = createInsertSchema(leaderboardUsers);
+export const selectLeaderboardUserSchema = createSelectSchema(leaderboardUsers);
+
+// TypeScript types
+export type InsertLeaderboardUser = typeof leaderboardUsers.$inferInsert;
+export type SelectLeaderboardUser = typeof leaderboardUsers.$inferSelect;

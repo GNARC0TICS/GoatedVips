@@ -81,9 +81,10 @@ export const FeatureCarousel = () => {
 
   // Memoize the items array
   const items = useMemo(() => {
+    // Always show announcements, prepend wager if available
     return totalWager
       ? [{ text: `+${totalWager.toLocaleString()} WAGERED`, link: "/leaderboard" }, ...announcements]
-      : [];
+      : [...announcements];
   }, [totalWager]);
 
   const wrap = useCallback(

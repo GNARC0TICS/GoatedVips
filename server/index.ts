@@ -29,8 +29,9 @@ import { promisify } from "util";
 import { exec } from "child_process";
 import { sql, eq } from "drizzle-orm";
 import compression from "compression";
-import schedule from "node-schedule";
+// import schedule from "node-schedule";
 import profileService from "./services/profileService";
+import { syncLeaderboardUsers } from "./services/leaderboardSyncService";
 
 // Application modules
 import { log } from "./utils/logger";
@@ -395,28 +396,17 @@ async function initializeServer() {
     await testDbConnection();
     log("info", "Database connection established");
 
-    // Initialize scheduled data synchronization tasks
-    const { initializeDataSyncTasks } = await import('./tasks/dataSyncTasks');
-    initializeDataSyncTasks();
-
     // Start background sync operations (non-blocking)
-    log("info", "Starting background data sync...");
+    console.log("Starting background data sync...");
     
-    // Run profile sync in background
-    syncUserProfiles().catch(error => {
-      log("error", `Background profile sync failed: ${error instanceof Error ? error.message : String(error)}`);
-    });
-    
-    // Also start wager data update in background
-    import('./services/goatedApiService').then(({ default: goatedApiService }) => {
-      return goatedApiService.updateAllWagerData();
-    }).then(wagerCount => {
-      log("info", `Background wager data update completed for ${wagerCount} users`);
-    }).catch(error => {
-      log("error", `Background wager sync failed: ${error instanceof Error ? error.message : String(error)}`);
-    });
-    log("info", "Data synchronization tasks initialized");
-
+    // Run initial profile sync
+    profileService.syncUserProfiles()
+      .then(stats => {
+        console.log("Initial profile sync completed:", stats);
+      })
+      .catch(error => {
+        console.error("Initial profile sync failed:", error);
+      });
 
     const app = express();
     setupMiddleware(app);

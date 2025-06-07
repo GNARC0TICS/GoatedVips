@@ -12,23 +12,97 @@ import { cacheService } from "../services/cacheService";
 import statSyncService from "../services/statSyncService";
 import raceService from "../services/raceService";
 import profileService from "../services/profileService";
+import { syncLeaderboardUsers } from "../services/leaderboardSyncService";
+import { db } from "../../db";
+import { leaderboardUsers } from "../../db/schema";
+import { desc, asc } from "drizzle-orm";
+import { withCache } from "../services/cacheService";
 
 const router = Router();
 
 /**
- * Get affiliate stats and leaderboard data
- * Used by the admin dashboard and leaderboard components
+ * Get affiliate leaderboard stats
+ * Used by the leaderboard page to display user rankings
  */
-router.get("/affiliate/stats", async (req, res, next) => {
+router.get("/affiliate/stats", async (req, res) => {
   try {
-    const data = await cacheService.getOrSet(
-      "stats_aggregate",
-      () => statSyncService.getAggregatedStats(),
-      30
-    );
-    res.json(data);
+    console.log("DEBUG: Serving leaderboard data with database query");
+    
+    // Get all users from database, sorted by monthly wager (primary sort)
+    const allUsers = await db.select()
+      .from(leaderboardUsers)
+      .orderBy(desc(leaderboardUsers.wager_month), desc(leaderboardUsers.wager_all_time))
+      .limit(3000); // Get more than needed for safety
+
+    console.log(`DEBUG: Retrieved ${allUsers.length} users from database`);
+    
+    // Transform to match frontend expectations
+    const transformedUsers = allUsers.map((user, index) => ({
+      uid: user.uid,
+      name: user.name,
+      wagered: {
+        today: parseFloat(user.wager_today?.toString() || "0"),
+        this_week: parseFloat(user.wager_week?.toString() || "0"),
+        this_month: parseFloat(user.wager_month?.toString() || "0"),
+        all_time: parseFloat(user.wager_all_time?.toString() || "0")
+      },
+      rank: index + 1
+    }));
+
+    // Create separate sorted arrays for each time period
+    const todayData = [...transformedUsers].sort((a, b) => b.wagered.today - a.wagered.today).map((user, index) => ({ ...user, rank: index + 1 }));
+    const weeklyData = [...transformedUsers].sort((a, b) => b.wagered.this_week - a.wagered.this_week).map((user, index) => ({ ...user, rank: index + 1 }));
+    const monthlyData = [...transformedUsers].sort((a, b) => b.wagered.this_month - a.wagered.this_month).map((user, index) => ({ ...user, rank: index + 1 }));
+    const allTimeData = [...transformedUsers].sort((a, b) => b.wagered.all_time - a.wagered.all_time).map((user, index) => ({ ...user, rank: index + 1 }));
+
+    // Return in the exact format the frontend expects
+    const response = {
+      status: "success",
+      metadata: {
+        totalUsers: allUsers.length,
+        lastUpdated: new Date().toISOString(),
+        cached: false
+      },
+      data: {
+        today: { data: todayData },
+        weekly: { data: weeklyData },
+        monthly: { data: monthlyData },
+        allTime: { data: allTimeData }
+      }
+    };
+
+    console.log(`DEBUG: Returning leaderboard data with ${allUsers.length} users in correct format`);
+    res.json(response);
+    
+  } catch (error) {
+    console.error("Error fetching leaderboard data:", error);
+    res.status(500).json({
+      status: "error",
+      error: "Failed to fetch leaderboard data",
+      details: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+});
+
+/**
+ * Manual sync endpoint to trigger leaderboard data sync
+ */
+router.post("/sync/leaderboard", async (req, res, next) => {
+  try {
+    console.log("Manual leaderboard sync triggered");
+    const result = await syncLeaderboardUsers();
+    res.json({ 
+      message: "Leaderboard sync completed successfully",
+      status: "success",
+      result
+    });
   } catch (err) {
-    next(err);
+    console.error("Manual leaderboard sync failed:", err);
+    res.status(500).json({ 
+      message: "Leaderboard sync failed",
+      status: "error",
+      error: err instanceof Error ? err.message : String(err)
+    });
   }
 });
 
@@ -38,14 +112,26 @@ router.get("/affiliate/stats", async (req, res, next) => {
  */
 router.get("/wager-races/current", async (req, res, next) => {
   try {
-    const data = await cacheService.getOrSet(
-      "current_race",
-      () => raceService.getCurrentRace(),
-      30
+    const data = await withCache(
+      "current-race", 
+      async () => await raceService.getCurrentRace(),
+      { ttl: 30000, namespace: "races" } // 30 seconds TTL
     );
-    res.json(data);
-  } catch (err) {
-    next(err);
+
+    res.json({
+      success: true,
+      data: data,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Race data fetch error:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 500,
+        message: error instanceof Error ? error.message : "Failed to fetch race data"
+      }
+    });
   }
 });
 
@@ -55,14 +141,26 @@ router.get("/wager-races/current", async (req, res, next) => {
  */
 router.get("/wager-races/previous", async (req, res, next) => {
   try {
-    const data = await cacheService.getOrSet(
-      "previous_race",
-      () => raceService.getPreviousRace(),
-      30
+    const data = await withCache(
+      "previous-race",
+      async () => await raceService.getPreviousRace(),
+      { ttl: 30000, namespace: "races" } // 30 seconds TTL
     );
-    res.json(data);
-  } catch (err) {
-    next(err);
+
+    res.json({
+      success: true,
+      data: data,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Previous race data fetch error:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 500,
+        message: error instanceof Error ? error.message : "Failed to fetch previous race data"
+      }
+    });
   }
 });
 
@@ -80,11 +178,8 @@ router.get("/wager-race/position", async (req, res) => {
     
     console.log(`Fetching race position for user ${uid}`);
     
-    // Get leaderboard data first
-    const leaderboardData = await statSyncService.getLeaderboardData();
-    
-    // Get user position using raceService
-    const positionData = await raceService.getUserRacePosition(uid, leaderboardData);
+    // Get user position using raceService (it now fetches its own leaderboard data)
+    const positionData = await raceService.getUserRacePosition(uid);
     
     res.json(positionData);
   } catch (error) {
@@ -163,14 +258,79 @@ router.get("/test/goated-raw", async (req, res) => {
 // Leaderboard Top Performers
 router.get("/leaderboard/top", async (req, res, next) => {
   try {
-    const data = await cacheService.getOrSet(
-      "leaderboard_top_performers",
-      () => statSyncService.getTopPerformers(10),
-      60 // seconds TTL
+    const data = await withCache(
+      "leaderboard-top-performers",
+      async () => await statSyncService.getTopPerformers(10),
+      { ttl: 60000, namespace: "leaderboard" } // 1 minute TTL
     );
+
+    res.json({
+      success: true,
+      data: data,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Top performers fetch error:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 500,
+        message: error instanceof Error ? error.message : "Failed to fetch top performers"
+      }
+    });
+  }
+});
+
+// All wager races endpoint 
+router.get("/wager-races/all", async (req, res, next) => {
+  try {
+    const data = await withCache(
+      "all-races",
+      async () => await raceService.getAllRaces(),
+      { ttl: 60000, namespace: "races" } // 1 minute TTL
+    );
+
+    res.json({
+      success: true,
+      data: data,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("All races fetch error:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 500,
+        message: error instanceof Error ? error.message : "Failed to fetch all races data"
+      }
+    });
+  }
+});
+
+// Platform health check endpoint
+router.get("/health", async (req, res, next) => {
+  try {
+    const data = await withCache(
+      "health-status",
+      async () => ({
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        db: "connected", // Add proper DB health check if needed
+        telegramBot: "not initialized" // Add proper bot status if needed
+      }),
+      { ttl: 5000, namespace: "health" } // 5 seconds TTL
+    );
+
     res.json(data);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    console.error("Health check error:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 500,
+        message: error instanceof Error ? error.message : "Health check failed"
+      }
+    });
   }
 });
 
