@@ -67,7 +67,7 @@ export function Layout({ children, hideAuthButton }: LayoutProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#14151A]">
+    <div className="min-h-screen flex flex-col bg-[#14151A] w-full overflow-x-hidden">
       {/* Background elements */}
       <ParticleBackground />
 
@@ -78,8 +78,8 @@ export function Layout({ children, hideAuthButton }: LayoutProps) {
         handleLogout={handleLogout} 
       />
 
-      {/* Main content area */}
-      <main className="flex-1">
+      {/* Main content area with proper header offset */}
+      <main className="flex-1 pt-14 sm:pt-16">
         {children}
       </main>
 
