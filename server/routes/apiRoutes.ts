@@ -45,7 +45,7 @@ router.get("/affiliate/stats", async (req, res) => {
         today: parseFloat(user.wagerToday?.toString() || "0"),
         this_week: parseFloat(user.wagerWeek?.toString() || "0"),
         this_month: parseFloat(user.wagerMonth?.toString() || "0"),
-        all_time: parseFloat(user.wager_all_time?.toString() || "0")
+        all_time: parseFloat(user.wagerAllTime?.toString() || "0")
       },
       rank: index + 1
     }));
@@ -111,7 +111,7 @@ router.get("/affiliate/stats", async (req, res) => {
         today: parseFloat(user.wagerToday?.toString() || "0"),
         this_week: parseFloat(user.wagerWeek?.toString() || "0"),
         this_month: parseFloat(user.wagerMonth?.toString() || "0"),
-        all_time: parseFloat(user.wager_all_time?.toString() || "0")
+        all_time: parseFloat(user.wagerAllTime?.toString() || "0")
       },
       rank: index + 1
     }));
