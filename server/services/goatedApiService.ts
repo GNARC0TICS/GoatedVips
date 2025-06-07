@@ -3,7 +3,7 @@
  * 
  * This service is responsible for all external API communication with the Goated.com API.
  * It handles authentication, request retries, and error handling, returning raw data
- * from the external API to be processed by the PlatformApiService.
+ * from the external API to be processed by our focused services.
  * 
  * Key features:
  * - Fetches data from the single Goated.com API endpoint
@@ -13,7 +13,7 @@
  * - Handles API timeouts gracefully
  * 
  * This service is intentionally limited to ONLY external API communication, with no
- * data transformation or business logic. All transformation happens in PlatformApiService.
+ * data transformation or business logic. All transformation happens in our focused services.
  */
 
 import { API_CONFIG } from "../config/api";

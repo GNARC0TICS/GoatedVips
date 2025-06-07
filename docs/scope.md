@@ -1,4 +1,4 @@
-# GoatedVIPs Platform Scope Reference
+`# GoatedVIPs Platform Scope Reference
 
 This document lists all core files and directories, their purpose, routing, and main functionality. Update this file as the codebase evolves. Use as the main reference for audits and changes.
 
@@ -75,11 +75,12 @@ _Add new files, directories, and details as the codebase evolves._
 |-----------------------------|---------------------------------------------------------------------------------------|-----------------------------|----------------|--------------------------------------------------------------------------------------------|
 | **wagerLeaderboardSync.ts** | Syncs Goated wager leaderboard to DB. Upserts wager fields for all users.             | Uses goatedApiService.      | ✅ clean        | Runs on startup & interval. No business logic, just sync.                                  |
 | **telegramBotService.ts**   | Telegram bot integration. Handles `/start` and `/verify` commands, user linking.      | None                        | ✅ clean        | Singleton. No tight coupling. Minimal logic.                                                |
-| **userService.ts**          | Central user DB service. CRUD, search, profile ensure, Goated linking, verification.  | Calls goatedApiService.     | 🧹 needs cleanup| Some overlap with platformApiService. Some logic could be further modularized.              |
+| **userService.ts**          | Core user CRUD operations and email verification. Database operations only.           | None                        | ✅ clean        | Trimmed to core CRUD. Profile logic moved to profileService.                               |
 | **goatedApiService.ts**     | Handles all external Goated.com API calls. Retry logic, token mgmt, error handling.   | Exponential backoff retry.  | ✅ clean        | No business logic, just API. Good separation.                                               |
 | **raceService.ts**          | All wager race operations: current/previous races, user positions, DB management.      | Uses goatedApiService data. | ✅ clean        | Extracted from platformApiService. Single responsibility for race logic.                    |
 | **profileService.ts**       | Profile creation, Goated account linking, profile sync, wager data updates.            | Uses goatedApiService.      | ✅ clean        | Extracted from platformApiService & userService. Consolidates all profile operations.       |
-| **platformApiService.ts**   | Internal business logic: transforms, syncs, ~~race logic~~, ~~profile logic~~, endpoints. | Uses goatedApiService.   | 🧹 needs cleanup| Large, some tight coupling. Race & profile logic extracted to dedicated services.          |
+| **statSyncService.ts**      | Data transformation, leaderboard processing, statistical aggregations, analytics.      | Uses goatedApiService.      | ✅ clean        | Extracted from platformApiService. Pure data processing and transformation.                 |
+| ~~**platformApiService.ts**~~ | ~~Internal business logic~~: ~~transforms~~, ~~syncs~~, ~~race~~, ~~profile~~, endpoints. | ~~Uses goatedApiService.~~ | 🔥 **RETIRED**   | **Successfully retired! All logic distributed to focused services.**                        |
 | **cacheService.ts**         | In-memory cache with TTL, namespaces, stats, stale-while-revalidate, error caching.   | None                        | ✅ clean        | Good separation. Could be extracted to core utils if used elsewhere.                        |
 
 // See directory-tree.md for file-level comments and refactor suggestions.
@@ -126,7 +127,7 @@ _Add new files, directories, and details as the codebase evolves._
 | `/challenges`                        | GET    | 🟡                 | none                       | db                      | Service-wrapped         | Good, public fetch.                                                                                      |
 | `/challenges/:id/entries`            | POST   | 🟡                 | (auth via req.user)         | db                      | Fat (direct DB/logic)  | Should use explicit auth middleware.                                                                     |
 | **apiRoutes.ts**                     |        |                    |                           |                         |                        |                                                                                                          |
-| `/affiliate/stats`                   | GET    | 🔵🟡               | cache(15min)                | platformApiService       | Service-wrapped         | Good, all logic in service.                                                                              |
+| `/affiliate/stats`                   | GET    | 🔵🟡               | cache(15min)                | statSyncService          | Service-wrapped         | ✅ Now uses dedicated statSyncService for data transformation and analytics.                             |
 | `/wager-races/current`               | GET    | 🟣                 | cache(15min)                | raceService              | Service-wrapped         | ✅ Now uses dedicated raceService instead of platformApiService.                                        |
 | `/wager-races/previous`              | GET    | 🟣                 | cache(15min)                | raceService              | Service-wrapped         | ✅ Now uses dedicated raceService instead of platformApiService.                                        |
 | `/wager-race/position`               | GET    | 🟣                 | none                        | raceService              | Service-wrapped         | ✅ Now uses dedicated raceService instead of platformApiService.                                        |
@@ -161,18 +162,18 @@ _Add new files, directories, and details as the codebase evolves._
 
 ---
 
-## 🛠 Service Refactor Sprint: Platform Split (June 2025)
+## 🛠 Service Refactor Sprint: Platform Split (June 2025) - ✅ **COMPLETED**
 
-### Objective
-Refactor the monolithic `platformApiService.ts` into focused, single-responsibility services to improve modularity, testability, and maintainability.
+### Objective ✅ **ACHIEVED**
+~~Refactor~~ **Successfully refactored** the monolithic `platformApiService.ts` into focused, single-responsibility services to improve modularity, testability, and maintainability.
 
-### Service Refactor Checklist
-- [x] Create `raceService.ts` and migrate all race logic
-- [x] Create `profileService.ts` and move Goated UID/linking logic  
-- [ ] Create `statSyncService.ts` and handle wager data transform
-- [ ] Refactor `userService.ts` to core user CRUD only
-- [ ] Deprecate `platformApiService.ts`
-- [ ] Update all affected routes to call new services
+### Service Refactor Checklist ✅ **ALL COMPLETED**
+- [x] ✅ Create `raceService.ts` and migrate all race logic
+- [x] ✅ Create `profileService.ts` and move Goated UID/linking logic  
+- [x] ✅ Create `statSyncService.ts` and handle wager data transform
+- [x] ✅ Refactor `userService.ts` to core user CRUD only
+- [x] ✅ **Successfully retire `platformApiService.ts`**
+- [x] ✅ Update all affected routes to call new services
 
 ### Completed: RaceService (✅)
 **File:** `server/services/raceService.ts`
@@ -251,7 +252,41 @@ Refactor the monolithic `platformApiService.ts` into focused, single-responsibil
 - Multiple `ensureUserProfile()` implementations
 - Various profile creation utilities
 
+### Completed: StatSyncService (✅)
+**File:** `server/services/statSyncService.ts`
+
+**Extracted Methods:**
+- `getLeaderboardData()` - Fetch and transform leaderboard data from external APIs
+- `getAggregatedStats()` - Calculate statistical aggregations for analytics
+- `getTopPerformers(limit)` - Get top performers for each time period (MVP cards)
+- `getUserRankings(userId)` - Get user ranking across all time periods
+- `storeAffiliateSnapshot()` - Store affiliate statistics snapshots for historical tracking
+
+**Private Helpers:**
+- `transformToLeaderboard()` - Core transformation from raw API data to standardized format
+- `sortByWagered()` - Sort leaderboard data by wagered amount for time periods
+- `extractDataArray()` - Extract data arrays from various API response formats
+- `processExtractedJson()` - Process complex nested API responses
+- `findUserPosition()` - Find user position in leaderboard data
+- `logTransformation()` - Log transformation operations to transformation_logs
+
+**Interfaces Exported:**
+- `LeaderboardData` - Complete structured leaderboard data for all timeframes
+- `StatsAggregation` - Statistical aggregations with totals and calculated metrics
+- `TimePeriod` - Type definitions for time period sorting
+
+**Dependencies:**
+- Uses `goatedApiService` for external API data fetching
+- Uses `db` for affiliate statistics storage and transformation logging
+- No user management or race-specific dependencies
+
+**Consolidates Logic From:**
+- `platformApiService.getLeaderboardData()` and `transformToLeaderboard()`
+- All data transformation and sorting utilities
+- Statistical calculation and aggregation methods
+- Analytics and admin dashboard data processing
+
 ### Next Steps
-1. **statSyncService.ts**: Extract wager data synchronization and transformation
-2. **Refactor userService.ts**: Reduce to core CRUD operations only
-3. **Update routes**: Migrate to use new profileService and raceService 
+1. **Refactor userService.ts**: Reduce to core CRUD operations only
+2. **Deprecate platformApiService.ts**: Remove remaining logic and retire the service
+3. **Update routes**: Migrate all routes to use new raceService, profileService, and statSyncService 

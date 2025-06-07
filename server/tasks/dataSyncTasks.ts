@@ -1,156 +1,105 @@
 /**
  * Data Synchronization Tasks
  * 
- * This file manages all scheduled tasks for data synchronization between our platform
- * and the external Goated.com API. It handles scheduling, execution, and logging of sync events.
+ * This file handles all scheduled data synchronization tasks for the platform.
+ * It manages the timing and execution of profile syncing and wager data updates.
  */
 
-import { platformApiService } from '../services/platformApiService';
-import goatedApiService from '../services/goatedApiService';
-import { scheduleJob } from 'node-schedule';
-import { db } from 'db';
-import { syncLogs } from '@db/schema';
-import { syncGoatedWagerLeaderboard } from '../services/wagerLeaderboardSync';
-
-// Set up sync schedules
-const SYNC_SCHEDULES = {
-  // Run profile sync hourly at minute 15 (1:15, 2:15, etc.)
-  PROFILE_SYNC: '15 * * * *',
-  
-  // Refresh API cache every 15 minutes
-  API_REFRESH: '*/15 * * * *'
-};
+import schedule from 'node-schedule';
+import profileService from '../services/profileService';
+import wagerLeaderboardSync from '../services/wagerLeaderboardSync';
 
 /**
  * Initialize all data synchronization tasks
- * This is called at server startup to schedule recurring tasks
+ * Sets up scheduled jobs for profile syncing and data updates
  */
 export function initializeDataSyncTasks() {
-  try {
-    console.log("[Initializing data sync tasks]", "info");
-    
-    // Schedule profile synchronization
-    scheduleJob(SYNC_SCHEDULES.PROFILE_SYNC, () => {
-      console.log("[Running scheduled profile sync...]");
-      runProfileSync().catch(err => {
-        console.error("[Profile sync error]", err);
-        logSyncError('profile', err);
-      });
-    });
-    
-    // Schedule API cache refresh
-    scheduleJob(SYNC_SCHEDULES.API_REFRESH, () => {
-      console.log("[Refreshing API cache...]");
-      refreshApiCache().catch(err => {
-        console.error("[API cache refresh error]", err);
-        logSyncError('api-cache', err);
-      });
-    });
-    
-    // Schedule wager leaderboard sync (every 10 minutes)
-    scheduleJob('*/10 * * * *', () => {
-      console.log("[Running scheduled wager leaderboard sync...]");
-      syncGoatedWagerLeaderboard().catch(err => {
-        console.error("[Wager leaderboard sync error]", err);
-        logSyncError('wager-leaderboard', err);
-      });
-    });
-    
-    console.log("[Data sync tasks successfully initialized]", "info");
-  } catch (error) {
-    console.error("[Failed to initialize data sync tasks]", error);
-  }
+  console.log('Initializing data synchronization tasks...');
+
+  // Schedule user profile sync every 10 minutes
+  schedule.scheduleJob('*/10 * * * *', async () => {
+    console.log('Starting scheduled user profile sync...');
+    try {
+      const result = await profileService.syncUserProfiles();
+      console.log(`Scheduled profile sync completed: ${result.created} created, ${result.updated} updated, ${result.existing} unchanged`);
+    } catch (error) {
+      console.error('Error in scheduled profile sync:', error);
+    }
+  });
+
+  // Schedule wager data sync every 5 minutes
+  schedule.scheduleJob('*/5 * * * *', async () => {
+    console.log('Starting scheduled wager data sync...');
+    try {
+      await wagerLeaderboardSync.syncWagerData();
+      console.log('Scheduled wager sync completed');
+    } catch (error) {
+      console.error('Error in scheduled wager sync:', error);
+    }
+  });
+
+  console.log('Data synchronization tasks initialized successfully');
 }
 
 /**
- * Run profile synchronization process
- * Syncs user profiles from external API to our database
+ * Manual sync function for admin triggers
+ * Can be called by admin endpoints to force immediate synchronization
  */
-export async function runProfileSync() {
-  console.log("Running scheduled profile sync...");
-  const startTime = Date.now();
+export async function performManualSync() {
+  console.log('Starting manual data synchronization...');
   
   try {
-    // Perform the actual synchronization
-    const result = await platformApiService.syncUserProfiles();
-    
-    // Log successful sync
-    await db.insert(syncLogs).values({
-      type: 'profile',
-      status: 'success',
-      created_count: result.created,
-      updated_count: result.updated,
-      total_processed: result.totalProcessed,
-      duration_ms: result.duration,
-      created_at: new Date()
-    });
-    
-    console.log(`[Profile sync completed] Created: ${result.created}, Updated: ${result.updated}, Unchanged: ${result.existing} (Total: ${result.totalProcessed}), Duration: ${result.duration}ms`);
-    return result;
+    // Sync user profiles
+    const profileResult = await profileService.syncUserProfiles();
+    console.log(`Manual profile sync completed: ${profileResult.created} created, ${profileResult.updated} updated`);
+
+    // Sync wager data
+    await wagerLeaderboardSync.syncWagerData();
+    console.log('Manual wager sync completed');
+
+    return {
+      success: true,
+      profileSync: profileResult,
+      message: 'Manual synchronization completed successfully'
+    };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[Profile sync failed]", errorMessage);
-    
-    // Log sync failure
-    await logSyncError('profile', error);
+    console.error('Error in manual sync:', error);
     throw error;
   }
 }
 
 /**
- * Refresh API cache
- * Makes a fresh API request to update the cached data
+ * Get sync task status and statistics
+ * Provides information about running sync tasks
  */
-export async function refreshApiCache() {
-  console.log("Refreshing API cache...");
-  const startTime = Date.now();
+export function getSyncStatus() {
+  const jobs = schedule.scheduledJobs;
   
-  try {
-    // Force a fresh API request to update the cache
-    await goatedApiService.fetchReferralData(true);
-    
-    // Log successful cache refresh
-    await db.insert(syncLogs).values({
-      type: 'api-cache',
-      status: 'success',
-      duration_ms: Date.now() - startTime,
-      created_at: new Date()
-    });
-    
-    console.log(`[API cache refresh completed] Duration: ${Date.now() - startTime}ms`);
-    return true;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[API cache refresh failed]", errorMessage);
-    
-    // Log cache refresh failure
-    await logSyncError('api-cache', error);
-    throw error;
-  }
+  return {
+    activeJobs: Object.keys(jobs).length,
+    nextProfileSync: jobs['*/10 * * * *']?.nextInvocation()?.toISOString() || 'Not scheduled',
+    nextWagerSync: jobs['*/5 * * * *']?.nextInvocation()?.toISOString() || 'Not scheduled',
+    uptime: process.uptime()
+  };
 }
 
 /**
- * Log a sync error to the database
- * Used for tracking and monitoring sync failures
- * 
- * @param type Type of sync operation
- * @param error Error object or string
+ * Legacy function name for backward compatibility
+ * @deprecated Use profileService.syncUserProfiles() directly
  */
-async function logSyncError(type: string, error: unknown) {
-  try {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    await db.insert(syncLogs).values({
-      type,
-      status: 'error',
-      error_message: errorMessage,
-      duration_ms: 0, // We don't know the duration for failed syncs
-      created_at: new Date()
-    });
-  } catch (dbError) {
-    // Just log to console if we can't write to the database
-    console.error(`[Failed to log ${type} sync error to database]`, dbError);
-  }
+export async function syncUserProfiles() {
+  console.warn('syncUserProfiles() in dataSyncTasks is deprecated. Use profileService.syncUserProfiles() directly.');
+  return await profileService.syncUserProfiles();
+}
+
+/**
+ * Legacy wager sync function for backward compatibility
+ * @deprecated Use wagerLeaderboardSync.syncWagerData() directly
+ */
+export async function syncWagerData() {
+  console.warn('syncWagerData() in dataSyncTasks is deprecated. Use wagerLeaderboardSync.syncWagerData() directly.');
+  return await wagerLeaderboardSync.syncWagerData();
 }
 
 // For compatibility with the sync functions in platformApiService
-export const syncUserProfiles = runProfileSync;
+export { profileService as platformApiService };

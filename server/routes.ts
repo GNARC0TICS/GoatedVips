@@ -24,8 +24,8 @@ import apiRoutes from "./routes/apiRoutes";
 import { requireAdmin } from "./middleware/admin";
 import { wagerRaces, users, transformationLogs, wagerRaceParticipants } from "@db/schema";
 import { ensureUserProfile } from "./index";
-// Import platformApiService for any API-related needs
-import { platformApiService } from "./services/platformApiService";
+// Import focused services for API needs
+import statSyncService from "./services/statSyncService";
 
 type RateLimitTier = 'HIGH' | 'MEDIUM' | 'LOW';
 const rateLimits: Record<RateLimitTier, { points: number; duration: number }> = {
@@ -220,7 +220,7 @@ router.get("/sync-profiles", requireAdmin, async (_req: Request, res: Response) 
 });
 
 // Note: Wager race endpoints have been moved to apiRoutes.ts
-// Use the platformApiService for wager race data access
+// Use the raceService for wager race data access
 
 // Export functions and router
 export { router };
@@ -319,7 +319,7 @@ function setupAPIRoutes(app: Express) {
   });
 
   // Note: Affiliate stats endpoint has been moved to apiRoutes.ts
-  // Use the platformApiService for affiliate data access
+  // Use the statSyncService for affiliate data access
 
   // Admin routes with custom URL path
   app.get("/goated-supervisor/analytics",
@@ -339,8 +339,8 @@ function setupAPIRoutes(app: Express) {
         
         log('Fetching leaderboard data for analytics...');
         
-        // Use our platform API service to get leaderboard data
-        const leaderboardData = await platformApiService.getLeaderboardData();
+        // Use statSyncService to get leaderboard data
+        const leaderboardData = await statSyncService.getLeaderboardData();
         
         // Process all entries to get totals
         const allUsers = [

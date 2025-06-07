@@ -1,194 +1,213 @@
 /**
- * API Routes for Goated VIPs Platform
+ * API Routes
+ * This file defines all the API routes for the platform, using the focused services
+ * for data processing, race management, and user profile operations.
  * 
- * This file defines all the API routes for the platform, using the PlatformApiService
- * to provide data. These routes act as the public interface for our application.
- * 
- * Routes implemented:
- * - GET /api/affiliate/stats - Leaderboard data for all timeframes
- * - GET /api/wager-races/current - Current active race data
- * - GET /api/wager-race/position - User's current race position
- * - POST /api/sync/trigger - Trigger manual data synchronization (admin only)
+ * Updated to use modular services instead of monolithic platformApiService
  */
 
-import { Router, Request, Response } from "express";
-import { platformApiService } from "../services/platformApiService";
+import { Router } from "express";
+import { cache } from "../middleware/cache";
+import goatedApiService from "../services/goatedApiService";
+import cacheService from "../services/cacheService";
+import statSyncService from "../services/statSyncService";
+import raceService from "../services/raceService";
+import profileService from "../services/profileService";
 
-// Create router
 const router = Router();
 
 /**
- * Caching middleware
- * Adds caching headers to responses
- * 
- * @param maxAge Maximum age of the cache in seconds
+ * Get affiliate stats and leaderboard data
+ * Used by the admin dashboard and leaderboard components
  */
-const cache = (maxAge: number) => (req: Request, res: Response, next: Function) => {
-  // Only cache GET requests
-  if (req.method === 'GET') {
-    res.setHeader('Cache-Control', `public, max-age=${maxAge}`);
-  } else {
-    // For other methods like POST/PUT, prevent caching
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-  }
-  next();
-};
-
-/**
- * GET /api/affiliate/stats
- * Returns leaderboard data for all time periods
- * Rate limit: 60 requests/minute
- * Cached for 15 minutes
- */
-router.get("/affiliate/stats", cache(15 * 60), async (_req: Request, res: Response) => {
+router.get("/affiliate/stats", cache(15 * 60 * 1000), async (req, res) => {
   try {
-    console.log("GET /api/affiliate/stats");
-    const leaderboardData = await platformApiService.getLeaderboardData();
+    console.log("Fetching affiliate stats");
+    
+    // Check cache first
+    const cacheKey = "affiliate-stats";
+    const cachedData = cacheService.get(cacheKey);
+    
+    if (cachedData) {
+      console.log("Returning cached affiliate stats");
+      return res.json(cachedData);
+    }
+    
+    // Fetch fresh data using statSyncService
+    const leaderboardData = await statSyncService.getLeaderboardData();
+    
+    // Cache the result
+    cacheService.set(cacheKey, leaderboardData, 15 * 60 * 1000); // 15 minutes
+    
     res.json(leaderboardData);
   } catch (error) {
     console.error("Error fetching affiliate stats:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Failed to fetch affiliate statistics",
-      error: error instanceof Error ? error.message : "Unknown error"
+    res.status(500).json({ 
+      error: "Failed to fetch affiliate stats",
+      details: error instanceof Error ? error.message : String(error)
     });
   }
 });
 
 /**
- * GET /api/wager-races/current
- * Returns current active race data
- * Rate limit: 30 requests/minute
- * Updates every 15 minutes
+ * Get current wager race data
+ * Used by the wager race page to display current competition
  */
-router.get("/wager-races/current", cache(15 * 60), async (_req: Request, res: Response) => {
+router.get("/wager-races/current", cache(15 * 60 * 1000), async (req, res) => {
   try {
-    console.log("GET /api/wager-races/current");
-    const raceData = await platformApiService.getCurrentWagerRace();
-    res.json({
-      status: "success",
-      data: raceData
-    });
-  } catch (error) {
-    console.error("Error fetching current wager race:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Failed to fetch current wager race data",
-      error: error instanceof Error ? error.message : "Unknown error"
-    });
-  }
-});
-
-/**
- * GET /api/wager-races/previous
- * Returns previous race data
- * Rate limit: 30 requests/minute
- * Updates every 15 minutes
- */
-router.get("/wager-races/previous", cache(15 * 60), async (_req: Request, res: Response) => {
-  try {
-    console.log("GET /api/wager-races/previous");
-    const raceData = await platformApiService.getPreviousWagerRace();
-    res.json({
-      status: "success",
-      data: raceData
-    });
-  } catch (error) {
-    console.error("Error fetching previous wager race:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Failed to fetch previous wager race data",
-      error: error instanceof Error ? error.message : "Unknown error"
-    });
-  }
-});
-
-/**
- * GET /api/wager-race/position
- * Returns user's current race position
- * Rate limit: 30 requests/minute
- * Updates every 15 minutes
- */
-router.get("/wager-race/position", async (req: Request, res: Response) => {
-  try {
-    console.log("GET /api/wager-race/position");
-    const uid = req.query.uid as string;
+    console.log("Fetching current wager race data");
     
-    if (!uid) {
-      return res.status(400).json({
-        status: "error",
-        message: "User ID (uid) is required"
-      });
+    // Check cache first
+    const cacheKey = "current-wager-race";
+    const cachedData = cacheService.get(cacheKey);
+    
+    if (cachedData) {
+      console.log("Returning cached current race data");
+      return res.json(cachedData);
     }
     
-    const positionData = await platformApiService.getUserRacePosition(uid);
-    res.json({
-      status: "success",
-      data: positionData
-    });
+    // Get leaderboard data first
+    const leaderboardData = await statSyncService.getLeaderboardData();
+    
+    // Transform to current race format using raceService
+    const raceData = await raceService.getCurrentRace(leaderboardData);
+    
+    // Cache the result
+    cacheService.set(cacheKey, raceData, 15 * 60 * 1000); // 15 minutes
+    
+    res.json(raceData);
   } catch (error) {
-    console.error("Error fetching wager race position:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Failed to fetch wager race position",
-      error: error instanceof Error ? error.message : "Unknown error"
+    console.error("Error fetching current wager race:", error);
+    res.status(500).json({ 
+      error: "Failed to fetch current wager race",
+      details: error instanceof Error ? error.message : String(error)
     });
   }
 });
 
 /**
- * POST /api/sync/trigger
- * Trigger manual data synchronization
- * Requires admin privileges
+ * Get previous wager race data
+ * Used by the wager race page to display historical results
  */
-router.post("/sync/trigger", async (_req: Request, res: Response) => {
+router.get("/wager-races/previous", cache(15 * 60 * 1000), async (req, res) => {
   try {
-    console.log("POST /api/sync/trigger");
-    // Start the sync process (non-blocking)
-    const syncPromise = platformApiService.syncUserProfiles();
+    console.log("Fetching previous wager race data");
     
-    // Don't wait for completion, just acknowledge the request
-    res.json({
-      status: "success",
-      message: "Sync process initiated",
-      note: "The sync is running in the background. Check status endpoints for completion."
+    // Check cache first
+    const cacheKey = "previous-wager-race";
+    const cachedData = cacheService.get(cacheKey);
+    
+    if (cachedData) {
+      console.log("Returning cached previous race data");
+      return res.json(cachedData);
+    }
+    
+    // Get previous race data using raceService
+    const raceData = await raceService.getPreviousRace();
+    
+    // Cache the result
+    cacheService.set(cacheKey, raceData, 15 * 60 * 1000); // 15 minutes
+    
+    res.json(raceData);
+  } catch (error) {
+    console.error("Error fetching previous wager race:", error);
+    res.status(500).json({ 
+      error: "Failed to fetch previous wager race",
+      details: error instanceof Error ? error.message : String(error)
     });
+  }
+});
 
-    // Handle completion in the background
-    syncPromise
-      .then((stats) => {
-        console.log("Manual sync completed successfully", stats);
+/**
+ * Get user's position in current race
+ * Used by user dashboard to show their race standing
+ */
+router.get("/wager-race/position", async (req, res) => {
+  try {
+    const { uid } = req.query;
+    
+    if (!uid || typeof uid !== 'string') {
+      return res.status(400).json({ error: "User ID (uid) is required" });
+    }
+    
+    console.log(`Fetching race position for user ${uid}`);
+    
+    // Get leaderboard data first
+    const leaderboardData = await statSyncService.getLeaderboardData();
+    
+    // Get user position using raceService
+    const positionData = await raceService.getUserRacePosition(uid, leaderboardData);
+    
+    res.json(positionData);
+  } catch (error) {
+    console.error("Error fetching user race position:", error);
+    res.status(500).json({ 
+      error: "Failed to fetch user race position",
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+/**
+ * Trigger data synchronization
+ * Used by admin tools to manually sync user profiles and wager data
+ */
+router.post("/sync/trigger", async (req, res) => {
+  try {
+    console.log("Manual sync triggered");
+    
+    // Start sync process using profileService
+    const syncPromise = profileService.syncUserProfiles()
+      .then(stats => {
+        console.log("Manual sync completed:", stats);
+        return stats;
       })
-      .catch((error) => {
-        console.error(`Manual sync failed: ${error.message}`);
+      .catch(error => {
+        console.error("Manual sync failed:", error);
+        throw error;
       });
+    
+    // Clear relevant caches to force fresh data
+    cacheService.del("affiliate-stats");
+    cacheService.del("current-wager-race");
+    cacheService.del("previous-wager-race");
+    
+    res.json({ 
+      message: "Sync started successfully",
+      status: "running"
+    });
+    
+    // Continue sync in background
+    syncPromise.catch(console.error);
   } catch (error) {
     console.error("Error triggering sync:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Failed to trigger sync",
-      error: error instanceof Error ? error.message : "Unknown error"
+    res.status(500).json({ 
+      error: "Failed to trigger sync",
+      details: error instanceof Error ? error.message : String(error)
     });
   }
 });
 
 /**
- * GET /api/test/goated-raw
- * Returns the raw response from the Goated.com API for inspection
- * No transformation or caching
+ * Raw Goated API test endpoint
+ * Used for debugging and testing external API connectivity
  */
-router.get("/test/goated-raw", async (_req: Request, res: Response) => {
+router.get("/test/goated-raw", async (req, res) => {
   try {
-    const goatedApiService = (await import("../services/goatedApiService")).default;
-    const rawData = await goatedApiService.fetchReferralData(true);
-    res.json({ status: "success", rawData });
+    console.log("Fetching raw Goated API data for testing");
+    
+    const rawData = await goatedApiService.fetchReferralData();
+    
+    res.json({
+      message: "Raw Goated API data",
+      timestamp: new Date().toISOString(),
+      data: rawData
+    });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
-      message: "Failed to fetch raw Goated.com API data",
-      error: error instanceof Error ? error.message : String(error)
+    console.error("Error fetching raw Goated data:", error);
+    res.status(500).json({ 
+      error: "Failed to fetch raw Goated data",
+      details: error instanceof Error ? error.message : String(error)
     });
   }
 });

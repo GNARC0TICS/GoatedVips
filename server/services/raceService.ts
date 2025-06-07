@@ -22,8 +22,7 @@ import {
 } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 
-// Import the leaderboard data interface from platformApiService
-// TODO: Move shared interfaces to a types file during refactor
+// LeaderboardData interface - TODO: Move to shared types file
 interface LeaderboardEntry {
   uid: string;
   name: string;

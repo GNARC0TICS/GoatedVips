@@ -30,7 +30,7 @@ import { exec } from "child_process";
 import { sql, eq } from "drizzle-orm";
 import compression from "compression";
 import schedule from "node-schedule";
-import { platformApiService } from "./services/platformApiService";
+import profileService from "./services/profileService";
 
 // Application modules
 import { log } from "./utils/logger";
@@ -359,14 +359,14 @@ export async function ensureUserProfile(userId: string): Promise<any> {
 
 /**
  * Sync user profiles from leaderboard data
- * Uses the platformApiService to handle user profile synchronization
+ * Uses the profileService to handle user profile synchronization
  */
 async function syncUserProfiles() {
   try {
     console.log("Running scheduled profile sync...");
 
-    // Using platformApiService directly to sync profiles
-    const result = await platformApiService.syncUserProfiles();
+    // Using profileService directly to sync profiles
+    const result = await profileService.syncUserProfiles();
 
     console.log(`Profile sync completed. Created ${result.created} new profiles, updated ${result.updated}, ${result.existing} unchanged (total: ${result.totalProcessed}).`);
   } catch (error) {
