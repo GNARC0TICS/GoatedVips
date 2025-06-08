@@ -935,6 +935,36 @@ html {
   .fixed {
     transform: translateZ(0);
   }
+
+  /* Prevent background scrolling when modal is open */
+  body:has([data-radix-dialog-content]) {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Ensure modals are properly layered */
+  [data-radix-dialog-overlay] {
+    background-color: rgba(0, 0, 0, 0.8) !important;
+    backdrop-filter: blur(4px) !important;
+  }
+
+  /* Fix iOS Safari modal issues */
+  @supports (-webkit-touch-callout: none) {
+    [data-radix-dialog-content] {
+      position: fixed !important;
+      -webkit-transform: translate3d(-50%, -50%, 0) !important;
+      transform: translate3d(-50%, -50%, 0) !important;
+    }
+    
+    @media (max-width: 640px) {
+      [data-radix-dialog-content] {
+        -webkit-transform: translate3d(-50%, 0, 0) !important;
+        transform: translate3d(-50%, 0, 0) !important;
+      }
+    }
+  }
   
   /* Enhanced username click target in MVP cards */
   .username-trigger {
@@ -964,6 +994,35 @@ html {
   /* Improve mobile modal and dialog positioning */
   [data-radix-dialog-overlay] {
     padding: 16px;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 50 !important;
+  }
+
+  /* Fix modal content positioning on mobile */
+  [data-radix-dialog-content] {
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: calc(100vw - 32px) !important;
+    max-width: 425px !important;
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    z-index: 51 !important;
+  }
+
+  /* Ensure proper modal sizing on small screens */
+  @media (max-width: 640px) {
+    [data-radix-dialog-content] {
+      width: calc(100vw - 24px) !important;
+      margin: 12px !important;
+      top: 20px !important;
+      transform: translateX(-50%) !important;
+      position: fixed !important;
+      left: 50% !important;
+      max-height: calc(100vh - 40px) !important;
+    }
   }
 
   /* Better mobile form spacing */
