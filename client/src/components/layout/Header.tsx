@@ -26,94 +26,103 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#14151A]/95 backdrop-blur-xl border-b border-[#2A2B31]/50 supports-[backdrop-filter]:bg-[#14151A]/80">
-      <nav className="h-14 sm:h-16 px-2 sm:px-3 lg:px-6 flex items-center justify-between max-w-7xl mx-auto relative">
+      {/* Mobile Layout - Completely separate from desktop */}
+      <div className="md:hidden h-14 px-3 flex items-center justify-between relative">
         <MobileSearchDropdown isOpen={mobileSearchOpen} onClose={() => setMobileSearchOpen(false)} />
         
-        {/* Left section - Mobile menu + Logo */}
-        <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
-          {/* Mobile menu button - positioned first */}
-          <div className="md:hidden flex-shrink-0">
-            <MobileNavigation 
-              user={user} 
-              isAuthenticated={isAuthenticated} 
-              handleLogout={handleLogout}
-              setOpenMobile={setOpenMobile}
-              openMobile={openMobile}
-            />
-          </div>
-          
-          {/* Logo with improved mobile sizing */}
-          <Link href="/" className="flex items-center min-w-0 flex-1">
-            <div className="flex items-center justify-start overflow-hidden ml-1">
-              <img 
-                src="/images/logo-neon.png" 
-                alt="GOATED" 
-                className="hidden md:block h-6 lg:h-7 w-auto object-contain"
-                loading="eager"
-                width="auto"
-                height="28"
-              />
-              <img 
-                src="/images/Goated Logo - Yellow.png" 
-                alt="GOATED" 
-                className="block md:hidden h-4 sm:h-5 w-auto object-contain"
-                loading="eager"
-                width="auto"
-                height="20"
-              />
-            </div>
-          </Link>
-          
-          {/* Vertical divider */}
-          <div className="hidden sm:block h-8 md:h-10 border-r border-[#2A2B31]" />
+        {/* Mobile Left: Hamburger Menu */}
+        <div className="flex-shrink-0">
+          <MobileNavigation 
+            user={user} 
+            isAuthenticated={isAuthenticated} 
+            handleLogout={handleLogout}
+            setOpenMobile={setOpenMobile}
+            openMobile={openMobile}
+          />
         </div>
 
-        {/* Center section - Desktop Navigation (hidden on mobile) */}
-        <div className="hidden md:flex items-center justify-center flex-1 max-w-2xl">
+        {/* Mobile Center: Logo */}
+        <div className="flex-1 flex justify-center">
+          <Link href="/" className="flex items-center">
+            <img 
+              src="/images/Goated Logo - Yellow.png" 
+              alt="GOATED" 
+              className="h-5 w-auto object-contain"
+              loading="eager"
+              width="auto"
+              height="20"
+            />
+          </Link>
+        </div>
+
+        {/* Mobile Right: Search + Actions */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Mobile Search Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Open search"
+            className="h-9 w-9 flex items-center justify-center rounded-lg"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMobileSearchOpen(!mobileSearchOpen);
+            }}
+            style={{
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation'
+            }}
+          >
+            <Search className="h-4 w-4 text-[#D7FF00]" />
+          </Button>
+
+          {/* Mobile Auth Section */}
+          <AuthSection 
+            user={user} 
+            handleLogout={handleLogout} 
+          />
+        </div>
+      </div>
+
+      {/* Desktop Layout */}
+      <nav className="hidden md:flex h-16 px-3 lg:px-6 items-center justify-between max-w-7xl mx-auto relative">
+        {/* Desktop Left: Logo */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <Link href="/" className="flex items-center">
+            <img 
+              src="/images/logo-neon.png" 
+              alt="GOATED" 
+              className="h-6 lg:h-7 w-auto object-contain"
+              loading="eager"
+              width="auto"
+              height="28"
+            />
+          </Link>
+          <div className="h-8 lg:h-10 border-r border-[#2A2B31] ml-2" />
+        </div>
+
+        {/* Desktop Center: Navigation */}
+        <div className="flex items-center justify-center flex-1 max-w-2xl">
           <DesktopNavLinks isAuthenticated={isAuthenticated} />
         </div>
 
-        {/* Right section - Actions + Auth */}
-        <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-          {/* Mobile search button - positioned separately */}
-          <div className="md:hidden flex-shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Open search"
-              className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-lg min-h-[36px] min-w-[36px]"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMobileSearchOpen(!mobileSearchOpen);
-              }}
-              style={{
-                WebkitTapHighlightColor: 'transparent',
-                touchAction: 'manipulation'
-              }}
-            >
-              <Search className="h-4 w-4 text-[#D7FF00]" />
-            </Button>
-          </div>
+        {/* Desktop Right: Actions + Auth */}
+        <div className="flex items-center gap-2 min-w-0">
+          <UserSearch />
 
-          {/* Search - Desktop visible */}
-          <div className="hidden md:block">
-            <UserSearch />
-          </div>
-
-          {/* Quick action buttons - Optimized for mobile */}
-          <div className="flex items-center gap-0.5 sm:gap-1">
+          {/* Quick action buttons */}
+          <div className="flex items-center gap-1">
             <Link href="/crypto-swap">
               <Button
                 variant="ghost"
                 size="icon"
                 aria-label="Crypto Swap"
-                className="text-[#D7FF00] h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 flex items-center justify-center rounded-lg transition-all duration-200 hover:bg-[#D7FF00]/10 hover:scale-105 active:scale-95"
+                className="text-[#D7FF00] h-10 w-10 flex items-center justify-center rounded-lg transition-all duration-200 hover:bg-[#D7FF00]/10 hover:scale-105 active:scale-95"
                 style={{
                   WebkitTapHighlightColor: 'transparent',
                   touchAction: 'manipulation'
                 }}
               >
-                <CryptoSwapIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <CryptoSwapIcon className="w-4 h-4" />
               </Button>
             </Link>
             
@@ -122,13 +131,13 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
                 variant="ghost"
                 size="icon"
                 aria-label="Join Telegram Community"
-                className="text-[#D7FF00] h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 flex items-center justify-center rounded-lg transition-all duration-200 hover:bg-[#D7FF00]/10 hover:scale-105 active:scale-95"
+                className="text-[#D7FF00] h-10 w-10 flex items-center justify-center rounded-lg transition-all duration-200 hover:bg-[#D7FF00]/10 hover:scale-105 active:scale-95"
                 style={{
                   WebkitTapHighlightColor: 'transparent',
                   touchAction: 'manipulation'
                 }}
               >
-                <TelegramIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <TelegramIcon className="w-4 h-4" />
               </Button>
             </Link>
             
@@ -137,13 +146,13 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
                 variant="ghost"
                 size="icon"
                 aria-label="Wager Races"
-                className="text-[#D7FF00] h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 flex items-center justify-center rounded-lg transition-all duration-200 hover:bg-[#D7FF00]/10 hover:scale-105 active:scale-95"
+                className="text-[#D7FF00] h-10 w-10 flex items-center justify-center rounded-lg transition-all duration-200 hover:bg-[#D7FF00]/10 hover:scale-105 active:scale-95"
                 style={{
                   WebkitTapHighlightColor: 'transparent',
                   touchAction: 'manipulation'
                 }}
               >
-                <WagerRacesIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <WagerRacesIcon className="w-4 h-4" />
               </Button>
             </Link>
             
@@ -151,7 +160,7 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
           </div>
 
           {/* Admin menu and Auth section */}
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-2">
             {user?.isAdmin && <AdminMenu />}
             <AuthSection 
               user={user} 
