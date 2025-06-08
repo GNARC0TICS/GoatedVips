@@ -147,19 +147,10 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
         </Button>
       </DialogTrigger>
       <DialogContent 
-        className="sm:max-w-[425px] bg-[#1A1B21] text-white border-[#2A2B31] shadow-lg shadow-black/20 backdrop-blur-sm touch-manipulation mobile-modal" 
+        className="sm:max-w-[425px] bg-[#1A1B21] text-white border-[#2A2B31] shadow-lg shadow-black/20 backdrop-blur-sm touch-manipulation" 
         style={{ 
           touchAction: "manipulation", 
-          WebkitTapHighlightColor: "transparent",
-          position: "fixed",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          width: "calc(100vw - 32px)",
-          maxWidth: "425px",
-          maxHeight: "85vh",
-          overflowY: "auto",
-          zIndex: 51
+          WebkitTapHighlightColor: "transparent"
         }}
       >
         <DialogHeader>
