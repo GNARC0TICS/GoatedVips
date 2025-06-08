@@ -150,8 +150,8 @@ const DialogContent = React.forwardRef<
           "max-h-[85vh] overflow-y-auto", // Added max-height and overflow for mobile
           // Desktop positioning
           "sm:left-[50%] sm:top-[50%] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%] sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
-          // Mobile positioning - full width with margins
-          "left-4 right-4 top-[50%] translate-y-[-50%] sm:left-[50%] sm:right-auto",
+          // Mobile positioning - full width with margins, adjusted positioning
+          "left-2 right-6 top-[45%] translate-y-[-50%] sm:left-[50%] sm:right-auto",
           className
         )}
         {...props}
