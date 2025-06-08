@@ -55,7 +55,7 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
           </Link>
         </div>
 
-        {/* Mobile Right: Search + Actions */}
+        {/* Mobile Right: Essential Actions Only */}
         <div className="flex items-center gap-1 flex-shrink-0">
           {/* Mobile Search Button */}
           <Button
@@ -75,55 +75,10 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
             <Search className="h-4 w-4 text-[#D7FF00]" />
           </Button>
 
-          {/* Mobile Quick Actions */}
-          <Link href="/crypto-swap">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Crypto Swap"
-              className="text-[#D7FF00] h-8 w-8 flex items-center justify-center rounded-lg"
-              style={{
-                WebkitTapHighlightColor: 'transparent',
-                touchAction: 'manipulation'
-              }}
-            >
-              <CryptoSwapIcon className="w-3.5 h-3.5" />
-            </Button>
-          </Link>
-          
-          <Link href="https://t.me/xGoombas" target="_blank" rel="noopener noreferrer">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Join Telegram Community"
-              className="text-[#D7FF00] h-8 w-8 flex items-center justify-center rounded-lg"
-              style={{
-                WebkitTapHighlightColor: 'transparent',
-                touchAction: 'manipulation'
-              }}
-            >
-              <TelegramIcon className="w-3.5 h-3.5" />
-            </Button>
-          </Link>
-          
-          <Link href="/wager-races">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Wager Races"
-              className="text-[#D7FF00] h-8 w-8 flex items-center justify-center rounded-lg"
-              style={{
-                WebkitTapHighlightColor: 'transparent',
-                touchAction: 'manipulation'
-              }}
-            >
-              <WagerRacesIcon className="w-3.5 h-3.5" />
-            </Button>
-          </Link>
-          
+          {/* Utility Panel - Contains all quick actions */}
           <UtilityPanelButton />
 
-          {/* Mobile Auth Section */}
+          {/* Mobile Auth Section - Priority display */}
           <AuthSection 
             user={user} 
             handleLogout={handleLogout} 
