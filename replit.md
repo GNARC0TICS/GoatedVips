@@ -104,7 +104,8 @@ The platform is built with a modern tech stack featuring React + TypeScript fron
 - **Deployment**: Google Cloud Engine with automated builds
 
 ## Changelog
-- June 14, 2025. Initial setup
+- June 14, 2025: Fixed wager data synchronization with valid API token - all leaderboard timeframes now updating correctly
+- June 14, 2025: Initial setup
 
 ## User Preferences
 

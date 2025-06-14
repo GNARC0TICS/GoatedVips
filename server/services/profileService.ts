@@ -229,55 +229,79 @@ class ProfileService {
       }
 
       const leaderboardData = await goatedApiService.fetchReferralData(true);
-      const transformedData = await statSyncService.transformToLeaderboard(leaderboardData);
       
-      if (transformedData.status !== 'success') {
-        throw new Error('Failed to transform leaderboard data');
+      // Handle different API response formats
+      let apiUsers: any[] = [];
+      if (Array.isArray(leaderboardData)) {
+        apiUsers = leaderboardData;
+      } else if (leaderboardData.data && Array.isArray(leaderboardData.data)) {
+        apiUsers = leaderboardData.data;
+      } else if (leaderboardData.data?.all_time?.data && Array.isArray(leaderboardData.data.all_time.data)) {
+        apiUsers = leaderboardData.data.all_time.data;
+      } else {
+        throw new Error('Invalid API response format');
       }
 
-      // Process all time data for profile updates
-      const allTimeUsers = transformedData.data.all_time.data;
-      stats.totalUsers = allTimeUsers.length;
+      stats.totalUsers = apiUsers.length;
 
-      for (const user of allTimeUsers) {
+      for (const user of apiUsers) {
         try {
           stats.processedUsers++;
           
           // Check if user exists by Goated ID
           const existingUser = await db.query.users.findFirst({
-            where: eq(users.uid, user.uid)
+            where: eq(users.goatedId, user.uid)
           });
 
+          // Skip invalid users
+          if (!user.uid || !user.name || !user.wagered) {
+            continue;
+          }
+
           if (existingUser) {
-            // Update existing user's wager data
-            await db.update(users)
-              .set({
-                total_wager: user.wagered.all_time.toString(),
-                wager_today: user.wagered.today.toString(),
-                wager_week: user.wagered.this_week.toString(),
-                wager_month: user.wagered.this_month.toString(),
-                last_updated: new Date(),
-                verified: true
-              })
-              .where(eq(users.uid, user.uid));
+            // Update existing user's wager data using raw SQL to avoid syntax issues
+            await db.execute(sql`
+              UPDATE users SET 
+                total_wager = ${user.wagered.all_time?.toString() || '0'},
+                daily_wager = ${user.wagered.today?.toString() || '0'},
+                weekly_wager = ${user.wagered.this_week?.toString() || '0'},
+                monthly_wager = ${user.wagered.this_month?.toString() || '0'},
+                goated_username = ${user.name},
+                goated_account_linked = true,
+                last_wager_sync = NOW(),
+                last_updated = NOW()
+              WHERE goated_id = ${user.uid}
+            `);
             
             stats.updatedUsers++;
           } else {
             // Create new user profile from API data
-            await db.insert(users).values({
-              username: user.name,
-              uid: user.uid,
-              total_wager: user.wagered.all_time.toString(),
-              wager_today: user.wagered.today.toString(),
-              wager_week: user.wagered.this_week.toString(),
-              wager_month: user.wagered.this_month.toString(),
-              password: await preparePassword('temp' + Date.now()),
-              email: `${user.uid}@temp.goatedvips.com`,
-              verified: true,
-              last_updated: new Date()
-            });
-            
-            stats.newUsers++;
+            try {
+              await db.execute(sql`
+                INSERT INTO users (
+                  username, goated_id, goated_username, 
+                  total_wager, daily_wager, weekly_wager, monthly_wager,
+                  password, email, goated_account_linked, 
+                  last_wager_sync, created_at
+                ) VALUES (
+                  ${user.name}, ${user.uid}, ${user.name},
+                  ${user.wagered.all_time?.toString() || '0'}, 
+                  ${user.wagered.today?.toString() || '0'},
+                  ${user.wagered.this_week?.toString() || '0'}, 
+                  ${user.wagered.this_month?.toString() || '0'},
+                  ${await preparePassword('temp' + Date.now())}, 
+                  ${user.uid + '@temp.goatedvips.com'}, 
+                  true, NOW(), NOW()
+                )
+              `);
+              
+              stats.newUsers++;
+            } catch (insertError: any) {
+              // Skip duplicate key errors for existing users
+              if (!insertError.message?.includes('duplicate key')) {
+                throw insertError;
+              }
+            }
           }
         } catch (error) {
           console.error(`Error processing user ${user.name}:`, error);
