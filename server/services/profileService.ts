@@ -17,9 +17,8 @@ import { users, SelectUser, InsertUser } from '../../db/schema';
 import { transformationLogs } from '../../db/schema';
 import { eq, sql } from "drizzle-orm";
 import { preparePassword } from "../utils/auth-utils";
-// TODO: Re-enable when services are implemented
-// import goatedApiService from "./goatedApiService";
-// import statSyncService from "./statSyncService";
+import goatedApiService from "./goatedApiService";
+import statSyncService from "./statSyncService";
 
 // TODO: Move to shared types file during future refactor
 interface LeaderboardEntry {
@@ -218,14 +217,80 @@ class ProfileService {
         0
       );
 
-      // TODO: Implement Goated API integration
-      // For now, return empty stats to prevent errors
+      // Fetch latest data from Goated API
+      if (!goatedApiService.hasApiToken()) {
+        await this.logProfileOperation(
+          'sync',
+          'warning',
+          'API token not available - skipping profile sync',
+          Date.now() - startTime
+        );
+        return stats;
+      }
+
+      const leaderboardData = await goatedApiService.fetchReferralData(true);
+      const transformedData = await statSyncService.transformToLeaderboard(leaderboardData);
+      
+      if (transformedData.status !== 'success') {
+        throw new Error('Failed to transform leaderboard data');
+      }
+
+      // Process all time data for profile updates
+      const allTimeUsers = transformedData.data.all_time.data;
+      stats.totalUsers = allTimeUsers.length;
+
+      for (const user of allTimeUsers) {
+        try {
+          stats.processedUsers++;
+          
+          // Check if user exists by Goated ID
+          const existingUser = await db.query.users.findFirst({
+            where: eq(users.uid, user.uid)
+          });
+
+          if (existingUser) {
+            // Update existing user's wager data
+            await db.update(users)
+              .set({
+                total_wager: user.wagered.all_time.toString(),
+                wager_today: user.wagered.today.toString(),
+                wager_week: user.wagered.this_week.toString(),
+                wager_month: user.wagered.this_month.toString(),
+                last_updated: new Date(),
+                verified: true
+              })
+              .where(eq(users.uid, user.uid));
+            
+            stats.updatedUsers++;
+          } else {
+            // Create new user profile from API data
+            await db.insert(users).values({
+              username: user.name,
+              uid: user.uid,
+              total_wager: user.wagered.all_time.toString(),
+              wager_today: user.wagered.today.toString(),
+              wager_week: user.wagered.this_week.toString(),
+              wager_month: user.wagered.this_month.toString(),
+              password: await preparePassword('temp' + Date.now()),
+              email: `${user.uid}@temp.goatedvips.com`,
+              verified: true,
+              last_updated: new Date()
+            });
+            
+            stats.newUsers++;
+          }
+        } catch (error) {
+          console.error(`Error processing user ${user.name}:`, error);
+          stats.errors++;
+        }
+      }
+
       stats.duration = Date.now() - startTime;
       
       await this.logProfileOperation(
         'sync',
-        'warning',
-        'Profile sync skipped - Goated API integration not yet implemented',
+        'info',
+        `Profile sync completed: ${stats.newUsers} new, ${stats.updatedUsers} updated, ${stats.errors} errors`,
         stats.duration
       );
 
