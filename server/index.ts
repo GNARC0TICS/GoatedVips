@@ -408,6 +408,15 @@ async function initializeServer() {
         console.error("Initial profile sync failed:", error);
       });
 
+    // Run initial leaderboard sync (CRITICAL FIX)
+    syncLeaderboardUsers()
+      .then(stats => {
+        console.log("Initial leaderboard sync completed:", stats);
+      })
+      .catch(error => {
+        console.error("Initial leaderboard sync failed:", error);
+      });
+
     const app = express();
     setupMiddleware(app);
     setupAuth(app);
