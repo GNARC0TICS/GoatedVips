@@ -31,7 +31,7 @@ import { sql, eq } from "drizzle-orm";
 import compression from "compression";
 // import schedule from "node-schedule";
 import profileService from "./services/profileService";
-import { syncLeaderboardUsers } from "./services/leaderboardSyncService";
+import { startLeaderboardSyncScheduler } from "./services/leaderboardSyncService";
 
 // Application modules
 import { log } from "./utils/logger";
@@ -397,7 +397,7 @@ async function initializeServer() {
     log("info", "Database connection established");
 
     // Start background sync operations (non-blocking)
-    console.log("Starting background data sync...");
+    console.log("Starting optimized background data sync...");
     
     // Run initial profile sync
     profileService.syncUserProfiles()
@@ -408,14 +408,8 @@ async function initializeServer() {
         console.error("Initial profile sync failed:", error);
       });
 
-    // Run initial leaderboard sync (CRITICAL FIX)
-    syncLeaderboardUsers()
-      .then(stats => {
-        console.log("Initial leaderboard sync completed:", stats);
-      })
-      .catch(error => {
-        console.error("Initial leaderboard sync failed:", error);
-      });
+    // Start optimized leaderboard sync scheduler (10-minute intervals)
+    startLeaderboardSyncScheduler();
 
     const app = express();
     setupMiddleware(app);
