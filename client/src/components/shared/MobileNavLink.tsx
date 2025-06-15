@@ -21,32 +21,39 @@ export const MobileNavLink = React.memo(function MobileNavLink({
   const isActive = !isExternal && location === href;
   const isHome = href === "/";
   
-  const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation(); // Prevent event bubbling
-    onClose();
+  const handleNavigation = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     
-    // Handle external links
+    // Handle external links immediately
     if (isExternal) {
       window.open(href, "_blank", "noopener,noreferrer");
+      onClose();
+      return;
     }
+    
+    // For internal navigation, delay menu close until after navigation
+    setTimeout(() => {
+      onClose();
+    }, 150);
   };
   
   const content = (
     <motion.div
       whileTap={{ scale: 0.98 }}
-      onClick={handleClick}
+      onClick={handleNavigation}
       onTouchStart={(e) => {
-        // Touch event registered to enhance mobile responsiveness
+        // Touch feedback for better mobile UX
         e.currentTarget.style.backgroundColor = isActive ? "#D7FF0030" : "#2A2B3190";
       }}
       onTouchEnd={(e) => {
+        // Reset touch feedback without triggering double navigation
         e.currentTarget.style.backgroundColor = isActive ? "#D7FF0020" : "transparent";
-        handleClick(e);
       }}
       style={{
         WebkitTapHighlightColor: 'transparent',
         touchAction: 'manipulation',
-        minHeight: '50px', // Increase height for better touch targets
+        minHeight: '50px',
         cursor: 'pointer'
       }}
       className={`flex items-center px-4 py-4 rounded-lg transition-colors duration-200 ${

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useLocation } from "wouter";
 import { LogOut } from "lucide-react";
 import { 
   Sheet, 
@@ -26,11 +27,26 @@ export function MobileNavigation({
   setOpenMobile: externalSetOpenMobile,
   openMobile: externalOpenMobile
 }: MobileNavigationProps) {
-  // If external setter is provided, use it; otherwise use internal state
+  // Use consistent state management - prefer external state when available
   const [internalOpenMobile, setInternalOpenMobile] = useState(false);
   const setOpenMobile = externalSetOpenMobile || setInternalOpenMobile;
-  // Use externally provided openMobile value if available, otherwise use internal state
   const openMobile = externalOpenMobile !== undefined ? externalOpenMobile : internalOpenMobile;
+
+  // Close menu on route changes to prevent stale state
+  const [location] = useLocation();
+  const prevLocationRef = React.useRef(location);
+  
+  React.useEffect(() => {
+    // Only close menu if location actually changed and menu is open
+    if (openMobile && location !== prevLocationRef.current) {
+      const timer = setTimeout(() => {
+        setOpenMobile(false);
+      }, 200);
+      prevLocationRef.current = location;
+      return () => clearTimeout(timer);
+    }
+    prevLocationRef.current = location;
+  }, [location, openMobile, setOpenMobile]);
 
   // Get navigation sections based on user role
   const navigationSections = getNavigationSections(user?.isAdmin);
@@ -77,13 +93,21 @@ export function MobileNavigation({
         <SheetContent
           side="left"
           style={{
-            touchAction: 'pan-y', // Allow vertical scrolling
-            WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
-            overscrollBehavior: 'contain', // Prevent pull-to-refresh
-            userSelect: 'none', // Prevent unwanted text selection
-            zIndex: 100 // Ensure it's above other elements
+            touchAction: 'pan-y',
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
+            userSelect: 'none',
+            zIndex: 100
           }}
           className="w-[300px] bg-[#14151A] border-r border-[#2A2B31] overflow-y-auto p-0"
+          onInteractOutside={(e) => {
+            // Prevent accidental closure when tapping navigation items
+            e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            // Allow escape key to close menu
+            setOpenMobile(false);
+          }}
         >
           <div className="flex flex-col gap-4 pt-8">
             {navigationSections.map((section, sectionIndex) => (

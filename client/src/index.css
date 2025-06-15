@@ -2,10 +2,40 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Enhanced mobile viewport handling */
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
 }
 
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile navigation fixes */
+body {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent horizontal overflow on mobile */
+body, html {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+/* Enhanced mobile touch targets */
+@media (max-width: 768px) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+  
+  /* Prevent zoom on input focus */
+  input, textarea, select {
+    font-size: 16px;
+  }
 }
 
 .no-scrollbar::-webkit-scrollbar {
