@@ -46,7 +46,7 @@ export async function syncLeaderboardUsers() {
       }
 
       try {
-        // Use Drizzle's upsert functionality
+        // Use Drizzle's upsert functionality with correct schema field names
         await db.insert(leaderboardUsers)
           .values({
             uid: user.uid,
