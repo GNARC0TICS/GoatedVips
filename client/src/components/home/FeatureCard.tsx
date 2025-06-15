@@ -32,8 +32,8 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({ feature, isAuthenticat
   const IconComponent = CustomIcon || getIcon(iconName);
 
   const currentDescription = typeof description === 'function' ? description(isAuthenticated) : description;
-  const currentBadgeText = typeof rawBadgeText === 'function' ? rawBadgeText(isAuthenticated) : rawBadgeText;
-  const currentBadgeType = typeof rawBadgeType === 'function' ? rawBadgeType(isAuthenticated) : rawBadgeType;
+  const currentBadgeText = rawBadgeText && typeof rawBadgeText === 'function' ? rawBadgeText(isAuthenticated) : rawBadgeText;
+  const currentBadgeType = rawBadgeType && typeof rawBadgeType === 'function' ? rawBadgeType(isAuthenticated) : rawBadgeType;
   const currentCtaText = typeof rawCtaText === 'function' ? rawCtaText(isAuthenticated) : rawCtaText;
 
   const isLocked = requiresAuth && !isAuthenticated;
@@ -55,9 +55,22 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({ feature, isAuthenticat
   };
 
   const CardContent = () => (
-    <div className="relative group transform transition-all duration-300 hover:scale-[1.02]">
+    <div 
+      className="relative group transform transition-all duration-300 hover:scale-[1.02] min-h-[280px] w-full cursor-pointer"
+      style={{
+        touchAction: 'manipulation',
+        WebkitTapHighlightColor: 'transparent',
+        userSelect: 'none'
+      }}
+    >
       <div className="absolute inset-0 bg-gradient-to-b from-[#D7FF00]/20 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 blur-sm" />
-      <div className="relative p-6 md:p-8 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm hover:border-[#D7FF00]/50 transition-all duration-300 shadow-lg hover:shadow-[#FFD700]/20 card-hover h-full w-full flex flex-col justify-between">
+      <div className="relative p-6 md:p-8 rounded-xl border border-[#2A2B31] bg-[#1A1B21]/50 backdrop-blur-sm hover:border-[#D7FF00]/50 transition-all duration-300 shadow-lg hover:shadow-[#FFD700]/20 card-hover h-full w-full flex flex-col justify-between"
+        style={{
+          minHeight: '280px',
+          touchAction: 'manipulation',
+          WebkitTapHighlightColor: 'transparent'
+        }}
+      >
         {IconComponent && (
           <div className="flex items-start mb-4">
             <IconComponent {...iconProps} />
@@ -101,7 +114,13 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({ feature, isAuthenticat
     return (
       <TooltipProvider>
         <Tooltip>
-          <TooltipTrigger className="block w-full h-full text-left">
+          <TooltipTrigger 
+            className="block w-full h-full text-left min-h-[280px] touch-target"
+            style={{
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent'
+            }}
+          >
             <CardContent />
           </TooltipTrigger>
           <TooltipContent>
@@ -115,7 +134,15 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({ feature, isAuthenticat
   // If the card itself is a link (most cases)
   if (effectiveLink !== '#') {
     return (
-      <Link href={effectiveLink} className="block">
+      <Link 
+        href={effectiveLink} 
+        className="block w-full h-full min-h-[280px] touch-target"
+        style={{
+          touchAction: 'manipulation',
+          WebkitTapHighlightColor: 'transparent',
+          userSelect: 'none'
+        }}
+      >
         <CardContent />
       </Link>
     );

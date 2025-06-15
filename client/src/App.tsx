@@ -112,6 +112,7 @@ function MainContent() {
                   <Route path="/faq" component={FAQ} />
                   <Route path="/vip-program" component={VipProgram} />
                   <Route path="/challenges" component={Challenges} />
+                  <Route path="/vip-transfer" component={VipTransfer} />
                   {/* All user profile routes are public - using enhanced profile component */}
                   <Route path="/user-profile/:id" component={EnhancedUserProfile} />
                   <Route path="/user/:id" component={EnhancedUserProfile} />
@@ -123,7 +124,6 @@ function MainContent() {
                   {/* Protected Routes - Require Authentication */}
                   <ProtectedRoute path="/bonus-codes" component={BonusCodes} />
                   <ProtectedRoute path="/notification-preferences" component={NotificationPreferences} />
-                  <ProtectedRoute path="/vip-transfer" component={VipTransfer} />
                   <ProtectedRoute path="/support" component={Support} />
                   <ProtectedRoute path="/wheel-challenge" component={WheelChallenge} />
 

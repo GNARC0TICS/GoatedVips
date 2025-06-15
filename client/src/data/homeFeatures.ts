@@ -11,8 +11,8 @@ export interface FeatureCardData {
   link: string;
   requiresAuth?: boolean; // To show lock icon or different text
   authSensitiveLink?: boolean; // If the link itself changes or is disabled
-  badgeText?: string;
-  badgeType?: 'NEW' | 'LIVE' | 'COMING SOON' | 'DAILY' | 'SIGN IN TO PLAY' | 'PLAY NOW' | 'JOIN NOW'; // To style badge
+  badgeText?: string | ((isAuthenticated: boolean) => string);
+  badgeType?: 'NEW' | 'LIVE' | 'COMING SOON' | 'DAILY' | 'SIGN IN TO PLAY' | 'PLAY NOW' | 'JOIN NOW' | ((isAuthenticated: boolean) => string); // To style badge
   ctaText: string | ((isAuthenticated: boolean) => string);
   ctaLink?: string; // Optional: if CTA is a separate link from the main card link
   ctaRequiresAuthAction?: boolean; // If CTA behavior changes significantly based on auth (e.g. Link vs Tooltip)

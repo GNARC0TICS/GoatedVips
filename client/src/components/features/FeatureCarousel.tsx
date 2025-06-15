@@ -264,8 +264,13 @@ export const FeatureCarousel = () => {
             >
               <button
                 onClick={() => handleClick(items[currentIndex].link)}
-                className="text-3xl md:text-4xl font-heading font-extrabold bg-gradient-to-r from-[#D7FF00] via-[#D7FF00]/80 to-[#D7FF00]/60 bg-clip-text text-transparent hover:from-[#D7FF00]/80 hover:to-[#D7FF00]/40 transition-all px-4"
+                className="text-3xl md:text-4xl font-heading font-extrabold bg-gradient-to-r from-[#D7FF00] via-[#D7FF00]/80 to-[#D7FF00]/60 bg-clip-text text-transparent hover:from-[#D7FF00]/80 hover:to-[#D7FF00]/40 transition-all px-4 py-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
                 aria-label={`${items[currentIndex].text} - Click to navigate`}
+                style={{
+                  touchAction: 'manipulation',
+                  WebkitTapHighlightColor: 'transparent',
+                  userSelect: 'none'
+                }}
               >
                 {items[currentIndex].text}
               </button>
