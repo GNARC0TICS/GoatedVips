@@ -369,7 +369,7 @@ async function syncUserProfiles() {
     // Using profileService directly to sync profiles
     const result = await profileService.syncUserProfiles();
 
-    console.log(`Profile sync completed. Created ${result.created} new profiles, updated ${result.updated}, ${result.existing} unchanged (total: ${result.totalProcessed}).`);
+    console.log(`Profile sync completed:`, result);
   } catch (error) {
     console.error("Error in scheduled profile sync:", error);
   }
