@@ -171,7 +171,6 @@ export const FeatureCarousel = () => {
     if (!isDragging) {
       if (link === "/bonus-codes" && !isAuthenticated) {
         toast({
-          variant: "warning",
           title: "Authentication Required",
           description: "Please sign in to access bonus codes"
         });

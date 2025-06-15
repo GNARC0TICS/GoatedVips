@@ -77,11 +77,16 @@ export default function Community() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.2 * (index + 1) }}
-                  className="bg-[#1A1B21]/50 border border-[#2A2B31] rounded-xl p-6 hover:border-[#D7FF00]/50 transition-all duration-300"
+                  className="bg-[#1A1B21]/50 border border-[#2A2B31] rounded-xl p-6 hover:border-[#D7FF00]/50 transition-all duration-300 cursor-pointer min-h-[120px] touch-target"
+                  style={{
+                    touchAction: 'manipulation',
+                    WebkitTapHighlightColor: 'transparent',
+                    userSelect: 'none'
+                  }}
                 >
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-4 h-full">
                     <div className="mt-1">{feature.icon}</div>
-                    <div>
+                    <div className="flex-1">
                       <h3 className="text-xl font-heading text-white mb-2">{feature.title}</h3>
                       <p className="text-[#8A8B91]">{feature.description}</p>
                     </div>
