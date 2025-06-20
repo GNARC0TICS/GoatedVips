@@ -65,7 +65,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Use environment configuration instead of hard-coded values
-const { PORT, HOST, IS_DEVELOPMENT, IS_PRODUCTION, CORS_ORIGINS, SESSION_SECRET, COOKIE_SECURE, COOKIE_MAX_AGE, API_TOKEN, GOATED_API_TOKEN, DATABASE_URL } = ENV;
+const { PORT, HOST, CORS_ORIGINS, SESSION_SECRET, COOKIE_SECURE, COOKIE_MAX_AGE, API_TOKEN, GOATED_API_TOKEN, DATABASE_URL } = ENV;
 
 // Global server state management
 let templateCache: string | null = null;  // Caches HTML template for better performance
@@ -425,9 +425,12 @@ async function initializeServer() {
     setupWebSocket(server);
 
     // Setup development or production server based on environment
+    console.log(`Environment check: NODE_ENV=${NODE_ENV}, IS_DEVELOPMENT=${IS_DEVELOPMENT}`);
     if (IS_DEVELOPMENT) {
+      console.log("Setting up Vite development server...");
       await setupVite(app, server);
     } else {
+      console.log("Setting up static file serving for production...");
       serveStatic(app);
 
       // Add error handling after routes are registered
