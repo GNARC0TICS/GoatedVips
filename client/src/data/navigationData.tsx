@@ -174,7 +174,7 @@ export const navigationSections: NavigationSection[] = [
       },
       {
         id: "all-time-leaderboard",
-        href: "/leaderboard?period=all-time",
+        href: "/leaderboard?period=all_time",
         label: "All Time Leaderboard",
       },
     ],

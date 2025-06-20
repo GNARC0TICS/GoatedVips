@@ -33,7 +33,7 @@ export default function Leaderboard() {
       today: "daily",
       weekly: "weekly",
       monthly: "monthly", 
-      all_time: "all-time"
+      all_time: "all_time"
     };
 
     setPeriod(newPeriod as TimePeriod);
