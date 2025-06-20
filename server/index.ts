@@ -1,5 +1,10 @@
 import 'dotenv/config';
 
+// Force development mode when NODE_ENV is not explicitly set to production
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'development';
+}
+
 /**
  * Main server entry point for the GoatedVIPs application
  * Handles server initialization, middleware setup, and core service bootstrapping
