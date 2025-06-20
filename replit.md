@@ -104,6 +104,7 @@ The platform is built with a modern tech stack featuring React + TypeScript fron
 - **Deployment**: Google Cloud Engine with automated builds
 
 ## Changelog
+- June 20, 2025: **NAVIGATION & FRONTEND FIX**: Resolved leaderboard navigation parameter mismatch (all-time → all_time), fixed development server configuration to properly serve React frontend with Vite, corrected environment variable setup - all leaderboard timeframes now navigate correctly from menu
 - June 15, 2025: **MOBILE UX OPTIMIZATION**: Fixed mobile navigation menu closing unexpectedly, eliminated double event handlers, improved touch targets, enhanced viewport handling, and optimized mobile search dropdown - mobile navigation now stable with proper state management
 - June 15, 2025: **PERFORMANCE OPTIMIZATION**: Implemented active-only user filtering (91% reduction in database writes), added optimized database indexes, recurring 10-minute sync scheduler, and batch processing - leaderboard queries now sub-100ms with automatic updates
 - June 15, 2025: **CRITICAL FIX**: Resolved leaderboard data sync failure by activating missing `syncLeaderboardUsers()` service and fixing schema mismatch - real-time wager data now flowing correctly across all timeframes
