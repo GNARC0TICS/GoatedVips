@@ -1,1 +1,24 @@
-export interface EmailTemplate {\n  subject: string;\n  html: string;\n  text?: string;\n}\n\nexport interface EmailOptions {\n  to: string | string[];\n  subject: string;\n  html?: string;\n  text?: string;\n  attachments?: {\n    filename: string;\n    content: Buffer | string;\n    contentType?: string;\n  }[];\n}\n\nexport interface IEmailService {\n  sendEmail(options: EmailOptions): Promise<boolean>;\n  sendVerificationEmail(email: string, token: string): Promise<boolean>;\n  sendPasswordResetEmail(email: string, token: string): Promise<boolean>;\n  sendWelcomeEmail(email: string, username: string): Promise<boolean>;\n  sendNotificationEmail(email: string, title: string, message: string): Promise<boolean>;\n  \n  // Bulk operations\n  sendBulkEmail(recipients: string[], template: EmailTemplate): Promise<{\n    sent: number;\n    failed: string[];\n  }>;\n  \n  // Template management\n  renderTemplate(templateName: string, variables: Record<string, any>): Promise<EmailTemplate>;\n}"
+export interface EmailTemplate {
+  subject: string;
+  html: string;
+  text?: string;
+}
+
+export interface EmailOptions {
+  to: string | string[];
+  subject: string;
+  html?: string;
+  text?: string;
+  attachments?: {
+    filename: string;
+    content: Buffer | string;
+    contentType?: string;
+  }[];
+}
+
+export interface IEmailService {
+  sendEmail(options: EmailOptions): Promise<boolean>;
+  sendVerificationEmail(email: string, token: string): Promise<boolean>;
+  sendPasswordResetEmail(email: string, token: string): Promise<boolean>;
+  sendWelcomeEmail(email: string, username: string): Promise<boolean>;
+}

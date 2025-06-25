@@ -1,1 +1,46 @@
-import { WagerStats, WagerEntry, CreateWagerStatsInput, UpdateWagerStatsInput, WagerPeriod } from '../entities/Wager';\n\nexport interface IWagerRepository {\n  // Wager Stats CRUD\n  createStats(input: CreateWagerStatsInput): Promise<WagerStats>;\n  findStatsByUserId(userId: string): Promise<WagerStats | null>;\n  findStatsByGoatedId(goatedId: string): Promise<WagerStats | null>;\n  updateStats(userId: string, input: UpdateWagerStatsInput): Promise<WagerStats | null>;\n  deleteStats(userId: string): Promise<boolean>;\n  \n  // Wager Entries\n  createEntry(entry: Omit<WagerEntry, 'id' | 'createdAt'>): Promise<WagerEntry>;\n  findEntriesByUserId(userId: string, limit?: number, offset?: number): Promise<{\n    entries: WagerEntry[];\n    total: number;\n  }>;\n  \n  // Leaderboards\n  getLeaderboard(period: WagerPeriod, limit?: number, offset?: number): Promise<{\n    rankings: (WagerStats & { rank: number })[];\n    total: number;\n  }>;\n  \n  // Rankings\n  getUserRank(userId: string, period: WagerPeriod): Promise<number | null>;\n  updateRankings(period: WagerPeriod): Promise<void>;\n  \n  // Bulk operations\n  bulkUpsertStats(stats: CreateWagerStatsInput[]): Promise<number>;\n  \n  // Analytics\n  getTopWagerers(period: WagerPeriod, limit: number): Promise<WagerStats[]>;\n  getTotalWagered(period?: WagerPeriod): Promise<number>;\n  getWagerDistribution(): Promise<{\n    period: WagerPeriod;\n    ranges: {\n      min: number;\n      max: number;\n      count: number;\n    }[];\n  }[]>;\n  \n  // Sync operations\n  getStaleStats(olderThanMinutes: number): Promise<WagerStats[]>;\n  markSynced(userIds: string[]): Promise<void>;\n}
+import { WagerStats, WagerEntry, CreateWagerStatsInput, UpdateWagerStatsInput, WagerPeriod } from '../entities/Wager';
+
+export interface IWagerRepository {
+  // Wager Stats CRUD
+  createStats(input: CreateWagerStatsInput): Promise<WagerStats>;
+  findStatsByUserId(userId: string): Promise<WagerStats | null>;
+  findStatsByGoatedId(goatedId: string): Promise<WagerStats | null>;
+  updateStats(userId: string, input: UpdateWagerStatsInput): Promise<WagerStats | null>;
+  deleteStats(userId: string): Promise<boolean>;
+  
+  // Wager Entries
+  createEntry(entry: Omit<WagerEntry, 'id' | 'createdAt'>): Promise<WagerEntry>;
+  findEntriesByUserId(userId: string, limit?: number, offset?: number): Promise<{
+    entries: WagerEntry[];
+    total: number;
+  }>;
+  
+  // Leaderboards
+  getLeaderboard(period: WagerPeriod, limit?: number, offset?: number): Promise<{
+    rankings: (WagerStats & { rank: number })[];
+    total: number;
+  }>;
+  
+  // Rankings
+  getUserRank(userId: string, period: WagerPeriod): Promise<number | null>;
+  updateRankings(period: WagerPeriod): Promise<void>;
+  
+  // Bulk operations
+  bulkUpsertStats(stats: CreateWagerStatsInput[]): Promise<number>;
+  
+  // Analytics
+  getTopWagerers(period: WagerPeriod, limit: number): Promise<WagerStats[]>;
+  getTotalWagered(period?: WagerPeriod): Promise<number>;
+  getWagerDistribution(): Promise<{
+    period: WagerPeriod;
+    ranges: {
+      min: number;
+      max: number;
+      count: number;
+    }[];
+  }[]>;
+  
+  // Sync operations
+  getStaleStats(olderThanMinutes: number): Promise<WagerStats[]>;
+  markSynced(userIds: string[]): Promise<void>;
+}

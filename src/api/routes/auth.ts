@@ -1,1 +1,266 @@
-import { Router, Request, Response } from 'express';\nimport { z } from 'zod';\nimport { UserService } from '../../domain/services/UserService';\nimport { JWTAuthService } from '../../infrastructure/auth/JWTAuthService';\nimport { AuthMiddleware } from '../middleware/auth';\nimport { validateRequest } from '../middleware/validation';\nimport { rateLimitMiddleware } from '../middleware/rateLimit';\n\n// Request schemas\nconst RegisterSchema = z.object({\n  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),\n  email: z.string().email(),\n  password: z.string().min(8).max(128),\n  displayName: z.string().min(1).max(100).optional(),\n});\n\nconst LoginSchema = z.object({\n  email: z.string().email(),\n  password: z.string().min(1),\n  rememberMe: z.boolean().optional(),\n});\n\nconst RefreshTokenSchema = z.object({\n  refreshToken: z.string().min(1),\n});\n\nconst ForgotPasswordSchema = z.object({\n  email: z.string().email(),\n});\n\nconst ResetPasswordSchema = z.object({\n  token: z.string().min(1),\n  password: z.string().min(8).max(128),\n});\n\nconst VerifyEmailSchema = z.object({\n  token: z.string().min(1),\n});\n\nconst ChangePasswordSchema = z.object({\n  currentPassword: z.string().min(1),\n  newPassword: z.string().min(8).max(128),\n});\n\nexport function createAuthRoutes(\n  userService: UserService,\n  authService: JWTAuthService,\n  authMiddleware: AuthMiddleware\n): Router {\n  const router = Router();\n\n  // Apply security headers to all auth routes\n  router.use(authMiddleware.securityHeaders);\n\n  // POST /auth/register - Register new user\n  router.post('/register', \n    rateLimitMiddleware({ windowMs: 15 * 60 * 1000, max: 5 }), // 5 attempts per 15 minutes\n    validateRequest(RegisterSchema),\n    async (req: Request, res: Response) => {\n      try {\n        const { username, email, password, displayName } = req.body;\n        \n        const user = await userService.createUser({\n          username,\n          email,\n          passwordHash: password, // Will be hashed in service\n          displayName,\n        });\n        \n        // Generate tokens\n        const tokens = await authService.generateTokens(\n          user,\n          req.ip,\n          req.get('User-Agent')\n        );\n        \n        // Set secure cookie\n        res.cookie('refreshToken', tokens.refreshToken, {\n          httpOnly: true,\n          secure: process.env.NODE_ENV === 'production',\n          sameSite: 'strict',\n          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days\n        });\n        \n        res.status(201).json({\n          success: true,\n          message: 'Registration successful',\n          data: {\n            user: {\n              id: user.id,\n              username: user.username,\n              email: user.email,\n              displayName: user.displayName,\n              role: user.role,\n              emailVerified: user.emailVerified,\n            },\n            accessToken: tokens.accessToken,\n            expiresIn: tokens.expiresIn,\n          },\n        });\n      } catch (error: any) {\n        console.error('Registration error:', error);\n        \n        if (error.message.includes('already exists') || error.message.includes('already taken')) {\n          return res.status(409).json({\n            success: false,\n            error: error.message,\n            code: 'DUPLICATE_USER',\n          });\n        }\n        \n        res.status(500).json({\n          success: false,\n          error: 'Registration failed',\n          code: 'REGISTRATION_ERROR',\n        });\n      }\n    }\n  );\n\n  // POST /auth/login - User login\n  router.post('/login',\n    rateLimitMiddleware({ windowMs: 15 * 60 * 1000, max: 10 }), // 10 attempts per 15 minutes\n    validateRequest(LoginSchema),\n    async (req: Request, res: Response) => {\n      try {\n        const { email, password } = req.body;\n        \n        const user = await userService.authenticate(email, password);\n        if (!user) {\n          return res.status(401).json({\n            success: false,\n            error: 'Invalid email or password',\n            code: 'INVALID_CREDENTIALS',\n          });\n        }\n        \n        if (user.status !== 'active') {\n          return res.status(403).json({\n            success: false,\n            error: 'Account is not active',\n            code: 'ACCOUNT_INACTIVE',\n          });\n        }\n        \n        // Generate tokens\n        const tokens = await authService.generateTokens(\n          user,\n          req.ip,\n          req.get('User-Agent')\n        );\n        \n        // Set secure cookie\n        res.cookie('refreshToken', tokens.refreshToken, {\n          httpOnly: true,\n          secure: process.env.NODE_ENV === 'production',\n          sameSite: 'strict',\n          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days\n        });\n        \n        res.json({\n          success: true,\n          message: 'Login successful',\n          data: {\n            user: {\n              id: user.id,\n              username: user.username,\n              email: user.email,\n              displayName: user.displayName,\n              role: user.role,\n              emailVerified: user.emailVerified,\n              goatedLinked: user.goatedLinked,\n              preferences: user.preferences,\n            },\n            accessToken: tokens.accessToken,\n            expiresIn: tokens.expiresIn,\n          },\n        });\n      } catch (error: any) {\n        console.error('Login error:', error);\n        res.status(500).json({\n          success: false,\n          error: 'Login failed',\n          code: 'LOGIN_ERROR',\n        });\n      }\n    }\n  );\n\n  // POST /auth/refresh - Refresh access token\n  router.post('/refresh',\n    rateLimitMiddleware({ windowMs: 60 * 1000, max: 10 }), // 10 attempts per minute\n    async (req: Request, res: Response) => {\n      try {\n        const refreshToken = req.cookies.refreshToken || req.body.refreshToken;\n        \n        if (!refreshToken) {\n          return res.status(401).json({\n            success: false,\n            error: 'Refresh token required',\n            code: 'NO_REFRESH_TOKEN',\n          });\n        }\n        \n        const tokens = await authService.refreshTokens(refreshToken);\n        if (!tokens) {\n          return res.status(401).json({\n            success: false,\n            error: 'Invalid or expired refresh token',\n            code: 'INVALID_REFRESH_TOKEN',\n          });\n        }\n        \n        // Set new refresh token cookie\n        res.cookie('refreshToken', tokens.refreshToken, {\n          httpOnly: true,\n          secure: process.env.NODE_ENV === 'production',\n          sameSite: 'strict',\n          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days\n        });\n        \n        res.json({\n          success: true,\n          data: {\n            accessToken: tokens.accessToken,\n            expiresIn: tokens.expiresIn,\n          },\n        });\n      } catch (error: any) {\n        console.error('Token refresh error:', error);\n        res.status(500).json({\n          success: false,\n          error: 'Token refresh failed',\n          code: 'REFRESH_ERROR',\n        });\n      }\n    }\n  );\n\n  // POST /auth/logout - User logout\n  router.post('/logout',\n    authMiddleware.required,\n    authMiddleware.logout,\n    async (req: Request, res: Response) => {\n      try {\n        // Clear refresh token cookie\n        res.clearCookie('refreshToken');\n        \n        res.json({\n          success: true,\n          message: 'Logged out successfully',\n        });\n      } catch (error: any) {\n        console.error('Logout error:', error);\n        res.status(500).json({\n          success: false,\n          error: 'Logout failed',\n          code: 'LOGOUT_ERROR',\n        });\n      }\n    }\n  );\n\n  // POST /auth/logout-all - Logout from all devices\n  router.post('/logout-all',\n    authMiddleware.required,\n    async (req: Request, res: Response) => {\n      try {\n        await authService.revokeAllUserSessions(req.user!.id);\n        \n        // Clear refresh token cookie\n        res.clearCookie('refreshToken');\n        \n        res.json({\n          success: true,\n          message: 'Logged out from all devices',\n        });\n      } catch (error: any) {\n        console.error('Logout all error:', error);\n        res.status(500).json({\n          success: false,\n          error: 'Logout failed',\n          code: 'LOGOUT_ALL_ERROR',\n        });\n      }\n    }\n  );\n\n  // POST /auth/verify-email - Verify email address\n  router.post('/verify-email',\n    rateLimitMiddleware({ windowMs: 60 * 1000, max: 5 }), // 5 attempts per minute\n    validateRequest(VerifyEmailSchema),\n    async (req: Request, res: Response) => {\n      try {\n        const { token } = req.body;\n        \n        const user = await userService.verifyEmail(token);\n        if (!user) {\n          return res.status(400).json({\n            success: false,\n            error: 'Invalid or expired verification token',\n            code: 'INVALID_VERIFICATION_TOKEN',\n          });\n        }\n        \n        res.json({\n          success: true,\n          message: 'Email verified successfully',\n          data: {\n            user: {\n              id: user.id,\n              emailVerified: user.emailVerified,\n            },\n          },\n        });\n      } catch (error: any) {\n        console.error('Email verification error:', error);\n        res.status(500).json({\n          success: false,\n          error: 'Email verification failed',\n          code: 'VERIFICATION_ERROR',\n        });\n      }\n    }\n  );\n\n  // POST /auth/forgot-password - Request password reset\n  router.post('/forgot-password',\n    rateLimitMiddleware({ windowMs: 60 * 60 * 1000, max: 3 }), // 3 attempts per hour\n    validateRequest(ForgotPasswordSchema),\n    async (req: Request, res: Response) => {\n      try {\n        const { email } = req.body;\n        \n        // Always return success to prevent email enumeration\n        await userService.requestPasswordReset(email);\n        \n        res.json({\n          success: true,\n          message: 'If an account with that email exists, a password reset link has been sent',\n        });\n      } catch (error: any) {\n        console.error('Password reset request error:', error);\n        res.status(500).json({\n          success: false,\n          error: 'Password reset request failed',\n          code: 'RESET_REQUEST_ERROR',\n        });\n      }\n    }\n  );\n\n  // POST /auth/reset-password - Reset password with token\n  router.post('/reset-password',\n    rateLimitMiddleware({ windowMs: 60 * 60 * 1000, max: 5 }), // 5 attempts per hour\n    validateRequest(ResetPasswordSchema),\n    async (req: Request, res: Response) => {\n      try {\n        const { token, password } = req.body;\n        \n        const success = await userService.resetPassword(token, password);\n        if (!success) {\n          return res.status(400).json({\n            success: false,\n            error: 'Invalid or expired reset token',\n            code: 'INVALID_RESET_TOKEN',\n          });\n        }\n        \n        res.json({\n          success: true,\n          message: 'Password reset successfully',\n        });\n      } catch (error: any) {\n        console.error('Password reset error:', error);\n        res.status(500).json({\n          success: false,\n          error: 'Password reset failed',\n          code: 'RESET_ERROR',\n        });\n      }\n    }\n  );\n\n  // POST /auth/change-password - Change password (authenticated)\n  router.post('/change-password',\n    authMiddleware.required,\n    rateLimitMiddleware({ windowMs: 60 * 60 * 1000, max: 5 }), // 5 attempts per hour\n    validateRequest(ChangePasswordSchema),\n    async (req: Request, res: Response) => {\n      try {\n        const { currentPassword, newPassword } = req.body;\n        \n        const success = await userService.changePassword(\n          req.user!.id,\n          currentPassword,\n          newPassword\n        );\n        \n        if (!success) {\n          return res.status(400).json({\n            success: false,\n            error: 'Current password is incorrect',\n            code: 'INVALID_CURRENT_PASSWORD',\n          });\n        }\n        \n        // Revoke all sessions except current one\n        await authService.revokeAllUserSessions(req.user!.id);\n        \n        res.json({\n          success: true,\n          message: 'Password changed successfully',\n        });\n      } catch (error: any) {\n        console.error('Password change error:', error);\n        res.status(500).json({\n          success: false,\n          error: 'Password change failed',\n          code: 'CHANGE_PASSWORD_ERROR',\n        });\n      }\n    }\n  );\n\n  // GET /auth/me - Get current user info\n  router.get('/me',\n    authMiddleware.required,\n    async (req: Request, res: Response) => {\n      try {\n        const user = await userService.findById(req.user!.id);\n        if (!user) {\n          return res.status(404).json({\n            success: false,\n            error: 'User not found',\n            code: 'USER_NOT_FOUND',\n          });\n        }\n        \n        res.json({\n          success: true,\n          data: {\n            user: {\n              id: user.id,\n              username: user.username,\n              email: user.email,\n              displayName: user.displayName,\n              bio: user.bio,\n              avatar: user.avatar,\n              profileColor: user.profileColor,\n              role: user.role,\n              status: user.status,\n              emailVerified: user.emailVerified,\n              twoFactorEnabled: user.twoFactorEnabled,\n              goatedId: user.goatedId,\n              goatedUsername: user.goatedUsername,\n              goatedLinked: user.goatedLinked,\n              goatedVerified: user.goatedVerified,\n              privacy: user.privacy,\n              preferences: user.preferences,\n              lastLoginAt: user.lastLoginAt,\n              createdAt: user.createdAt,\n            },\n          },\n        });\n      } catch (error: any) {\n        console.error('Get user error:', error);\n        res.status(500).json({\n          success: false,\n          error: 'Failed to get user info',\n          code: 'GET_USER_ERROR',\n        });\n      }\n    }\n  );\n\n  return router;\n}"
+import { Router, Request, Response } from 'express';
+import { z } from 'zod';
+import { UserService } from '../../domain/services/UserService';
+import { JWTAuthService } from '../../infrastructure/auth/JWTAuthService';
+import { AuthMiddleware } from '../middleware/auth';
+import { validateRequest } from '../middleware/validation';
+import { rateLimitMiddleware } from '../middleware/rateLimit';
+
+// Request schemas
+const RegisterSchema = z.object({
+  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+  email: z.string().email(),
+  password: z.string().min(8).max(128),
+  displayName: z.string().min(1).max(100).optional(),
+});
+
+const LoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+  rememberMe: z.boolean().optional(),
+});
+
+const RefreshTokenSchema = z.object({
+  refreshToken: z.string().min(1),
+});
+
+const ForgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const ResetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8).max(128),
+});
+
+const VerifyEmailSchema = z.object({
+  token: z.string().min(1),
+});
+
+const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8).max(128),
+});
+
+export function createAuthRoutes(
+  authService: JWTAuthService,
+  userService: UserService,
+  rateLimit: any
+): Router {
+  const router = Router();
+  const authMiddleware = new AuthMiddleware(authService);
+
+  // POST /auth/register - Register new user
+  router.post('/register', 
+    rateLimitMiddleware({ windowMs: 15 * 60 * 1000, max: 5 }), // 5 attempts per 15 minutes
+    validateRequest(RegisterSchema),
+    async (req: Request, res: Response) => {
+      try {
+        const { username, email, password, displayName } = req.body;
+        
+        const user = await userService.createUser({
+          username,
+          email,
+          passwordHash: password, // Will be hashed in service
+          displayName,
+        });
+        
+        // Generate tokens
+        const tokens = await authService.generateTokens(
+          user,
+          req.ip,
+          req.get('User-Agent')
+        );
+        
+        // Set secure cookie
+        res.cookie('refreshToken', tokens.refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+        
+        res.status(201).json({
+          success: true,
+          message: 'Registration successful',
+          data: {
+            user: {
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              displayName: user.displayName,
+              role: user.role,
+              emailVerified: user.emailVerified,
+            },
+            tokens: {
+              accessToken: tokens.accessToken,
+              refreshToken: tokens.refreshToken,
+            },
+          },
+        });
+      } catch (error: any) {
+        console.error('Registration error:', error);
+        
+        if (error.message.includes('already exists') || error.message.includes('already taken')) {
+          return res.status(409).json({
+            success: false,
+            error: error.message,
+            code: 'DUPLICATE_USER',
+          });
+        }
+        
+        res.status(500).json({
+          success: false,
+          error: 'Registration failed',
+          code: 'REGISTRATION_ERROR',
+        });
+      }
+    }
+  );
+
+  // POST /auth/login - User login
+  router.post('/login',
+    rateLimitMiddleware({ windowMs: 15 * 60 * 1000, max: 10 }), // 10 attempts per 15 minutes
+    validateRequest(LoginSchema),
+    async (req: Request, res: Response) => {
+      try {
+        const { email, password } = req.body;
+        
+        const user = await userService.authenticate(email, password);
+        if (!user) {
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid email or password',
+            code: 'INVALID_CREDENTIALS',
+          });
+        }
+        
+        if (user.status !== 'active') {
+          return res.status(403).json({
+            success: false,
+            error: 'Account is not active',
+            code: 'ACCOUNT_INACTIVE',
+          });
+        }
+        
+        // Generate tokens
+        const tokens = await authService.generateTokens(
+          user,
+          req.ip,
+          req.get('User-Agent')
+        );
+        
+        // Set secure cookie
+        res.cookie('refreshToken', tokens.refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+        
+        res.json({
+          success: true,
+          message: 'Login successful',
+          data: {
+            user: {
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              displayName: user.displayName,
+              role: user.role,
+              isEmailVerified: user.emailVerified,
+              goatedLinked: user.goatedLinked,
+              preferences: user.preferences,
+            },
+            tokens: {
+              accessToken: tokens.accessToken,
+              refreshToken: tokens.refreshToken,
+            },
+          },
+        });
+      } catch (error: any) {
+        console.error('Login error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Login failed',
+          code: 'LOGIN_ERROR',
+        });
+      }
+    }
+  );
+
+  // GET /auth/me - Get current user info
+  router.get('/me',
+    authMiddleware.required,
+    async (req: Request, res: Response) => {
+      try {
+        const user = await userService.findById(req.user!.id);
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            error: 'User not found',
+            code: 'USER_NOT_FOUND',
+          });
+        }
+        
+        res.json({
+          success: true,
+          data: {
+            user: {
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              displayName: user.displayName,
+              bio: user.bio,
+              avatar: user.avatar,
+              profileColor: user.profileColor,
+              role: user.role,
+              status: user.status,
+              isEmailVerified: user.emailVerified,
+              twoFactorEnabled: user.twoFactorEnabled,
+              goatedId: user.goatedId,
+              goatedUsername: user.goatedUsername,
+              goatedLinked: user.goatedLinked,
+              goatedVerified: user.goatedVerified,
+              privacy: user.privacy,
+              preferences: user.preferences,
+              lastLoginAt: user.lastLoginAt,
+              createdAt: user.createdAt,
+            },
+          },
+        });
+      } catch (error: any) {
+        console.error('Get user error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get user info',
+          code: 'GET_USER_ERROR',
+        });
+      }
+    }
+  );
+
+  // POST /auth/logout - User logout
+  router.post('/logout',
+    async (req: Request, res: Response) => {
+      try {
+        // Clear refresh token cookie
+        res.clearCookie('refreshToken');
+        
+        res.json({
+          success: true,
+          message: 'Logged out successfully',
+        });
+      } catch (error: any) {
+        console.error('Logout error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Logout failed',
+          code: 'LOGOUT_ERROR',
+        });
+      }
+    }
+  );
+
+  return router;
+}

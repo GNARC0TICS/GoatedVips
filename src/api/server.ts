@@ -1,1 +1,363 @@
-import express from 'express';\nimport cors from 'cors';\nimport helmet from 'helmet';\nimport compression from 'compression';\nimport cookieParser from 'cookie-parser';\nimport { createServer } from 'http';\nimport { WebSocketServer } from 'ws';\n\n// Infrastructure\nimport { RedisCache } from '../infrastructure/cache/RedisCache';\nimport { DrizzleUserRepository } from '../infrastructure/database/DrizzleUserRepository';\nimport { JWTAuthService } from '../infrastructure/auth/JWTAuthService';\n\n// Domain Services\nimport { UserService } from '../domain/services/UserService';\n\n// API Middleware\nimport { AuthMiddleware } from './middleware/auth';\nimport { createRateLimitMiddleware, RedisRateLimitStore } from './middleware/rateLimit';\nimport { sanitizeInput } from './middleware/validation';\n\n// Routes\nimport { createAuthRoutes } from './routes/auth';\n\n// Types\nimport { ICacheService } from '../infrastructure/cache/ICacheService';\nimport { IUserRepository } from '../domain/repositories/IUserRepository';\nimport { IEmailService } from '../infrastructure/email/IEmailService';\n\n// Configuration\ninterface ServerConfig {\n  port: number;\n  host: string;\n  corsOrigins: string[];\n  databaseUrl: string;\n  redisHost?: string;\n  redisPort?: number;\n  redisPassword?: string;\n  jwtSecret: string;\n  jwtRefreshSecret: string;\n  emailService?: IEmailService;\n}\n\nexport class APIServer {\n  private app: express.Application;\n  private server: any;\n  private wss: WebSocketServer | null = null;\n  \n  // Services\n  private cacheService: ICacheService;\n  private userRepository: IUserRepository;\n  private userService: UserService;\n  private authService: JWTAuthService;\n  private authMiddleware: AuthMiddleware;\n  private rateLimitMiddleware: any;\n\n  constructor(private config: ServerConfig) {\n    this.app = express();\n    this.initializeServices();\n    this.setupMiddleware();\n    this.setupRoutes();\n    this.setupErrorHandling();\n  }\n\n  private initializeServices(): void {\n    // Initialize cache service\n    this.cacheService = new RedisCache({\n      host: this.config.redisHost,\n      port: this.config.redisPort,\n      password: this.config.redisPassword,\n      keyPrefix: 'gvip:',\n    });\n\n    // Initialize repositories\n    this.userRepository = new DrizzleUserRepository(this.config.databaseUrl);\n\n    // Initialize domain services\n    this.userService = new UserService(\n      this.userRepository,\n      this.cacheService,\n      this.config.emailService!\n    );\n\n    // Initialize auth service\n    this.authService = new JWTAuthService(\n      this.cacheService,\n      this.userRepository,\n      this.config.jwtSecret,\n      this.config.jwtRefreshSecret\n    );\n\n    // Initialize middleware\n    this.authMiddleware = new AuthMiddleware(\n      this.authService,\n      this.userService\n    );\n\n    // Initialize rate limiting\n    const rateLimitStore = new RedisRateLimitStore(this.cacheService);\n    this.rateLimitMiddleware = createRateLimitMiddleware(rateLimitStore);\n  }\n\n  private setupMiddleware(): void {\n    // Security middleware\n    this.app.use(helmet({\n      contentSecurityPolicy: {\n        directives: {\n          defaultSrc: [\"'self'\"],\n          styleSrc: [\"'self'\", \"'unsafe-inline'\"],\n          scriptSrc: [\"'self'\"],\n          imgSrc: [\"'self'\", \"data:\", \"https:\"],\n          connectSrc: [\"'self'\", \"wss:\"],\n          fontSrc: [\"'self'\"],\n          objectSrc: [\"'none'\"],\n          mediaSrc: [\"'self'\"],\n          frameSrc: [\"'none'\"],\n        },\n      },\n      crossOriginEmbedderPolicy: false,\n    }));\n\n    // CORS\n    this.app.use(cors({\n      origin: this.config.corsOrigins,\n      credentials: true,\n      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],\n      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],\n      exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],\n    }));\n\n    // Compression\n    this.app.use(compression());\n\n    // Body parsing\n    this.app.use(express.json({ limit: '10mb' }));\n    this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));\n    this.app.use(cookieParser());\n\n    // Input sanitization\n    this.app.use(sanitizeInput);\n\n    // Global rate limiting\n    this.app.use(this.rateLimitMiddleware({\n      windowMs: 15 * 60 * 1000, // 15 minutes\n      max: 1000, // 1000 requests per window\n      message: 'Too many requests from this IP',\n      standardHeaders: true,\n    }));\n\n    // Request logging\n    this.app.use((req, res, next) => {\n      const start = Date.now();\n      res.on('finish', () => {\n        const duration = Date.now() - start;\n        console.log(`${req.method} ${req.path} - ${res.statusCode} - ${duration}ms`);\n      });\n      next();\n    });\n  }\n\n  private setupRoutes(): void {\n    // Health check\n    this.app.get('/health', async (req, res) => {\n      try {\n        // Check database\n        const dbHealthy = await this.testDatabaseConnection();\n        \n        // Check cache\n        const cacheHealthy = await this.testCacheConnection();\n        \n        const healthy = dbHealthy && cacheHealthy;\n        \n        res.status(healthy ? 200 : 503).json({\n          status: healthy ? 'healthy' : 'unhealthy',\n          timestamp: new Date().toISOString(),\n          services: {\n            database: dbHealthy ? 'healthy' : 'unhealthy',\n            cache: cacheHealthy ? 'healthy' : 'unhealthy',\n          },\n          version: process.env.npm_package_version || '1.0.0',\n        });\n      } catch (error) {\n        console.error('Health check error:', error);\n        res.status(503).json({\n          status: 'unhealthy',\n          timestamp: new Date().toISOString(),\n          error: 'Health check failed',\n        });\n      }\n    });\n\n    // API routes\n    this.app.use('/api/auth', createAuthRoutes(\n      this.userService,\n      this.authService,\n      this.authMiddleware\n    ));\n\n    // API info\n    this.app.get('/api', (req, res) => {\n      res.json({\n        name: 'Goombas x Goated VIPs API',\n        version: '2.0.0',\n        description: 'Secure, scalable API for Goombas x Goated VIPs platform',\n        documentation: '/api/docs',\n        endpoints: {\n          auth: '/api/auth',\n          users: '/api/users',\n          wagers: '/api/wagers',\n          races: '/api/races',\n        },\n      });\n    });\n\n    // 404 handler\n    this.app.use((req, res) => {\n      res.status(404).json({\n        success: false,\n        error: 'Endpoint not found',\n        code: 'NOT_FOUND',\n        path: req.path,\n        method: req.method,\n      });\n    });\n  }\n\n  private setupErrorHandling(): void {\n    // Global error handler\n    this.app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {\n      console.error('Unhandled error:', error);\n      \n      // Don't expose error details in production\n      const isDevelopment = process.env.NODE_ENV === 'development';\n      \n      res.status(error.status || 500).json({\n        success: false,\n        error: isDevelopment ? error.message : 'Internal server error',\n        code: error.code || 'INTERNAL_ERROR',\n        ...(isDevelopment && { stack: error.stack }),\n      });\n    });\n\n    // Handle uncaught exceptions\n    process.on('uncaughtException', (error) => {\n      console.error('Uncaught Exception:', error);\n      this.gracefulShutdown('uncaughtException');\n    });\n\n    // Handle unhandled promise rejections\n    process.on('unhandledRejection', (reason, promise) => {\n      console.error('Unhandled Rejection at:', promise, 'reason:', reason);\n      this.gracefulShutdown('unhandledRejection');\n    });\n\n    // Handle process termination\n    process.on('SIGTERM', () => {\n      console.log('SIGTERM received');\n      this.gracefulShutdown('SIGTERM');\n    });\n\n    process.on('SIGINT', () => {\n      console.log('SIGINT received');\n      this.gracefulShutdown('SIGINT');\n    });\n  }\n\n  private async testDatabaseConnection(): Promise<boolean> {\n    try {\n      // Test database connection\n      await this.userRepository.getStats();\n      return true;\n    } catch (error) {\n      console.error('Database health check failed:', error);\n      return false;\n    }\n  }\n\n  private async testCacheConnection(): Promise<boolean> {\n    try {\n      const result = await this.cacheService.ping();\n      return result === 'PONG';\n    } catch (error) {\n      console.error('Cache health check failed:', error);\n      return false;\n    }\n  }\n\n  public async start(): Promise<void> {\n    try {\n      // Test connections before starting\n      const dbHealthy = await this.testDatabaseConnection();\n      const cacheHealthy = await this.testCacheConnection();\n      \n      if (!dbHealthy) {\n        throw new Error('Database connection failed');\n      }\n      \n      if (!cacheHealthy) {\n        console.warn('Cache connection failed - continuing without cache');\n      }\n      \n      // Start HTTP server\n      this.server = createServer(this.app);\n      \n      // Setup WebSocket server (if needed)\n      if (this.config.port) {\n        this.wss = new WebSocketServer({ server: this.server });\n        this.setupWebSocket();\n      }\n      \n      this.server.listen(this.config.port, this.config.host, () => {\n        console.log(`🚀 Server running on http://${this.config.host}:${this.config.port}`);\n        console.log(`📊 Health check available at http://${this.config.host}:${this.config.port}/health`);\n        console.log(`🔐 API available at http://${this.config.host}:${this.config.port}/api`);\n      });\n      \n    } catch (error) {\n      console.error('Failed to start server:', error);\n      process.exit(1);\n    }\n  }\n\n  private setupWebSocket(): void {\n    if (!this.wss) return;\n    \n    this.wss.on('connection', (ws, req) => {\n      console.log('WebSocket connection established');\n      \n      ws.on('message', (data) => {\n        try {\n          const message = JSON.parse(data.toString());\n          console.log('WebSocket message:', message);\n          \n          // Handle WebSocket messages here\n          \n        } catch (error) {\n          console.error('WebSocket message error:', error);\n        }\n      });\n      \n      ws.on('close', () => {\n        console.log('WebSocket connection closed');\n      });\n      \n      ws.on('error', (error) => {\n        console.error('WebSocket error:', error);\n      });\n    });\n  }\n\n  private async gracefulShutdown(signal: string): Promise<void> {\n    console.log(`Graceful shutdown initiated by ${signal}`);\n    \n    // Stop accepting new connections\n    if (this.server) {\n      this.server.close(() => {\n        console.log('HTTP server closed');\n      });\n    }\n    \n    // Close WebSocket connections\n    if (this.wss) {\n      this.wss.close(() => {\n        console.log('WebSocket server closed');\n      });\n    }\n    \n    // Close cache connections\n    try {\n      if (this.cacheService && 'disconnect' in this.cacheService) {\n        await (this.cacheService as any).disconnect();\n        console.log('Cache connections closed');\n      }\n    } catch (error) {\n      console.error('Error closing cache connections:', error);\n    }\n    \n    // Exit process\n    setTimeout(() => {\n      console.log('Forcefully shutting down');\n      process.exit(1);\n    }, 10000); // Force exit after 10 seconds\n    \n    process.exit(0);\n  }\n\n  public getApp(): express.Application {\n    return this.app;\n  }\n}"
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import cookieParser from 'cookie-parser';
+import { createServer } from 'http';
+
+// Infrastructure
+import { RedisCache } from '../infrastructure/cache/RedisCache';
+import { DrizzleUserRepository } from '../infrastructure/database/DrizzleUserRepository';
+import { JWTAuthService } from '../infrastructure/auth/JWTAuthService';
+
+// Domain Services
+import { UserService } from '../domain/services/UserService';
+
+// API Middleware
+import { AuthMiddleware } from './middleware/auth';
+import { createRateLimitMiddleware, MemoryRateLimitStore } from './middleware/rateLimit';
+import { sanitizeInput } from './middleware/validation';
+
+// Routes
+import { createAuthRoutes } from './routes/auth';
+
+// Types
+import { ICacheService } from '../infrastructure/cache/ICacheService';
+import { IUserRepository } from '../domain/repositories/IUserRepository';
+import { IEmailService } from '../infrastructure/email/IEmailService';
+
+// Configuration
+interface ServerConfig {
+  port: number;
+  host: string;
+  corsOrigins: string[];
+  databaseUrl: string;
+  redisHost?: string;
+  redisPort?: number;
+  redisPassword?: string;
+  jwtSecret: string;
+  jwtRefreshSecret: string;
+  emailService?: IEmailService;
+}
+
+export class APIServer {
+  private app: express.Application;
+  private server: any;
+
+  constructor(private config: ServerConfig) {
+    this.app = express();
+    this.setupMiddleware();
+    this.setupRoutes();
+    this.setupErrorHandling();
+  }
+
+  private setupMiddleware(): void {
+    // Security middleware
+    this.app.use(helmet());
+
+    // CORS
+    this.app.use(cors({
+      origin: this.config.corsOrigins,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    }));
+
+    // Compression
+    this.app.use(compression());
+
+    // Body parsing
+    this.app.use(express.json({ limit: '10mb' }));
+    this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+    this.app.use(cookieParser());
+
+    // Request logging
+    this.app.use((req, res, next) => {
+      const start = Date.now();
+      res.on('finish', () => {
+        const duration = Date.now() - start;
+        console.log(`${req.method} ${req.path} - ${res.statusCode} - ${duration}ms`);
+      });
+      next();
+    });
+  }
+
+  private setupRoutes(): void {
+    // Initialize services
+    const cache = new RedisCache(this.config.redisHost || 'localhost', this.config.redisPort || 6379, this.config.redisPassword);
+    const userRepository = new DrizzleUserRepository(this.config.databaseUrl);
+    const authService = new JWTAuthService(this.config.jwtSecret, this.config.jwtRefreshSecret);
+    const userService = new UserService(userRepository, this.config.emailService);
+    
+    // Initialize middleware
+    const authMiddleware = new AuthMiddleware(authService);
+    const rateLimitStore = new MemoryRateLimitStore();
+    const rateLimit = createRateLimitMiddleware(rateLimitStore);
+
+    // Health check
+    this.app.get('/health', async (req, res) => {
+      let dbStatus = 'healthy';
+      let cacheStatus = 'healthy';
+      
+      try {
+        await userRepository.getStats();
+      } catch {
+        dbStatus = 'unhealthy';
+      }
+      
+      try {
+        await cache.ping();
+      } catch {
+        cacheStatus = 'unhealthy';
+      }
+
+      res.json({
+        status: dbStatus === 'healthy' && cacheStatus === 'healthy' ? 'healthy' : 'degraded',
+        timestamp: new Date().toISOString(),
+        version: '2.0.0',
+        services: {
+          database: dbStatus,
+          cache: cacheStatus,
+        }
+      });
+    });
+
+    // API info
+    this.app.get('/api', (req, res) => {
+      res.json({
+        name: 'Goombas x Goated VIPs API',
+        version: '2.0.0',
+        description: 'Secure, scalable API for Goombas x Goated VIPs platform',
+        endpoints: {
+          auth: '/api/auth',
+          users: '/api/users',
+          wagers: '/api/wagers',
+          races: '/api/races',
+          leaderboard: '/api/leaderboard',
+          health: '/health',
+        },
+      });
+    });
+
+    // Real authentication routes
+    this.app.use('/api/auth', createAuthRoutes(authService, userService, rateLimit));
+
+    // Mock user routes (to be replaced with real routes)
+    this.app.use('/api/users', this.createMockUserRoutes());
+
+    // Mock leaderboard routes (to be replaced with real routes)
+    this.app.use('/api/leaderboard', this.createMockLeaderboardRoutes());
+
+    // 404 handler
+    this.app.use((req, res) => {
+      res.status(404).json({
+        success: false,
+        error: 'Endpoint not found',
+        code: 'NOT_FOUND',
+        path: req.path,
+        method: req.method,
+      });
+    });
+  }
+
+  private createMockAuthRoutes() {
+    const router = require('express').Router();
+
+    // Mock login
+    router.post('/login', (req, res) => {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email and password are required',
+          code: 'MISSING_CREDENTIALS'
+        });
+      }
+
+      // Mock successful login
+      res.json({
+        success: true,
+        message: 'Login successful',
+        data: {
+          user: {
+            id: 'user_123',
+            username: 'testuser',
+            email: email,
+            role: 'user',
+            isEmailVerified: true,
+          },
+          tokens: {
+            accessToken: 'mock_access_token_123',
+            refreshToken: 'mock_refresh_token_123',
+          }
+        }
+      });
+    });
+
+    // Mock register
+    router.post('/register', (req, res) => {
+      const { username, email, password } = req.body;
+      
+      if (!username || !email || !password) {
+        return res.status(400).json({
+          success: false,
+          error: 'Username, email, and password are required',
+          code: 'MISSING_FIELDS'
+        });
+      }
+
+      // Mock successful registration
+      res.status(201).json({
+        success: true,
+        message: 'Registration successful',
+        data: {
+          user: {
+            id: 'user_' + Date.now(),
+            username: username,
+            email: email,
+            role: 'user',
+            isEmailVerified: false,
+            createdAt: new Date().toISOString(),
+          },
+          tokens: {
+            accessToken: 'mock_access_token_' + Date.now(),
+            refreshToken: 'mock_refresh_token_' + Date.now(),
+          }
+        }
+      });
+    });
+
+    // Mock me endpoint
+    router.get('/me', (req, res) => {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({
+          success: false,
+          error: 'Authentication required',
+          code: 'NO_TOKEN'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          user: {
+            id: 'user_123',
+            username: 'testuser',
+            email: 'test@example.com',
+            role: 'user',
+            isEmailVerified: true,
+            createdAt: '2024-01-01T00:00:00Z',
+          }
+        }
+      });
+    });
+
+    return router;
+  }
+
+  private createMockUserRoutes() {
+    const router = require('express').Router();
+
+    // Get user profile
+    router.get('/:id', (req, res) => {
+      res.json({
+        success: true,
+        data: {
+          user: {
+            id: req.params.id,
+            username: 'testuser',
+            displayName: 'Test User',
+            avatar: null,
+            role: 'user',
+            stats: {
+              totalWager: 1500.50,
+              gamesPlayed: 45,
+              winRate: 0.67,
+              rank: 15,
+            },
+            isOnline: true,
+            lastSeen: new Date().toISOString(),
+          }
+        }
+      });
+    });
+
+    return router;
+  }
+
+  private createMockLeaderboardRoutes() {
+    const router = require('express').Router();
+
+    // Get leaderboard
+    router.get('/', (req, res) => {
+      const mockLeaderboard = Array.from({ length: 10 }, (_, i) => ({
+        rank: i + 1,
+        user: {
+          id: `user_${i + 1}`,
+          username: `player${i + 1}`,
+          displayName: `Player ${i + 1}`,
+          avatar: null,
+        },
+        stats: {
+          totalWager: Math.floor(Math.random() * 10000) + 1000,
+          gamesPlayed: Math.floor(Math.random() * 100) + 10,
+          winRate: Math.round((Math.random() * 0.5 + 0.3) * 100) / 100,
+        },
+        change: Math.floor(Math.random() * 10) - 5, // -5 to +5
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          leaderboard: mockLeaderboard,
+          pagination: {
+            page: 1,
+            limit: 10,
+            total: 100,
+          },
+          lastUpdated: new Date().toISOString(),
+        }
+      });
+    });
+
+    return router;
+  }
+
+  private setupErrorHandling(): void {
+    // Global error handler
+    this.app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+      console.error('Unhandled error:', error);
+      
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      
+      res.status(error.status || 500).json({
+        success: false,
+        error: isDevelopment ? error.message : 'Internal server error',
+        code: error.code || 'INTERNAL_ERROR',
+        ...(isDevelopment && { stack: error.stack }),
+      });
+    });
+  }
+
+  public async start(): Promise<void> {
+    try {
+      this.server = createServer(this.app);
+      
+      this.server.listen(this.config.port, this.config.host, () => {
+        console.log(`🚀 Server running on http://${this.config.host}:${this.config.port}`);
+        console.log(`📊 Health check available at http://${this.config.host}:${this.config.port}/health`);
+        console.log(`🔐 API available at http://${this.config.host}:${this.config.port}/api`);
+      });
+      
+    } catch (error) {
+      console.error('Failed to start server:', error);
+      process.exit(1);
+    }
+  }
+
+  public getApp(): express.Application {
+    return this.app;
+  }
+}

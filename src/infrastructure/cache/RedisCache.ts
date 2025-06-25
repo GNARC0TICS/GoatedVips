@@ -1,1 +1,268 @@
-import Redis from 'ioredis';\nimport { ICacheService } from './ICacheService';\n\nexport class RedisCache implements ICacheService {\n  private redis: Redis;\n  private readonly keyPrefix: string;\n\n  constructor(options: {\n    host?: string;\n    port?: number;\n    password?: string;\n    db?: number;\n    keyPrefix?: string;\n    maxRetriesPerRequest?: number;\n    retryDelayOnFailover?: number;\n    lazyConnect?: boolean;\n  } = {}) {\n    this.keyPrefix = options.keyPrefix || 'gvip:';\n    \n    this.redis = new Redis({\n      host: options.host || process.env.REDIS_HOST || 'localhost',\n      port: options.port || parseInt(process.env.REDIS_PORT || '6379'),\n      password: options.password || process.env.REDIS_PASSWORD,\n      db: options.db || parseInt(process.env.REDIS_DB || '0'),\n      maxRetriesPerRequest: options.maxRetriesPerRequest || 3,\n      retryDelayOnFailover: options.retryDelayOnFailover || 100,\n      lazyConnect: options.lazyConnect !== false,\n      \n      // Connection pool settings\n      maxConnections: 20,\n      minConnections: 5,\n      \n      // Retry settings\n      retryStrategyOnFailover: () => 100,\n      enableReadyCheck: true,\n      maxLoadingTimeout: 2000,\n      \n      // Serialization\n      keyPrefix: this.keyPrefix,\n    });\n\n    // Handle connection events\n    this.redis.on('connect', () => {\n      console.log('Redis connected');\n    });\n\n    this.redis.on('error', (error) => {\n      console.error('Redis error:', error);\n    });\n\n    this.redis.on('close', () => {\n      console.log('Redis connection closed');\n    });\n  }\n\n  async get<T = any>(key: string): Promise<T | null> {\n    try {\n      const value = await this.redis.get(key);\n      return value ? JSON.parse(value) : null;\n    } catch (error) {\n      console.error(`Redis GET error for key ${key}:`, error);\n      return null;\n    }\n  }\n\n  async set(key: string, value: any, ttlSeconds?: number): Promise<void> {\n    try {\n      const serialized = JSON.stringify(value);\n      if (ttlSeconds) {\n        await this.redis.setex(key, ttlSeconds, serialized);\n      } else {\n        await this.redis.set(key, serialized);\n      }\n    } catch (error) {\n      console.error(`Redis SET error for key ${key}:`, error);\n      throw error;\n    }\n  }\n\n  async delete(key: string): Promise<boolean> {\n    try {\n      const result = await this.redis.del(key);\n      return result > 0;\n    } catch (error) {\n      console.error(`Redis DELETE error for key ${key}:`, error);\n      return false;\n    }\n  }\n\n  async exists(key: string): Promise<boolean> {\n    try {\n      const result = await this.redis.exists(key);\n      return result > 0;\n    } catch (error) {\n      console.error(`Redis EXISTS error for key ${key}:`, error);\n      return false;\n    }\n  }\n\n  async mget(keys: string[]): Promise<(any | null)[]> {\n    try {\n      const values = await this.redis.mget(...keys);\n      return values.map(value => value ? JSON.parse(value) : null);\n    } catch (error) {\n      console.error('Redis MGET error:', error);\n      return keys.map(() => null);\n    }\n  }\n\n  async mset(keyValues: Record<string, any>, ttlSeconds?: number): Promise<void> {\n    try {\n      const pipeline = this.redis.pipeline();\n      \n      for (const [key, value] of Object.entries(keyValues)) {\n        const serialized = JSON.stringify(value);\n        if (ttlSeconds) {\n          pipeline.setex(key, ttlSeconds, serialized);\n        } else {\n          pipeline.set(key, serialized);\n        }\n      }\n      \n      await pipeline.exec();\n    } catch (error) {\n      console.error('Redis MSET error:', error);\n      throw error;\n    }\n  }\n\n  async mdelete(keys: string[]): Promise<number> {\n    try {\n      return await this.redis.del(...keys);\n    } catch (error) {\n      console.error('Redis MDELETE error:', error);\n      return 0;\n    }\n  }\n\n  // List operations\n  async lpush(key: string, ...values: any[]): Promise<number> {\n    try {\n      const serialized = values.map(v => JSON.stringify(v));\n      return await this.redis.lpush(key, ...serialized);\n    } catch (error) {\n      console.error(`Redis LPUSH error for key ${key}:`, error);\n      throw error;\n    }\n  }\n\n  async rpush(key: string, ...values: any[]): Promise<number> {\n    try {\n      const serialized = values.map(v => JSON.stringify(v));\n      return await this.redis.rpush(key, ...serialized);\n    } catch (error) {\n      console.error(`Redis RPUSH error for key ${key}:`, error);\n      throw error;\n    }\n  }\n\n  async lpop(key: string): Promise<any | null> {\n    try {\n      const value = await this.redis.lpop(key);\n      return value ? JSON.parse(value) : null;\n    } catch (error) {\n      console.error(`Redis LPOP error for key ${key}:`, error);\n      return null;\n    }\n  }\n\n  async rpop(key: string): Promise<any | null> {\n    try {\n      const value = await this.redis.rpop(key);\n      return value ? JSON.parse(value) : null;\n    } catch (error) {\n      console.error(`Redis RPOP error for key ${key}:`, error);\n      return null;\n    }\n  }\n\n  async lrange(key: string, start: number, stop: number): Promise<any[]> {\n    try {\n      const values = await this.redis.lrange(key, start, stop);\n      return values.map(v => JSON.parse(v));\n    } catch (error) {\n      console.error(`Redis LRANGE error for key ${key}:`, error);\n      return [];\n    }\n  }\n\n  async llen(key: string): Promise<number> {\n    try {\n      return await this.redis.llen(key);\n    } catch (error) {\n      console.error(`Redis LLEN error for key ${key}:`, error);\n      return 0;\n    }\n  }\n\n  // Set operations\n  async sadd(key: string, ...members: any[]): Promise<number> {\n    try {\n      const serialized = members.map(m => JSON.stringify(m));\n      return await this.redis.sadd(key, ...serialized);\n    } catch (error) {\n      console.error(`Redis SADD error for key ${key}:`, error);\n      throw error;\n    }\n  }\n\n  async srem(key: string, ...members: any[]): Promise<number> {\n    try {\n      const serialized = members.map(m => JSON.stringify(m));\n      return await this.redis.srem(key, ...serialized);\n    } catch (error) {\n      console.error(`Redis SREM error for key ${key}:`, error);\n      return 0;\n    }\n  }\n\n  async smembers(key: string): Promise<any[]> {\n    try {\n      const members = await this.redis.smembers(key);\n      return members.map(m => JSON.parse(m));\n    } catch (error) {\n      console.error(`Redis SMEMBERS error for key ${key}:`, error);\n      return [];\n    }\n  }\n\n  async sismember(key: string, member: any): Promise<boolean> {\n    try {\n      const result = await this.redis.sismember(key, JSON.stringify(member));\n      return result === 1;\n    } catch (error) {\n      console.error(`Redis SISMEMBER error for key ${key}:`, error);\n      return false;\n    }\n  }\n\n  async scard(key: string): Promise<number> {\n    try {\n      return await this.redis.scard(key);\n    } catch (error) {\n      console.error(`Redis SCARD error for key ${key}:`, error);\n      return 0;\n    }\n  }\n\n  // Hash operations\n  async hget(key: string, field: string): Promise<any | null> {\n    try {\n      const value = await this.redis.hget(key, field);\n      return value ? JSON.parse(value) : null;\n    } catch (error) {\n      console.error(`Redis HGET error for key ${key}, field ${field}:`, error);\n      return null;\n    }\n  }\n\n  async hset(key: string, field: string, value: any): Promise<void> {\n    try {\n      await this.redis.hset(key, field, JSON.stringify(value));\n    } catch (error) {\n      console.error(`Redis HSET error for key ${key}, field ${field}:`, error);\n      throw error;\n    }\n  }\n\n  async hmget(key: string, fields: string[]): Promise<(any | null)[]> {\n    try {\n      const values = await this.redis.hmget(key, ...fields);\n      return values.map(v => v ? JSON.parse(v) : null);\n    } catch (error) {\n      console.error(`Redis HMGET error for key ${key}:`, error);\n      return fields.map(() => null);\n    }\n  }\n\n  async hmset(key: string, fieldValues: Record<string, any>): Promise<void> {\n    try {\n      const serialized: Record<string, string> = {};\n      for (const [field, value] of Object.entries(fieldValues)) {\n        serialized[field] = JSON.stringify(value);\n      }\n      await this.redis.hmset(key, serialized);\n    } catch (error) {\n      console.error(`Redis HMSET error for key ${key}:`, error);\n      throw error;\n    }\n  }\n\n  async hgetall(key: string): Promise<Record<string, any>> {\n    try {\n      const result = await this.redis.hgetall(key);\n      const parsed: Record<string, any> = {};\n      for (const [field, value] of Object.entries(result)) {\n        parsed[field] = JSON.parse(value);\n      }\n      return parsed;\n    } catch (error) {\n      console.error(`Redis HGETALL error for key ${key}:`, error);\n      return {};\n    }\n  }\n\n  async hdel(key: string, ...fields: string[]): Promise<number> {\n    try {\n      return await this.redis.hdel(key, ...fields);\n    } catch (error) {\n      console.error(`Redis HDEL error for key ${key}:`, error);\n      return 0;\n    }\n  }\n\n  // TTL operations\n  async expire(key: string, seconds: number): Promise<boolean> {\n    try {\n      const result = await this.redis.expire(key, seconds);\n      return result === 1;\n    } catch (error) {\n      console.error(`Redis EXPIRE error for key ${key}:`, error);\n      return false;\n    }\n  }\n\n  async ttl(key: string): Promise<number> {\n    try {\n      return await this.redis.ttl(key);\n    } catch (error) {\n      console.error(`Redis TTL error for key ${key}:`, error);\n      return -1;\n    }\n  }\n\n  async persist(key: string): Promise<boolean> {\n    try {\n      const result = await this.redis.persist(key);\n      return result === 1;\n    } catch (error) {\n      console.error(`Redis PERSIST error for key ${key}:`, error);\n      return false;\n    }\n  }\n\n  // Pattern operations\n  async keys(pattern: string): Promise<string[]> {\n    try {\n      return await this.redis.keys(pattern);\n    } catch (error) {\n      console.error(`Redis KEYS error for pattern ${pattern}:`, error);\n      return [];\n    }\n  }\n\n  async scan(cursor: number, pattern?: string, count?: number): Promise<{ cursor: number; keys: string[] }> {\n    try {\n      const args: any[] = [cursor];\n      if (pattern) {\n        args.push('MATCH', pattern);\n      }\n      if (count) {\n        args.push('COUNT', count);\n      }\n      \n      const [newCursor, keys] = await this.redis.scan(...args);\n      return { cursor: parseInt(newCursor), keys };\n    } catch (error) {\n      console.error('Redis SCAN error:', error);\n      return { cursor: 0, keys: [] };\n    }\n  }\n\n  // Atomic operations\n  async incr(key: string): Promise<number> {\n    try {\n      return await this.redis.incr(key);\n    } catch (error) {\n      console.error(`Redis INCR error for key ${key}:`, error);\n      throw error;\n    }\n  }\n\n  async incrby(key: string, increment: number): Promise<number> {\n    try {\n      return await this.redis.incrby(key, increment);\n    } catch (error) {\n      console.error(`Redis INCRBY error for key ${key}:`, error);\n      throw error;\n    }\n  }\n\n  async decr(key: string): Promise<number> {\n    try {\n      return await this.redis.decr(key);\n    } catch (error) {\n      console.error(`Redis DECR error for key ${key}:`, error);\n      throw error;\n    }\n  }\n\n  async decrby(key: string, decrement: number): Promise<number> {\n    try {\n      return await this.redis.decrby(key, decrement);\n    } catch (error) {\n      console.error(`Redis DECRBY error for key ${key}:`, error);\n      throw error;\n    }\n  }\n\n  // Utility\n  async flushall(): Promise<void> {\n    try {\n      await this.redis.flushall();\n    } catch (error) {\n      console.error('Redis FLUSHALL error:', error);\n      throw error;\n    }\n  }\n\n  async ping(): Promise<string> {\n    try {\n      return await this.redis.ping();\n    } catch (error) {\n      console.error('Redis PING error:', error);\n      throw error;\n    }\n  }\n\n  // Connection management\n  async disconnect(): Promise<void> {\n    await this.redis.disconnect();\n  }\n\n  async quit(): Promise<void> {\n    await this.redis.quit();\n  }\n\n  // Get Redis instance for advanced operations\n  getRedisInstance(): Redis {\n    return this.redis;\n  }\n}"
+import Redis from 'ioredis';
+import { ICacheService } from './ICacheService';
+
+export class RedisCache implements ICacheService {
+  private redis: Redis;
+  private readonly keyPrefix: string;
+
+  constructor(host: string = 'localhost', port: number = 6379, password?: string, options: {
+    db?: number;
+    keyPrefix?: string;
+    maxRetriesPerRequest?: number;
+    retryDelayOnFailover?: number;
+    lazyConnect?: boolean;
+  } = {}) {
+    this.keyPrefix = options.keyPrefix || 'gvip:';
+    
+    this.redis = new Redis({
+      host: host || process.env.REDIS_HOST || 'localhost',
+      port: port || parseInt(process.env.REDIS_PORT || '6379'),
+      password: password || process.env.REDIS_PASSWORD,
+      db: options.db || parseInt(process.env.REDIS_DB || '0'),
+      maxRetriesPerRequest: options.maxRetriesPerRequest || 3,
+      retryDelayOnFailover: options.retryDelayOnFailover || 100,
+      lazyConnect: options.lazyConnect !== false,
+      
+      // Connection pool settings
+      maxConnections: 20,
+      minConnections: 5,
+      
+      // Retry settings
+      retryStrategyOnFailover: () => 100,
+      enableReadyCheck: true,
+      maxLoadingTimeout: 2000,
+      
+      // Serialization
+      keyPrefix: this.keyPrefix,
+    });
+
+    // Handle connection events
+    this.redis.on('connect', () => {
+      console.log('Redis connected');
+    });
+
+    this.redis.on('error', (error) => {
+      console.error('Redis error:', error);
+    });
+
+    this.redis.on('close', () => {
+      console.log('Redis connection closed');
+    });
+  }
+
+  async get<T = any>(key: string): Promise<T | null> {
+    try {
+      const value = await this.redis.get(key);
+      return value ? JSON.parse(value) : null;
+    } catch (error) {
+      console.error(`Redis GET error for key ${key}:`, error);
+      return null;
+    }
+  }
+
+  async set(key: string, value: any, ttlSeconds?: number): Promise<void> {
+    try {
+      const serialized = JSON.stringify(value);
+      if (ttlSeconds) {
+        await this.redis.setex(key, ttlSeconds, serialized);
+      } else {
+        await this.redis.set(key, serialized);
+      }
+    } catch (error) {
+      console.error(`Redis SET error for key ${key}:`, error);
+      throw error;
+    }
+  }
+
+  async delete(key: string): Promise<boolean> {
+    try {
+      const result = await this.redis.del(key);
+      return result > 0;
+    } catch (error) {
+      console.error(`Redis DELETE error for key ${key}:`, error);
+      return false;
+    }
+  }
+
+  async exists(key: string): Promise<boolean> {
+    try {
+      const result = await this.redis.exists(key);
+      return result > 0;
+    } catch (error) {
+      console.error(`Redis EXISTS error for key ${key}:`, error);
+      return false;
+    }
+  }
+
+  async mget(keys: string[]): Promise<(any | null)[]> {
+    try {
+      const values = await this.redis.mget(...keys);
+      return values.map(value => value ? JSON.parse(value) : null);
+    } catch (error) {
+      console.error('Redis MGET error:', error);
+      return keys.map(() => null);
+    }
+  }
+
+  async mset(keyValues: Record<string, any>, ttlSeconds?: number): Promise<void> {
+    try {
+      const pipeline = this.redis.pipeline();
+      
+      for (const [key, value] of Object.entries(keyValues)) {
+        const serialized = JSON.stringify(value);
+        if (ttlSeconds) {
+          pipeline.setex(key, ttlSeconds, serialized);
+        } else {
+          pipeline.set(key, serialized);
+        }
+      }
+      
+      await pipeline.exec();
+    } catch (error) {
+      console.error('Redis MSET error:', error);
+      throw error;
+    }
+  }
+
+  async mdelete(keys: string[]): Promise<number> {
+    try {
+      return await this.redis.del(...keys);
+    } catch (error) {
+      console.error('Redis MDELETE error:', error);
+      return 0;
+    }
+  }
+
+  // List operations
+  async lpush(key: string, ...values: any[]): Promise<number> {
+    try {
+      const serialized = values.map(v => JSON.stringify(v));
+      return await this.redis.lpush(key, ...serialized);
+    } catch (error) {
+      console.error(`Redis LPUSH error for key ${key}:`, error);
+      throw error;
+    }
+  }
+
+  async rpush(key: string, ...values: any[]): Promise<number> {
+    try {
+      const serialized = values.map(v => JSON.stringify(v));
+      return await this.redis.rpush(key, ...serialized);
+    } catch (error) {
+      console.error(`Redis RPUSH error for key ${key}:`, error);
+      throw error;
+    }
+  }
+
+  async lpop(key: string): Promise<any | null> {
+    try {
+      const value = await this.redis.lpop(key);
+      return value ? JSON.parse(value) : null;
+    } catch (error) {
+      console.error(`Redis LPOP error for key ${key}:`, error);
+      return null;
+    }
+  }
+
+  async rpop(key: string): Promise<any | null> {
+    try {
+      const value = await this.redis.rpop(key);
+      return value ? JSON.parse(value) : null;
+    } catch (error) {
+      console.error(`Redis RPOP error for key ${key}:`, error);
+      return null;
+    }
+  }
+
+  async lrange(key: string, start: number, stop: number): Promise<any[]> {
+    try {
+      const values = await this.redis.lrange(key, start, stop);
+      return values.map(v => JSON.parse(v));
+    } catch (error) {
+      console.error(`Redis LRANGE error for key ${key}:`, error);
+      return [];
+    }
+  }
+
+  async llen(key: string): Promise<number> {
+    try {
+      return await this.redis.llen(key);
+    } catch (error) {
+      console.error(`Redis LLEN error for key ${key}:`, error);
+      return 0;
+    }
+  }
+
+  // TTL operations
+  async expire(key: string, seconds: number): Promise<boolean> {
+    try {
+      const result = await this.redis.expire(key, seconds);
+      return result === 1;
+    } catch (error) {
+      console.error(`Redis EXPIRE error for key ${key}:`, error);
+      return false;
+    }
+  }
+
+  async ttl(key: string): Promise<number> {
+    try {
+      return await this.redis.ttl(key);
+    } catch (error) {
+      console.error(`Redis TTL error for key ${key}:`, error);
+      return -1;
+    }
+  }
+
+  // Pattern operations
+  async keys(pattern: string): Promise<string[]> {
+    try {
+      return await this.redis.keys(pattern);
+    } catch (error) {
+      console.error(`Redis KEYS error for pattern ${pattern}:`, error);
+      return [];
+    }
+  }
+
+  // Atomic operations
+  async incr(key: string): Promise<number> {
+    try {
+      return await this.redis.incr(key);
+    } catch (error) {
+      console.error(`Redis INCR error for key ${key}:`, error);
+      throw error;
+    }
+  }
+
+  // Utility
+  async flushall(): Promise<void> {
+    try {
+      await this.redis.flushall();
+    } catch (error) {
+      console.error('Redis FLUSHALL error:', error);
+      throw error;
+    }
+  }
+
+  async ping(): Promise<string> {
+    try {
+      return await this.redis.ping();
+    } catch (error) {
+      console.error('Redis PING error:', error);
+      throw error;
+    }
+  }
+
+  // Connection management
+  async disconnect(): Promise<void> {
+    await this.redis.disconnect();
+  }
+
+  async quit(): Promise<void> {
+    await this.redis.quit();
+  }
+
+  // Get Redis instance for advanced operations
+  getRedisInstance(): Redis {
+    return this.redis;
+  }
+}

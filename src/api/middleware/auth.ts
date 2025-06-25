@@ -1,1 +1,261 @@
-import { Request, Response, NextFunction } from 'express';\nimport { JWTAuthService, TokenPayload } from '../../infrastructure/auth/JWTAuthService';\nimport { UserService } from '../../domain/services/UserService';\n\n// Extend Express Request type to include user\ndeclare global {\n  namespace Express {\n    interface Request {\n      user?: {\n        id: string;\n        email: string;\n        role: string;\n        sessionId: string;\n      };\n      sessionId?: string;\n    }\n  }\n}\n\nexport class AuthMiddleware {\n  constructor(\n    private authService: JWTAuthService,\n    private userService: UserService\n  ) {}\n\n  // Extract token from request headers\n  private extractToken(req: Request): string | null {\n    const authHeader = req.headers.authorization;\n    if (authHeader && authHeader.startsWith('Bearer ')) {\n      return authHeader.substring(7);\n    }\n    \n    // Also check cookies for SPA support\n    if (req.cookies?.accessToken) {\n      return req.cookies.accessToken;\n    }\n    \n    return null;\n  }\n\n  // Optional authentication - adds user to request if token is valid\n  optional = async (req: Request, res: Response, next: NextFunction) => {\n    try {\n      const token = this.extractToken(req);\n      if (!token) {\n        return next();\n      }\n\n      // Check if token is blacklisted\n      const isBlacklisted = await this.authService.isTokenBlacklisted(token);\n      if (isBlacklisted) {\n        return next();\n      }\n\n      const payload = await this.authService.verifyAccessToken(token);\n      if (payload) {\n        req.user = {\n          id: payload.userId,\n          email: payload.email,\n          role: payload.role,\n          sessionId: payload.sessionId,\n        };\n        req.sessionId = payload.sessionId;\n      }\n      \n      next();\n    } catch (error) {\n      console.error('Auth middleware error:', error);\n      next();\n    }\n  };\n\n  // Required authentication - returns 401 if no valid token\n  required = async (req: Request, res: Response, next: NextFunction) => {\n    try {\n      const token = this.extractToken(req);\n      if (!token) {\n        return res.status(401).json({\n          error: 'Authentication required',\n          code: 'NO_TOKEN'\n        });\n      }\n\n      // Check if token is blacklisted\n      const isBlacklisted = await this.authService.isTokenBlacklisted(token);\n      if (isBlacklisted) {\n        return res.status(401).json({\n          error: 'Token has been revoked',\n          code: 'TOKEN_REVOKED'\n        });\n      }\n\n      const payload = await this.authService.verifyAccessToken(token);\n      if (!payload) {\n        return res.status(401).json({\n          error: 'Invalid or expired token',\n          code: 'INVALID_TOKEN'\n        });\n      }\n\n      // Validate session\n      const sessionData = await this.authService.validateSession(payload.sessionId);\n      if (!sessionData) {\n        return res.status(401).json({\n          error: 'Session expired',\n          code: 'SESSION_EXPIRED'\n        });\n      }\n\n      req.user = {\n        id: payload.userId,\n        email: payload.email,\n        role: payload.role,\n        sessionId: payload.sessionId,\n      };\n      req.sessionId = payload.sessionId;\n      \n      next();\n    } catch (error) {\n      console.error('Auth middleware error:', error);\n      return res.status(500).json({\n        error: 'Authentication service error',\n        code: 'AUTH_ERROR'\n      });\n    }\n  };\n\n  // Role-based authorization\n  requireRole = (allowedRoles: string | string[]) => {\n    const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];\n    \n    return async (req: Request, res: Response, next: NextFunction) => {\n      if (!req.user) {\n        return res.status(401).json({\n          error: 'Authentication required',\n          code: 'NO_AUTH'\n        });\n      }\n\n      if (!roles.includes(req.user.role)) {\n        return res.status(403).json({\n          error: 'Insufficient permissions',\n          code: 'INSUFFICIENT_PERMISSIONS',\n          required: roles,\n          current: req.user.role\n        });\n      }\n\n      next();\n    };\n  };\n\n  // Admin only\n  requireAdmin = this.requireRole('admin');\n\n  // Moderator or Admin\n  requireModerator = this.requireRole(['admin', 'moderator']);\n\n  // Verify user owns resource\n  requireResourceOwnership = (getUserIdFromParams: (req: Request) => string) => {\n    return async (req: Request, res: Response, next: NextFunction) => {\n      if (!req.user) {\n        return res.status(401).json({\n          error: 'Authentication required',\n          code: 'NO_AUTH'\n        });\n      }\n\n      const resourceUserId = getUserIdFromParams(req);\n      const isOwner = req.user.id === resourceUserId;\n      const isAdmin = req.user.role === 'admin';\n\n      if (!isOwner && !isAdmin) {\n        return res.status(403).json({\n          error: 'Access denied - you can only access your own resources',\n          code: 'ACCESS_DENIED'\n        });\n      }\n\n      next();\n    };\n  };\n\n  // Rate limiting per user\n  userRateLimit = (requestsPerMinute: number) => {\n    const attempts = new Map<string, { count: number; resetTime: number }>();\n    \n    return async (req: Request, res: Response, next: NextFunction) => {\n      const userId = req.user?.id || req.ip;\n      const now = Date.now();\n      const windowMs = 60 * 1000; // 1 minute\n      \n      let userAttempts = attempts.get(userId);\n      \n      if (!userAttempts || now > userAttempts.resetTime) {\n        userAttempts = { count: 1, resetTime: now + windowMs };\n        attempts.set(userId, userAttempts);\n      } else {\n        userAttempts.count++;\n      }\n      \n      if (userAttempts.count > requestsPerMinute) {\n        return res.status(429).json({\n          error: 'Too many requests',\n          code: 'RATE_LIMIT_EXCEEDED',\n          retryAfter: Math.ceil((userAttempts.resetTime - now) / 1000)\n        });\n      }\n      \n      // Clean up old entries periodically\n      if (Math.random() < 0.01) { // 1% chance\n        for (const [key, value] of attempts.entries()) {\n          if (now > value.resetTime) {\n            attempts.delete(key);\n          }\n        }\n      }\n      \n      next();\n    };\n  };\n\n  // Logout middleware - blacklists current token\n  logout = async (req: Request, res: Response, next: NextFunction) => {\n    try {\n      const token = this.extractToken(req);\n      if (token && req.sessionId) {\n        // Blacklist the token\n        await this.authService.blacklistToken(token, 15 * 60); // 15 minutes (token expiry)\n        \n        // Revoke the session\n        await this.authService.revokeSession(req.sessionId);\n      }\n      \n      next();\n    } catch (error) {\n      console.error('Logout middleware error:', error);\n      next(); // Continue anyway\n    }\n  };\n\n  // Security headers middleware\n  securityHeaders = (req: Request, res: Response, next: NextFunction) => {\n    // Prevent XSS\n    res.setHeader('X-Content-Type-Options', 'nosniff');\n    res.setHeader('X-Frame-Options', 'DENY');\n    res.setHeader('X-XSS-Protection', '1; mode=block');\n    \n    // CSRF protection hint\n    res.setHeader('X-Content-Type-Options', 'nosniff');\n    \n    // Prevent caching of sensitive data\n    if (req.path.includes('/api/')) {\n      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');\n      res.setHeader('Pragma', 'no-cache');\n      res.setHeader('Expires', '0');\n    }\n    \n    next();\n  };\n}"
+import { Request, Response, NextFunction } from 'express';
+import { JWTAuthService, TokenPayload } from '../../infrastructure/auth/JWTAuthService';
+import { UserService } from '../../domain/services/UserService';
+
+// Extend Express Request type to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: string;
+        email: string;
+        role: string;
+        sessionId: string;
+      };
+      sessionId?: string;
+    }
+  }
+}
+
+export class AuthMiddleware {
+  constructor(
+    private authService: JWTAuthService,
+    private userService: UserService
+  ) {}
+
+  // Extract token from request headers
+  private extractToken(req: Request): string | null {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return authHeader.substring(7);
+    }
+    
+    // Also check cookies for SPA support
+    if (req.cookies?.accessToken) {
+      return req.cookies.accessToken;
+    }
+    
+    return null;
+  }
+
+  // Optional authentication - adds user to request if token is valid
+  optional = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const token = this.extractToken(req);
+      if (!token) {
+        return next();
+      }
+
+      // Check if token is blacklisted
+      const isBlacklisted = await this.authService.isTokenBlacklisted(token);
+      if (isBlacklisted) {
+        return next();
+      }
+
+      const payload = await this.authService.verifyAccessToken(token);
+      if (payload) {
+        req.user = {
+          id: payload.userId,
+          email: payload.email,
+          role: payload.role,
+          sessionId: payload.sessionId,
+        };
+        req.sessionId = payload.sessionId;
+      }
+      
+      next();
+    } catch (error) {
+      console.error('Auth middleware error:', error);
+      next();
+    }
+  };
+
+  // Required authentication - returns 401 if no valid token
+  required = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const token = this.extractToken(req);
+      if (!token) {
+        return res.status(401).json({
+          error: 'Authentication required',
+          code: 'NO_TOKEN'
+        });
+      }
+
+      // Check if token is blacklisted
+      const isBlacklisted = await this.authService.isTokenBlacklisted(token);
+      if (isBlacklisted) {
+        return res.status(401).json({
+          error: 'Token has been revoked',
+          code: 'TOKEN_REVOKED'
+        });
+      }
+
+      const payload = await this.authService.verifyAccessToken(token);
+      if (!payload) {
+        return res.status(401).json({
+          error: 'Invalid or expired token',
+          code: 'INVALID_TOKEN'
+        });
+      }
+
+      // Validate session
+      const sessionData = await this.authService.validateSession(payload.sessionId);
+      if (!sessionData) {
+        return res.status(401).json({
+          error: 'Session expired',
+          code: 'SESSION_EXPIRED'
+        });
+      }
+
+      req.user = {
+        id: payload.userId,
+        email: payload.email,
+        role: payload.role,
+        sessionId: payload.sessionId,
+      };
+      req.sessionId = payload.sessionId;
+      
+      next();
+    } catch (error) {
+      console.error('Auth middleware error:', error);
+      return res.status(500).json({
+        error: 'Authentication service error',
+        code: 'AUTH_ERROR'
+      });
+    }
+  };
+
+  // Role-based authorization
+  requireRole = (allowedRoles: string | string[]) => {
+    const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+    
+    return async (req: Request, res: Response, next: NextFunction) => {
+      if (!req.user) {
+        return res.status(401).json({
+          error: 'Authentication required',
+          code: 'NO_AUTH'
+        });
+      }
+
+      if (!roles.includes(req.user.role)) {
+        return res.status(403).json({
+          error: 'Insufficient permissions',
+          code: 'INSUFFICIENT_PERMISSIONS',
+          required: roles,
+          current: req.user.role
+        });
+      }
+
+      next();
+    };
+  };
+
+  // Admin only
+  requireAdmin = this.requireRole('admin');
+
+  // Moderator or Admin
+  requireModerator = this.requireRole(['admin', 'moderator']);
+
+  // Verify user owns resource
+  requireResourceOwnership = (getUserIdFromParams: (req: Request) => string) => {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      if (!req.user) {
+        return res.status(401).json({
+          error: 'Authentication required',
+          code: 'NO_AUTH'
+        });
+      }
+
+      const resourceUserId = getUserIdFromParams(req);
+      const isOwner = req.user.id === resourceUserId;
+      const isAdmin = req.user.role === 'admin';
+
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({
+          error: 'Access denied - you can only access your own resources',
+          code: 'ACCESS_DENIED'
+        });
+      }
+
+      next();
+    };
+  };
+
+  // Rate limiting per user
+  userRateLimit = (requestsPerMinute: number) => {
+    const attempts = new Map<string, { count: number; resetTime: number }>();
+    
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const userId = req.user?.id || req.ip;
+      const now = Date.now();
+      const windowMs = 60 * 1000; // 1 minute
+      
+      let userAttempts = attempts.get(userId);
+      
+      if (!userAttempts || now > userAttempts.resetTime) {
+        userAttempts = { count: 1, resetTime: now + windowMs };
+        attempts.set(userId, userAttempts);
+      } else {
+        userAttempts.count++;
+      }
+      
+      if (userAttempts.count > requestsPerMinute) {
+        return res.status(429).json({
+          error: 'Too many requests',
+          code: 'RATE_LIMIT_EXCEEDED',
+          retryAfter: Math.ceil((userAttempts.resetTime - now) / 1000)
+        });
+      }
+      
+      // Clean up old entries periodically
+      if (Math.random() < 0.01) { // 1% chance
+        for (const [key, value] of attempts.entries()) {
+          if (now > value.resetTime) {
+            attempts.delete(key);
+          }
+        }
+      }
+      
+      next();
+    };
+  };
+
+  // Logout middleware - blacklists current token
+  logout = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const token = this.extractToken(req);
+      if (token && req.sessionId) {
+        // Blacklist the token
+        await this.authService.blacklistToken(token, 15 * 60); // 15 minutes (token expiry)
+        
+        // Revoke the session
+        await this.authService.revokeSession(req.sessionId);
+      }
+      
+      next();
+    } catch (error) {
+      console.error('Logout middleware error:', error);
+      next(); // Continue anyway
+    }
+  };
+
+  // Security headers middleware
+  securityHeaders = (req: Request, res: Response, next: NextFunction) => {
+    // Prevent XSS
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    
+    // CSRF protection hint
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    
+    // Prevent caching of sensitive data
+    if (req.path.includes('/api/')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+    
+    next();
+  };
+}

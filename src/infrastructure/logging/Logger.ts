@@ -1,1 +1,183 @@
-import winston from 'winston';\nimport { format } from 'winston';\n\n// Log levels\nexport enum LogLevel {\n  ERROR = 'error',\n  WARN = 'warn',\n  INFO = 'info',\n  HTTP = 'http',\n  DEBUG = 'debug',\n}\n\n// Log context interface\nexport interface LogContext {\n  userId?: string;\n  sessionId?: string;\n  requestId?: string;\n  ip?: string;\n  userAgent?: string;\n  operation?: string;\n  duration?: number;\n  [key: string]: any;\n}\n\n// Custom format for structured logging\nconst structuredFormat = format.combine(\n  format.timestamp({\n    format: 'YYYY-MM-DD HH:mm:ss.SSS',\n  }),\n  format.errors({ stack: true }),\n  format.json(),\n  format.printf((info) => {\n    const { timestamp, level, message, ...meta } = info;\n    \n    const logEntry = {\n      timestamp,\n      level,\n      message,\n      service: 'goated-vips-api',\n      version: process.env.npm_package_version || '1.0.0',\n      environment: process.env.NODE_ENV || 'development',\n      ...meta,\n    };\n    \n    return JSON.stringify(logEntry);\n  })\n);\n\n// Development format for console\nconst developmentFormat = format.combine(\n  format.colorize(),\n  format.timestamp({\n    format: 'HH:mm:ss',\n  }),\n  format.printf((info) => {\n    const { timestamp, level, message, ...meta } = info;\n    const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';\n    return `${timestamp} [${level}]: ${message}${metaStr}`;\n  })\n);\n\nexport class Logger {\n  private winston: winston.Logger;\n  private isDevelopment: boolean;\n\n  constructor(options: {\n    level?: string;\n    service?: string;\n    enableFile?: boolean;\n    enableConsole?: boolean;\n  } = {}) {\n    this.isDevelopment = process.env.NODE_ENV === 'development';\n    \n    const transports: winston.transport[] = [];\n    \n    // Console transport\n    if (options.enableConsole !== false) {\n      transports.push(\n        new winston.transports.Console({\n          format: this.isDevelopment ? developmentFormat : structuredFormat,\n        })\n      );\n    }\n    \n    // File transports (for production)\n    if (options.enableFile && !this.isDevelopment) {\n      // Combined log\n      transports.push(\n        new winston.transports.File({\n          filename: 'logs/combined.log',\n          format: structuredFormat,\n          maxsize: 10 * 1024 * 1024, // 10MB\n          maxFiles: 5,\n        })\n      );\n      \n      // Error log\n      transports.push(\n        new winston.transports.File({\n          filename: 'logs/error.log',\n          level: 'error',\n          format: structuredFormat,\n          maxsize: 10 * 1024 * 1024, // 10MB\n          maxFiles: 5,\n        })\n      );\n    }\n    \n    this.winston = winston.createLogger({\n      level: options.level || (this.isDevelopment ? 'debug' : 'info'),\n      transports,\n      // Don't exit on handled exceptions\n      exitOnError: false,\n      // Handle uncaught exceptions\n      exceptionHandlers: [\n        new winston.transports.File({ \n          filename: 'logs/exceptions.log',\n          format: structuredFormat,\n        })\n      ],\n      // Handle unhandled rejections\n      rejectionHandlers: [\n        new winston.transports.File({ \n          filename: 'logs/rejections.log',\n          format: structuredFormat,\n        })\n      ]\n    });\n  }\n\n  private formatMessage(message: string, context?: LogContext): any {\n    return {\n      message,\n      ...context,\n    };\n  }\n\n  error(message: string, error?: Error | any, context?: LogContext): void {\n    const logData = this.formatMessage(message, context);\n    \n    if (error) {\n      if (error instanceof Error) {\n        logData.error = {\n          name: error.name,\n          message: error.message,\n          stack: error.stack,\n        };\n      } else {\n        logData.error = error;\n      }\n    }\n    \n    this.winston.error(logData);\n  }\n\n  warn(message: string, context?: LogContext): void {\n    this.winston.warn(this.formatMessage(message, context));\n  }\n\n  info(message: string, context?: LogContext): void {\n    this.winston.info(this.formatMessage(message, context));\n  }\n\n  http(message: string, context?: LogContext): void {\n    this.winston.http(this.formatMessage(message, context));\n  }\n\n  debug(message: string, context?: LogContext): void {\n    this.winston.debug(this.formatMessage(message, context));\n  }\n\n  // Security event logging\n  security(event: string, context: LogContext & {\n    severity: 'low' | 'medium' | 'high' | 'critical';\n    threat?: string;\n    action?: string;\n  }): void {\n    this.winston.warn(this.formatMessage(`SECURITY: ${event}`, {\n      ...context,\n      category: 'security',\n    }));\n  }\n\n  // Performance logging\n  performance(operation: string, duration: number, context?: LogContext): void {\n    this.winston.info(this.formatMessage(`PERFORMANCE: ${operation}`, {\n      ...context,\n      duration,\n      category: 'performance',\n    }));\n  }\n\n  // Business event logging\n  business(event: string, context?: LogContext): void {\n    this.winston.info(this.formatMessage(`BUSINESS: ${event}`, {\n      ...context,\n      category: 'business',\n    }));\n  }\n\n  // Audit logging\n  audit(action: string, context: LogContext & {\n    actor?: string;\n    resource?: string;\n    outcome: 'success' | 'failure';\n  }): void {\n    this.winston.info(this.formatMessage(`AUDIT: ${action}`, {\n      ...context,\n      category: 'audit',\n    }));\n  }\n\n  // Method to create child logger with preset context\n  child(context: LogContext): ChildLogger {\n    return new ChildLogger(this, context);\n  }\n\n  // Get Winston instance for advanced usage\n  getWinstonLogger(): winston.Logger {\n    return this.winston;\n  }\n}\n\n// Child logger with preset context\nexport class ChildLogger {\n  constructor(\n    private parent: Logger,\n    private baseContext: LogContext\n  ) {}\n\n  private mergeContext(context?: LogContext): LogContext {\n    return { ...this.baseContext, ...context };\n  }\n\n  error(message: string, error?: Error | any, context?: LogContext): void {\n    this.parent.error(message, error, this.mergeContext(context));\n  }\n\n  warn(message: string, context?: LogContext): void {\n    this.parent.warn(message, this.mergeContext(context));\n  }\n\n  info(message: string, context?: LogContext): void {\n    this.parent.info(message, this.mergeContext(context));\n  }\n\n  http(message: string, context?: LogContext): void {\n    this.parent.http(message, this.mergeContext(context));\n  }\n\n  debug(message: string, context?: LogContext): void {\n    this.parent.debug(message, this.mergeContext(context));\n  }\n\n  security(event: string, context: LogContext & {\n    severity: 'low' | 'medium' | 'high' | 'critical';\n    threat?: string;\n    action?: string;\n  }): void {\n    this.parent.security(event, this.mergeContext(context));\n  }\n\n  performance(operation: string, duration: number, context?: LogContext): void {\n    this.parent.performance(operation, duration, this.mergeContext(context));\n  }\n\n  business(event: string, context?: LogContext): void {\n    this.parent.business(event, this.mergeContext(context));\n  }\n\n  audit(action: string, context: LogContext & {\n    actor?: string;\n    resource?: string;\n    outcome: 'success' | 'failure';\n  }): void {\n    this.parent.audit(action, this.mergeContext(context));\n  }\n}\n\n// Singleton logger instance\nlet logger: Logger;\n\nexport function getLogger(options?: Parameters<typeof Logger.prototype.constructor>[0]): Logger {\n  if (!logger) {\n    logger = new Logger(options);\n  }\n  return logger;\n}\n\n// Express middleware for request logging\nexport function requestLoggingMiddleware(logger: Logger) {\n  return (req: any, res: any, next: any) => {\n    const startTime = Date.now();\n    const requestId = req.headers['x-request-id'] || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\n    \n    // Add request ID to request object\n    req.requestId = requestId;\n    \n    // Create child logger with request context\n    req.logger = logger.child({\n      requestId,\n      method: req.method,\n      path: req.path,\n      ip: req.ip,\n      userAgent: req.get('User-Agent'),\n      userId: req.user?.id,\n      sessionId: req.sessionId,\n    });\n    \n    // Log request start\n    req.logger.http('Request started');\n    \n    // Log response when finished\n    res.on('finish', () => {\n      const duration = Date.now() - startTime;\n      const context = {\n        statusCode: res.statusCode,\n        duration,\n        contentLength: res.get('Content-Length'),\n      };\n      \n      if (res.statusCode >= 400) {\n        req.logger.warn('Request completed with error', context);\n      } else {\n        req.logger.http('Request completed', context);\n      }\n      \n      // Log slow requests\n      if (duration > 1000) {\n        req.logger.performance('Slow request detected', duration, {\n          threshold: 1000,\n        });\n      }\n    });\n    \n    next();\n  };\n}\n\n// Error logging middleware\nexport function errorLoggingMiddleware(logger: Logger) {\n  return (error: any, req: any, res: any, next: any) => {\n    const requestLogger = req.logger || logger;\n    \n    requestLogger.error('Request error', error, {\n      statusCode: error.status || 500,\n      code: error.code,\n    });\n    \n    next(error);\n  };\n}"
+import winston from 'winston';
+import { format } from 'winston';
+
+// Log levels
+export enum LogLevel {
+  ERROR = 'error',
+  WARN = 'warn',
+  INFO = 'info',
+  HTTP = 'http',
+  DEBUG = 'debug',
+}
+
+// Log context interface
+export interface LogContext {
+  userId?: string;
+  sessionId?: string;
+  requestId?: string;
+  ip?: string;
+  userAgent?: string;
+  operation?: string;
+  duration?: number;
+  [key: string]: any;
+}
+
+// Custom format for structured logging
+const structuredFormat = format.combine(
+  format.timestamp({
+    format: 'YYYY-MM-DD HH:mm:ss.SSS',
+  }),
+  format.errors({ stack: true }),
+  format.json(),
+  format.printf((info) => {
+    const { timestamp, level, message, ...meta } = info;
+    
+    const logEntry = {
+      timestamp,
+      level,
+      message,
+      service: 'goated-vips-api',
+      version: process.env.npm_package_version || '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      ...meta,
+    };
+    
+    return JSON.stringify(logEntry);
+  })
+);
+
+// Development format for console
+const developmentFormat = format.combine(
+  format.colorize(),
+  format.timestamp({
+    format: 'HH:mm:ss',
+  }),
+  format.printf((info) => {
+    const { timestamp, level, message, ...meta } = info;
+    const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
+    return `${timestamp} [${level}]: ${message}${metaStr}`;
+  })
+);
+
+export class Logger {
+  private winston: winston.Logger;
+  private isDevelopment: boolean;
+
+  constructor(options: {
+    level?: string;
+    service?: string;
+    enableFile?: boolean;
+    enableConsole?: boolean;
+  } = {}) {
+    this.isDevelopment = process.env.NODE_ENV === 'development';
+    
+    const transports: winston.transport[] = [];
+    
+    // Console transport
+    if (options.enableConsole !== false) {
+      transports.push(
+        new winston.transports.Console({
+          format: this.isDevelopment ? developmentFormat : structuredFormat,
+        })
+      );
+    }
+    
+    // File transports (for production)
+    if (options.enableFile && !this.isDevelopment) {
+      // Combined log
+      transports.push(
+        new winston.transports.File({
+          filename: 'logs/combined.log',
+          format: structuredFormat,
+          maxsize: 10 * 1024 * 1024, // 10MB
+          maxFiles: 5,
+        })
+      );
+      
+      // Error log
+      transports.push(
+        new winston.transports.File({
+          filename: 'logs/error.log',
+          level: 'error',
+          format: structuredFormat,
+          maxsize: 10 * 1024 * 1024, // 10MB
+          maxFiles: 5,
+        })
+      );
+    }
+    
+    this.winston = winston.createLogger({
+      level: options.level || (this.isDevelopment ? 'debug' : 'info'),
+      transports,
+      // Don't exit on handled exceptions
+      exitOnError: false,
+    });
+  }
+
+  private formatMessage(message: string, context?: LogContext): any {
+    return {
+      message,
+      ...context,
+    };
+  }
+
+  error(message: string, error?: Error | any, context?: LogContext): void {
+    const logData = this.formatMessage(message, context);
+    
+    if (error) {
+      if (error instanceof Error) {
+        logData.error = {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        };
+      } else {
+        logData.error = error;
+      }
+    }
+    
+    this.winston.error(logData);
+  }
+
+  warn(message: string, context?: LogContext): void {
+    this.winston.warn(this.formatMessage(message, context));
+  }
+
+  info(message: string, context?: LogContext): void {
+    this.winston.info(this.formatMessage(message, context));
+  }
+
+  debug(message: string, context?: LogContext): void {
+    this.winston.debug(this.formatMessage(message, context));
+  }
+
+  // Security event logging
+  security(event: string, context: LogContext & {
+    severity: 'low' | 'medium' | 'high' | 'critical';
+    threat?: string;
+    action?: string;
+  }): void {
+    this.winston.warn(this.formatMessage(`SECURITY: ${event}`, {
+      ...context,
+      category: 'security',
+    }));
+  }
+
+  // Business event logging
+  business(event: string, context?: LogContext): void {
+    this.winston.info(this.formatMessage(`BUSINESS: ${event}`, {
+      ...context,
+      category: 'business',
+    }));
+  }
+}
+
+// Singleton logger instance
+let logger: Logger;
+
+export function getLogger(options?: any): Logger {
+  if (!logger) {
+    logger = new Logger(options);
+  }
+  return logger;
+}

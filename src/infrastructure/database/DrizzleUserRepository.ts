@@ -1,1 +1,318 @@
-import { drizzle } from 'drizzle-orm/neon-http';\nimport { eq, like, or, desc, asc, and, sql, count } from 'drizzle-orm';\nimport { neon } from '@neondatabase/serverless';\nimport { v4 as uuidv4 } from 'uuid';\n\nimport { User, CreateUserInput, UpdateUserInput } from '../../domain/entities/User';\nimport { IUserRepository } from '../../domain/repositories/IUserRepository';\nimport { users, userSessions } from './schema';\n\nexport class DrizzleUserRepository implements IUserRepository {\n  private db;\n  \n  constructor(connectionString: string) {\n    const sql = neon(connectionString);\n    this.db = drizzle(sql);\n  }\n\n  async create(input: CreateUserInput): Promise<User> {\n    const id = uuidv4();\n    const now = new Date();\n    \n    const userData = {\n      id,\n      ...input,\n      createdAt: now,\n      updatedAt: now,\n    };\n    \n    const [user] = await this.db\n      .insert(users)\n      .values(userData)\n      .returning();\n      \n    return this.mapToEntity(user);\n  }\n\n  async findById(id: string): Promise<User | null> {\n    const [user] = await this.db\n      .select()\n      .from(users)\n      .where(eq(users.id, id))\n      .limit(1);\n      \n    return user ? this.mapToEntity(user) : null;\n  }\n\n  async findByEmail(email: string): Promise<User | null> {\n    const [user] = await this.db\n      .select()\n      .from(users)\n      .where(eq(users.email, email.toLowerCase()))\n      .limit(1);\n      \n    return user ? this.mapToEntity(user) : null;\n  }\n\n  async findByUsername(username: string): Promise<User | null> {\n    const [user] = await this.db\n      .select()\n      .from(users)\n      .where(eq(users.username, username))\n      .limit(1);\n      \n    return user ? this.mapToEntity(user) : null;\n  }\n\n  async update(id: string, input: UpdateUserInput): Promise<User | null> {\n    const updateData = {\n      ...input,\n      updatedAt: new Date(),\n    };\n    \n    const [user] = await this.db\n      .update(users)\n      .set(updateData)\n      .where(eq(users.id, id))\n      .returning();\n      \n    return user ? this.mapToEntity(user) : null;\n  }\n\n  async delete(id: string): Promise<boolean> {\n    const result = await this.db\n      .update(users)\n      .set({ \n        status: 'deleted',\n        updatedAt: new Date()\n      })\n      .where(eq(users.id, id));\n      \n    return result.rowCount > 0;\n  }\n\n  async findByGoatedId(goatedId: string): Promise<User | null> {\n    const [user] = await this.db\n      .select()\n      .from(users)\n      .where(eq(users.goatedId, goatedId))\n      .limit(1);\n      \n    return user ? this.mapToEntity(user) : null;\n  }\n\n  async linkGoatedAccount(userId: string, goatedId: string, goatedUsername: string): Promise<User | null> {\n    const [user] = await this.db\n      .update(users)\n      .set({\n        goatedId,\n        goatedUsername,\n        goatedLinked: true,\n        updatedAt: new Date(),\n      })\n      .where(eq(users.id, userId))\n      .returning();\n      \n    return user ? this.mapToEntity(user) : null;\n  }\n\n  async unlinkGoatedAccount(userId: string): Promise<User | null> {\n    const [user] = await this.db\n      .update(users)\n      .set({\n        goatedId: null,\n        goatedUsername: null,\n        goatedLinked: false,\n        goatedVerified: false,\n        updatedAt: new Date(),\n      })\n      .where(eq(users.id, userId))\n      .returning();\n      \n    return user ? this.mapToEntity(user) : null;\n  }\n\n  async search(query: string, limit = 20, offset = 0): Promise<{ users: User[]; total: number }> {\n    const searchPattern = `%${query.toLowerCase()}%`;\n    \n    // Get total count\n    const [{ count: totalCount }] = await this.db\n      .select({ count: count() })\n      .from(users)\n      .where(\n        and(\n          eq(users.status, 'active'),\n          or(\n            like(sql`LOWER(${users.username})`, searchPattern),\n            like(sql`LOWER(${users.displayName})`, searchPattern),\n            like(sql`LOWER(${users.goatedUsername})`, searchPattern),\n            eq(users.goatedId, query)\n          )\n        )\n      );\n    \n    // Get users\n    const userResults = await this.db\n      .select()\n      .from(users)\n      .where(\n        and(\n          eq(users.status, 'active'),\n          or(\n            like(sql`LOWER(${users.username})`, searchPattern),\n            like(sql`LOWER(${users.displayName})`, searchPattern),\n            like(sql`LOWER(${users.goatedUsername})`, searchPattern),\n            eq(users.goatedId, query)\n          )\n        )\n      )\n      .orderBy(desc(users.lastActiveAt))\n      .limit(limit)\n      .offset(offset);\n    \n    return {\n      users: userResults.map(user => this.mapToEntity(user)),\n      total: totalCount\n    };\n  }\n\n  async list(filters = {}, pagination = { limit: 20, offset: 0 }): Promise<{ users: User[]; total: number }> {\n    const conditions = [];\n    \n    if (filters.role) {\n      conditions.push(eq(users.role, filters.role));\n    }\n    if (filters.status) {\n      conditions.push(eq(users.status, filters.status));\n    }\n    if (filters.verified !== undefined) {\n      conditions.push(eq(users.emailVerified, filters.verified));\n    }\n    if (filters.goatedLinked !== undefined) {\n      conditions.push(eq(users.goatedLinked, filters.goatedLinked));\n    }\n    \n    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;\n    \n    // Get total count\n    const [{ count: totalCount }] = await this.db\n      .select({ count: count() })\n      .from(users)\n      .where(whereClause);\n    \n    // Get users\n    const userResults = await this.db\n      .select()\n      .from(users)\n      .where(whereClause)\n      .orderBy(desc(users.createdAt))\n      .limit(pagination.limit)\n      .offset(pagination.offset);\n    \n    return {\n      users: userResults.map(user => this.mapToEntity(user)),\n      total: totalCount\n    };\n  }\n\n  async findByEmailVerificationToken(token: string): Promise<User | null> {\n    const [user] = await this.db\n      .select()\n      .from(users)\n      .where(eq(users.emailVerificationToken, token))\n      .limit(1);\n      \n    return user ? this.mapToEntity(user) : null;\n  }\n\n  async findByPasswordResetToken(token: string): Promise<User | null> {\n    const [user] = await this.db\n      .select()\n      .from(users)\n      .where(eq(users.passwordResetToken, token))\n      .limit(1);\n      \n    return user ? this.mapToEntity(user) : null;\n  }\n\n  async updateLastActivity(userId: string): Promise<void> {\n    await this.db\n      .update(users)\n      .set({ \n        lastActiveAt: new Date(),\n        updatedAt: new Date()\n      })\n      .where(eq(users.id, userId));\n  }\n\n  async incrementLoginCount(userId: string): Promise<void> {\n    await this.db\n      .update(users)\n      .set({ \n        loginCount: sql`${users.loginCount} + 1`,\n        lastLoginAt: new Date(),\n        updatedAt: new Date()\n      })\n      .where(eq(users.id, userId));\n  }\n\n  async getStats(): Promise<{\n    total: number;\n    verified: number;\n    goatedLinked: number;\n    activeToday: number;\n    activeThisWeek: number;\n  }> {\n    const today = new Date();\n    today.setHours(0, 0, 0, 0);\n    \n    const thisWeek = new Date();\n    thisWeek.setDate(thisWeek.getDate() - 7);\n    \n    const [stats] = await this.db\n      .select({\n        total: count(),\n        verified: count(sql`CASE WHEN ${users.emailVerified} = true THEN 1 END`),\n        goatedLinked: count(sql`CASE WHEN ${users.goatedLinked} = true THEN 1 END`),\n        activeToday: count(sql`CASE WHEN ${users.lastActiveAt} >= ${today} THEN 1 END`),\n        activeThisWeek: count(sql`CASE WHEN ${users.lastActiveAt} >= ${thisWeek} THEN 1 END`),\n      })\n      .from(users)\n      .where(eq(users.status, 'active'));\n      \n    return stats;\n  }\n\n  private mapToEntity(dbUser: any): User {\n    return {\n      id: dbUser.id,\n      username: dbUser.username,\n      email: dbUser.email,\n      passwordHash: dbUser.passwordHash,\n      role: dbUser.role,\n      status: dbUser.status,\n      displayName: dbUser.displayName,\n      bio: dbUser.bio,\n      avatar: dbUser.avatar,\n      profileColor: dbUser.profileColor,\n      goatedId: dbUser.goatedId,\n      goatedUsername: dbUser.goatedUsername,\n      goatedLinked: dbUser.goatedLinked,\n      goatedVerified: dbUser.goatedVerified,\n      privacy: dbUser.privacySettings || {},\n      preferences: dbUser.preferences || {},\n      emailVerified: dbUser.emailVerified,\n      emailVerificationToken: dbUser.emailVerificationToken,\n      twoFactorEnabled: dbUser.twoFactorEnabled,\n      twoFactorSecret: dbUser.twoFactorSecret,\n      passwordResetToken: dbUser.passwordResetToken,\n      passwordResetExpires: dbUser.passwordResetExpires,\n      lastPasswordChange: dbUser.lastPasswordChange,\n      lastLoginAt: dbUser.lastLoginAt,\n      lastActiveAt: dbUser.lastActiveAt,\n      loginCount: dbUser.loginCount,\n      createdAt: dbUser.createdAt,\n      updatedAt: dbUser.updatedAt,\n    };\n  }\n}"
+import { drizzle } from 'drizzle-orm/neon-http';
+import { eq, like, or, desc, asc, and, sql, count } from 'drizzle-orm';
+import { neon } from '@neondatabase/serverless';
+import { v4 as uuidv4 } from 'uuid';
+
+import { User, CreateUserInput, UpdateUserInput } from '../../domain/entities/User';
+import { IUserRepository } from '../../domain/repositories/IUserRepository';
+import { users, userSessions } from './schema';
+
+export class DrizzleUserRepository implements IUserRepository {
+  private db;
+  
+  constructor(connectionString: string) {
+    const sql = neon(connectionString);
+    this.db = drizzle(sql);
+  }
+
+  async create(input: CreateUserInput): Promise<User> {
+    const id = uuidv4();
+    const now = new Date();
+    
+    const userData = {
+      id,
+      ...input,
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    const [user] = await this.db
+      .insert(users)
+      .values(userData)
+      .returning();
+      
+    return this.mapToEntity(user);
+  }
+
+  async findById(id: string): Promise<User | null> {
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+      
+    return user ? this.mapToEntity(user) : null;
+  }
+
+  async findByEmail(email: string): Promise<User | null> {
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()))
+      .limit(1);
+      
+    return user ? this.mapToEntity(user) : null;
+  }
+
+  async findByUsername(username: string): Promise<User | null> {
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1);
+      
+    return user ? this.mapToEntity(user) : null;
+  }
+
+  async update(id: string, input: UpdateUserInput): Promise<User | null> {
+    const updateData = {
+      ...input,
+      updatedAt: new Date(),
+    };
+    
+    const [user] = await this.db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, id))
+      .returning();
+      
+    return user ? this.mapToEntity(user) : null;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const result = await this.db
+      .update(users)
+      .set({ 
+        status: 'deleted',
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, id));
+      
+    return result.rowCount > 0;
+  }
+
+  async findByGoatedId(goatedId: string): Promise<User | null> {
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.goatedId, goatedId))
+      .limit(1);
+      
+    return user ? this.mapToEntity(user) : null;
+  }
+
+  async linkGoatedAccount(userId: string, goatedId: string, goatedUsername: string): Promise<User | null> {
+    const [user] = await this.db
+      .update(users)
+      .set({
+        goatedId,
+        goatedUsername,
+        goatedLinked: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+      
+    return user ? this.mapToEntity(user) : null;
+  }
+
+  async unlinkGoatedAccount(userId: string): Promise<User | null> {
+    const [user] = await this.db
+      .update(users)
+      .set({
+        goatedId: null,
+        goatedUsername: null,
+        goatedLinked: false,
+        goatedVerified: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+      
+    return user ? this.mapToEntity(user) : null;
+  }
+
+  async search(query: string, limit = 20, offset = 0): Promise<{ users: User[]; total: number }> {
+    const searchPattern = `%${query.toLowerCase()}%`;
+    
+    // Get total count
+    const [{ count: totalCount }] = await this.db
+      .select({ count: count() })
+      .from(users)
+      .where(
+        and(
+          eq(users.status, 'active'),
+          or(
+            like(sql`LOWER(${users.username})`, searchPattern),
+            like(sql`LOWER(${users.displayName})`, searchPattern),
+            like(sql`LOWER(${users.goatedUsername})`, searchPattern),
+            eq(users.goatedId, query)
+          )
+        )
+      );
+    
+    // Get users
+    const userResults = await this.db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.status, 'active'),
+          or(
+            like(sql`LOWER(${users.username})`, searchPattern),
+            like(sql`LOWER(${users.displayName})`, searchPattern),
+            like(sql`LOWER(${users.goatedUsername})`, searchPattern),
+            eq(users.goatedId, query)
+          )
+        )
+      )
+      .orderBy(desc(users.lastActiveAt))
+      .limit(limit)
+      .offset(offset);
+    
+    return {
+      users: userResults.map(user => this.mapToEntity(user)),
+      total: totalCount
+    };
+  }
+
+  async list(filters = {}, pagination = { limit: 20, offset: 0 }): Promise<{ users: User[]; total: number }> {
+    const conditions = [];
+    
+    if (filters.role) {
+      conditions.push(eq(users.role, filters.role));
+    }
+    if (filters.status) {
+      conditions.push(eq(users.status, filters.status));
+    }
+    if (filters.verified !== undefined) {
+      conditions.push(eq(users.emailVerified, filters.verified));
+    }
+    if (filters.goatedLinked !== undefined) {
+      conditions.push(eq(users.goatedLinked, filters.goatedLinked));
+    }
+    
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    // Get total count
+    const [{ count: totalCount }] = await this.db
+      .select({ count: count() })
+      .from(users)
+      .where(whereClause);
+    
+    // Get users
+    const userResults = await this.db
+      .select()
+      .from(users)
+      .where(whereClause)
+      .orderBy(desc(users.createdAt))
+      .limit(pagination.limit)
+      .offset(pagination.offset);
+    
+    return {
+      users: userResults.map(user => this.mapToEntity(user)),
+      total: totalCount
+    };
+  }
+
+  async findByEmailVerificationToken(token: string): Promise<User | null> {
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.emailVerificationToken, token))
+      .limit(1);
+      
+    return user ? this.mapToEntity(user) : null;
+  }
+
+  async findByPasswordResetToken(token: string): Promise<User | null> {
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.passwordResetToken, token))
+      .limit(1);
+      
+    return user ? this.mapToEntity(user) : null;
+  }
+
+  async updateLastActivity(userId: string): Promise<void> {
+    await this.db
+      .update(users)
+      .set({ 
+        lastActiveAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async incrementLoginCount(userId: string): Promise<void> {
+    await this.db
+      .update(users)
+      .set({ 
+        loginCount: sql`${users.loginCount} + 1`,
+        lastLoginAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async getStats(): Promise<{
+    total: number;
+    verified: number;
+    goatedLinked: number;
+    activeToday: number;
+    activeThisWeek: number;
+  }> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const thisWeek = new Date();
+    thisWeek.setDate(thisWeek.getDate() - 7);
+    
+    const [stats] = await this.db
+      .select({
+        total: count(),
+        verified: count(sql`CASE WHEN ${users.emailVerified} = true THEN 1 END`),
+        goatedLinked: count(sql`CASE WHEN ${users.goatedLinked} = true THEN 1 END`),
+        activeToday: count(sql`CASE WHEN ${users.lastActiveAt} >= ${today} THEN 1 END`),
+        activeThisWeek: count(sql`CASE WHEN ${users.lastActiveAt} >= ${thisWeek} THEN 1 END`),
+      })
+      .from(users)
+      .where(eq(users.status, 'active'));
+      
+    return stats;
+  }
+
+  private mapToEntity(dbUser: any): User {
+    return {
+      id: dbUser.id,
+      username: dbUser.username,
+      email: dbUser.email,
+      passwordHash: dbUser.passwordHash,
+      role: dbUser.role,
+      status: dbUser.status,
+      displayName: dbUser.displayName,
+      bio: dbUser.bio,
+      avatar: dbUser.avatar,
+      profileColor: dbUser.profileColor,
+      goatedId: dbUser.goatedId,
+      goatedUsername: dbUser.goatedUsername,
+      goatedLinked: dbUser.goatedLinked,
+      goatedVerified: dbUser.goatedVerified,
+      privacy: dbUser.privacySettings || {},
+      preferences: dbUser.preferences || {},
+      emailVerified: dbUser.emailVerified,
+      emailVerificationToken: dbUser.emailVerificationToken,
+      twoFactorEnabled: dbUser.twoFactorEnabled,
+      twoFactorSecret: dbUser.twoFactorSecret,
+      passwordResetToken: dbUser.passwordResetToken,
+      passwordResetExpires: dbUser.passwordResetExpires,
+      lastPasswordChange: dbUser.lastPasswordChange,
+      lastLoginAt: dbUser.lastLoginAt,
+      lastActiveAt: dbUser.lastActiveAt,
+      loginCount: dbUser.loginCount,
+      createdAt: dbUser.createdAt,
+      updatedAt: dbUser.updatedAt,
+    };
+  }
+}

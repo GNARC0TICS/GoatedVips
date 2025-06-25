@@ -1,1 +1,204 @@
-import { z } from 'zod';\nimport bcrypt from 'bcrypt';\nimport crypto from 'crypto';\nimport { User, CreateUserInput, UpdateUserInput } from '../entities/User';\nimport { IUserRepository } from '../repositories/IUserRepository';\nimport { ICacheService } from '../../infrastructure/cache/ICacheService';\nimport { IEmailService } from '../../infrastructure/email/IEmailService';\n\nexport class UserService {\n  constructor(\n    private userRepository: IUserRepository,\n    private cacheService: ICacheService,\n    private emailService: IEmailService\n  ) {}\n\n  async createUser(input: CreateUserInput): Promise<User> {\n    // Validate input\n    const validatedInput = CreateUserInput.parse(input);\n    \n    // Check if user already exists\n    const existingEmail = await this.userRepository.findByEmail(validatedInput.email);\n    if (existingEmail) {\n      throw new Error('User with this email already exists');\n    }\n    \n    const existingUsername = await this.userRepository.findByUsername(validatedInput.username);\n    if (existingUsername) {\n      throw new Error('Username already taken');\n    }\n    \n    // Hash password\n    const passwordHash = await bcrypt.hash(validatedInput.passwordHash, 12);\n    \n    // Generate verification token\n    const emailVerificationToken = crypto.randomBytes(32).toString('hex');\n    \n    // Create user\n    const userData = {\n      ...validatedInput,\n      passwordHash,\n      emailVerificationToken,\n    };\n    \n    const user = await this.userRepository.create(userData);\n    \n    // Send verification email\n    await this.emailService.sendVerificationEmail(user.email, emailVerificationToken);\n    \n    // Cache user\n    await this.cacheService.set(`user:${user.id}`, user, 3600); // 1 hour\n    \n    return user;\n  }\n\n  async findById(id: string): Promise<User | null> {\n    // Try cache first\n    const cached = await this.cacheService.get<User>(`user:${id}`);\n    if (cached) return cached;\n    \n    // Fallback to database\n    const user = await this.userRepository.findById(id);\n    if (user) {\n      await this.cacheService.set(`user:${id}`, user, 3600);\n    }\n    \n    return user;\n  }\n\n  async authenticate(email: string, password: string): Promise<User | null> {\n    const user = await this.userRepository.findByEmail(email);\n    if (!user) return null;\n    \n    const isValid = await bcrypt.compare(password, user.passwordHash);\n    if (!isValid) return null;\n    \n    // Update login tracking\n    await this.userRepository.updateLastActivity(user.id);\n    await this.userRepository.incrementLoginCount(user.id);\n    \n    // Update cache\n    await this.cacheService.set(`user:${user.id}`, user, 3600);\n    \n    return user;\n  }\n\n  async verifyEmail(token: string): Promise<User | null> {\n    const user = await this.userRepository.findByEmailVerificationToken(token);\n    if (!user) return null;\n    \n    const updatedUser = await this.userRepository.update(user.id, {\n      emailVerified: true,\n      emailVerificationToken: undefined,\n    });\n    \n    if (updatedUser) {\n      await this.cacheService.delete(`user:${user.id}`);\n    }\n    \n    return updatedUser;\n  }\n\n  async linkGoatedAccount(userId: string, goatedId: string, goatedUsername: string): Promise<User | null> {\n    // Check if Goated ID is already linked\n    const existingLink = await this.userRepository.findByGoatedId(goatedId);\n    if (existingLink && existingLink.id !== userId) {\n      throw new Error('This Goated account is already linked to another user');\n    }\n    \n    const user = await this.userRepository.linkGoatedAccount(userId, goatedId, goatedUsername);\n    \n    if (user) {\n      await this.cacheService.delete(`user:${userId}`);\n    }\n    \n    return user;\n  }\n\n  async updateProfile(userId: string, input: UpdateUserInput): Promise<User | null> {\n    const validatedInput = UpdateUserInput.parse(input);\n    \n    const user = await this.userRepository.update(userId, validatedInput);\n    \n    if (user) {\n      await this.cacheService.delete(`user:${userId}`);\n    }\n    \n    return user;\n  }\n\n  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<boolean> {\n    const user = await this.userRepository.findById(userId);\n    if (!user) return false;\n    \n    const isCurrentValid = await bcrypt.compare(currentPassword, user.passwordHash);\n    if (!isCurrentValid) return false;\n    \n    const newPasswordHash = await bcrypt.hash(newPassword, 12);\n    \n    const updated = await this.userRepository.update(userId, {\n      passwordHash: newPasswordHash,\n      lastPasswordChange: new Date(),\n    });\n    \n    if (updated) {\n      await this.cacheService.delete(`user:${userId}`);\n    }\n    \n    return !!updated;\n  }\n\n  async requestPasswordReset(email: string): Promise<boolean> {\n    const user = await this.userRepository.findByEmail(email);\n    if (!user) return false; // Don't reveal if email exists\n    \n    const resetToken = crypto.randomBytes(32).toString('hex');\n    const resetExpires = new Date(Date.now() + 3600000); // 1 hour\n    \n    await this.userRepository.update(user.id, {\n      passwordResetToken: resetToken,\n      passwordResetExpires: resetExpires,\n    });\n    \n    await this.emailService.sendPasswordResetEmail(user.email, resetToken);\n    \n    return true;\n  }\n\n  async resetPassword(token: string, newPassword: string): Promise<boolean> {\n    const user = await this.userRepository.findByPasswordResetToken(token);\n    if (!user || !user.passwordResetExpires || user.passwordResetExpires < new Date()) {\n      return false;\n    }\n    \n    const passwordHash = await bcrypt.hash(newPassword, 12);\n    \n    const updated = await this.userRepository.update(user.id, {\n      passwordHash,\n      passwordResetToken: undefined,\n      passwordResetExpires: undefined,\n      lastPasswordChange: new Date(),\n    });\n    \n    if (updated) {\n      await this.cacheService.delete(`user:${user.id}`);\n    }\n    \n    return !!updated;\n  }\n\n  async search(query: string, limit = 20, offset = 0) {\n    return this.userRepository.search(query, limit, offset);\n  }\n\n  async getStats() {\n    const cacheKey = 'user:stats';\n    const cached = await this.cacheService.get(cacheKey);\n    if (cached) return cached;\n    \n    const stats = await this.userRepository.getStats();\n    await this.cacheService.set(cacheKey, stats, 300); // 5 minutes\n    \n    return stats;\n  }\n}"
+import { z } from 'zod';
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
+import { User, CreateUserInput, UpdateUserInput } from '../entities/User';
+import { IUserRepository } from '../repositories/IUserRepository';
+import { ICacheService } from '../../infrastructure/cache/ICacheService';
+import { IEmailService } from '../../infrastructure/email/IEmailService';
+
+export class UserService {
+  constructor(
+    private userRepository: IUserRepository,
+    private cacheService: ICacheService,
+    private emailService: IEmailService
+  ) {}
+
+  async createUser(input: CreateUserInput): Promise<User> {
+    // Validate input
+    const validatedInput = CreateUserInput.parse(input);
+    
+    // Check if user already exists
+    const existingEmail = await this.userRepository.findByEmail(validatedInput.email);
+    if (existingEmail) {
+      throw new Error('User with this email already exists');
+    }
+    
+    const existingUsername = await this.userRepository.findByUsername(validatedInput.username);
+    if (existingUsername) {
+      throw new Error('Username already taken');
+    }
+    
+    // Hash password
+    const passwordHash = await bcrypt.hash(validatedInput.passwordHash, 12);
+    
+    // Generate verification token
+    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+    
+    // Create user
+    const userData = {
+      ...validatedInput,
+      passwordHash,
+      emailVerificationToken,
+    };
+    
+    const user = await this.userRepository.create(userData);
+    
+    // Send verification email
+    await this.emailService.sendVerificationEmail(user.email, emailVerificationToken);
+    
+    // Cache user
+    await this.cacheService.set(`user:${user.id}`, user, 3600); // 1 hour
+    
+    return user;
+  }
+
+  async findById(id: string): Promise<User | null> {
+    // Try cache first
+    const cached = await this.cacheService.get<User>(`user:${id}`);
+    if (cached) return cached;
+    
+    // Fallback to database
+    const user = await this.userRepository.findById(id);
+    if (user) {
+      await this.cacheService.set(`user:${id}`, user, 3600);
+    }
+    
+    return user;
+  }
+
+  async authenticate(email: string, password: string): Promise<User | null> {
+    const user = await this.userRepository.findByEmail(email);
+    if (!user) return null;
+    
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isValid) return null;
+    
+    // Update login tracking
+    await this.userRepository.updateLastActivity(user.id);
+    await this.userRepository.incrementLoginCount(user.id);
+    
+    // Update cache
+    await this.cacheService.set(`user:${user.id}`, user, 3600);
+    
+    return user;
+  }
+
+  async verifyEmail(token: string): Promise<User | null> {
+    const user = await this.userRepository.findByEmailVerificationToken(token);
+    if (!user) return null;
+    
+    const updatedUser = await this.userRepository.update(user.id, {
+      emailVerified: true,
+      emailVerificationToken: undefined,
+    });
+    
+    if (updatedUser) {
+      await this.cacheService.delete(`user:${user.id}`);
+    }
+    
+    return updatedUser;
+  }
+
+  async linkGoatedAccount(userId: string, goatedId: string, goatedUsername: string): Promise<User | null> {
+    // Check if Goated ID is already linked
+    const existingLink = await this.userRepository.findByGoatedId(goatedId);
+    if (existingLink && existingLink.id !== userId) {
+      throw new Error('This Goated account is already linked to another user');
+    }
+    
+    const user = await this.userRepository.linkGoatedAccount(userId, goatedId, goatedUsername);
+    
+    if (user) {
+      await this.cacheService.delete(`user:${userId}`);
+    }
+    
+    return user;
+  }
+
+  async updateProfile(userId: string, input: UpdateUserInput): Promise<User | null> {
+    const validatedInput = UpdateUserInput.parse(input);
+    
+    const user = await this.userRepository.update(userId, validatedInput);
+    
+    if (user) {
+      await this.cacheService.delete(`user:${userId}`);
+    }
+    
+    return user;
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<boolean> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) return false;
+    
+    const isCurrentValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isCurrentValid) return false;
+    
+    const newPasswordHash = await bcrypt.hash(newPassword, 12);
+    
+    const updated = await this.userRepository.update(userId, {
+      passwordHash: newPasswordHash,
+      lastPasswordChange: new Date(),
+    });
+    
+    if (updated) {
+      await this.cacheService.delete(`user:${userId}`);
+    }
+    
+    return !!updated;
+  }
+
+  async requestPasswordReset(email: string): Promise<boolean> {
+    const user = await this.userRepository.findByEmail(email);
+    if (!user) return false; // Don't reveal if email exists
+    
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetExpires = new Date(Date.now() + 3600000); // 1 hour
+    
+    await this.userRepository.update(user.id, {
+      passwordResetToken: resetToken,
+      passwordResetExpires: resetExpires,
+    });
+    
+    await this.emailService.sendPasswordResetEmail(user.email, resetToken);
+    
+    return true;
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<boolean> {
+    const user = await this.userRepository.findByPasswordResetToken(token);
+    if (!user || !user.passwordResetExpires || user.passwordResetExpires < new Date()) {
+      return false;
+    }
+    
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    
+    const updated = await this.userRepository.update(user.id, {
+      passwordHash,
+      passwordResetToken: undefined,
+      passwordResetExpires: undefined,
+      lastPasswordChange: new Date(),
+    });
+    
+    if (updated) {
+      await this.cacheService.delete(`user:${user.id}`);
+    }
+    
+    return !!updated;
+  }
+
+  async search(query: string, limit = 20, offset = 0) {
+    return this.userRepository.search(query, limit, offset);
+  }
+
+  async getStats() {
+    const cacheKey = 'user:stats';
+    const cached = await this.cacheService.get(cacheKey);
+    if (cached) return cached;
+    
+    const stats = await this.userRepository.getStats();
+    await this.cacheService.set(cacheKey, stats, 300); // 5 minutes
+    
+    return stats;
+  }
+}

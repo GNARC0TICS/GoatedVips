@@ -1,1 +1,109 @@
-import { IEmailService, EmailOptions, EmailTemplate } from './IEmailService';\nimport { getLogger } from '../logging/Logger';\n\n/**\n * Mock email service for development and testing\n * In production, replace with real email service (SendGrid, AWS SES, etc.)\n */\nexport class MockEmailService implements IEmailService {\n  private logger = getLogger();\n  \n  async sendEmail(options: EmailOptions): Promise<boolean> {\n    this.logger.info('Mock email sent', {\n      to: options.to,\n      subject: options.subject,\n      hasHtml: !!options.html,\n      hasText: !!options.text,\n      attachments: options.attachments?.length || 0,\n    });\n    \n    // Simulate email sending delay\n    await new Promise(resolve => setTimeout(resolve, 100));\n    \n    return true;\n  }\n  \n  async sendVerificationEmail(email: string, token: string): Promise<boolean> {\n    const verificationUrl = `${process.env.APP_URL || 'http://localhost:3000'}/verify-email?token=${token}`;\n    \n    return this.sendEmail({\n      to: email,\n      subject: 'Verify your GoatedVIPs account',\n      html: `\n        <h1>Welcome to GoatedVIPs!</h1>\n        <p>Please click the link below to verify your email address:</p>\n        <a href=\"${verificationUrl}\">Verify Email</a>\n        <p>If you didn't create an account, please ignore this email.</p>\n      `,\n      text: `\n        Welcome to GoatedVIPs!\n        \n        Please visit the following link to verify your email address:\n        ${verificationUrl}\n        \n        If you didn't create an account, please ignore this email.\n      `,\n    });\n  }\n  \n  async sendPasswordResetEmail(email: string, token: string): Promise<boolean> {\n    const resetUrl = `${process.env.APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;\n    \n    return this.sendEmail({\n      to: email,\n      subject: 'Reset your GoatedVIPs password',\n      html: `\n        <h1>Password Reset Request</h1>\n        <p>You requested a password reset for your GoatedVIPs account.</p>\n        <p>Click the link below to reset your password:</p>\n        <a href=\"${resetUrl}\">Reset Password</a>\n        <p>This link will expire in 1 hour.</p>\n        <p>If you didn't request this reset, please ignore this email.</p>\n      `,\n      text: `\n        Password Reset Request\n        \n        You requested a password reset for your GoatedVIPs account.\n        \n        Visit the following link to reset your password:\n        ${resetUrl}\n        \n        This link will expire in 1 hour.\n        \n        If you didn't request this reset, please ignore this email.\n      `,\n    });\n  }\n  \n  async sendWelcomeEmail(email: string, username: string): Promise<boolean> {\n    return this.sendEmail({\n      to: email,\n      subject: 'Welcome to GoatedVIPs!',\n      html: `\n        <h1>Welcome to GoatedVIPs, ${username}!</h1>\n        <p>Your account has been successfully created.</p>\n        <p>You can now:</p>\n        <ul>\n          <li>Track your wager statistics</li>\n          <li>Participate in wager races</li>\n          <li>Compete on leaderboards</li>\n          <li>Link your Goated.com account</li>\n        </ul>\n        <p>Get started by visiting your dashboard!</p>\n      `,\n      text: `\n        Welcome to GoatedVIPs, ${username}!\n        \n        Your account has been successfully created.\n        \n        You can now:\n        - Track your wager statistics\n        - Participate in wager races\n        - Compete on leaderboards\n        - Link your Goated.com account\n        \n        Get started by visiting your dashboard!\n      `,\n    });\n  }\n  \n  async sendNotificationEmail(email: string, title: string, message: string): Promise<boolean> {\n    return this.sendEmail({\n      to: email,\n      subject: `GoatedVIPs: ${title}`,\n      html: `\n        <h1>${title}</h1>\n        <p>${message}</p>\n        <hr>\n        <p><small>This is an automated notification from GoatedVIPs.</small></p>\n      `,\n      text: `\n        ${title}\n        \n        ${message}\n        \n        ---\n        This is an automated notification from GoatedVIPs.\n      `,\n    });\n  }\n  \n  async sendBulkEmail(recipients: string[], template: EmailTemplate): Promise<{\n    sent: number;\n    failed: string[];\n  }> {\n    const failed: string[] = [];\n    let sent = 0;\n    \n    for (const recipient of recipients) {\n      try {\n        await this.sendEmail({\n          to: recipient,\n          subject: template.subject,\n          html: template.html,\n          text: template.text,\n        });\n        sent++;\n      } catch (error) {\n        this.logger.error('Bulk email failed for recipient', error as Error, {\n          recipient,\n          subject: template.subject,\n        });\n        failed.push(recipient);\n      }\n    }\n    \n    return { sent, failed };\n  }\n  \n  async renderTemplate(templateName: string, variables: Record<string, any>): Promise<EmailTemplate> {\n    // Mock template rendering\n    this.logger.debug('Rendering email template', {\n      templateName,\n      variables: Object.keys(variables),\n    });\n    \n    // In a real implementation, this would use a template engine like Handlebars\n    return {\n      subject: `Template: ${templateName}`,\n      html: `<h1>Mock Template: ${templateName}</h1><pre>${JSON.stringify(variables, null, 2)}</pre>`,\n      text: `Mock Template: ${templateName}\\n\\n${JSON.stringify(variables, null, 2)}`,\n    };\n  }\n}"
+import { IEmailService, EmailOptions, EmailTemplate } from './IEmailService';
+import { getLogger } from '../logging/Logger';
+
+/**
+ * Mock email service for development and testing
+ * In production, replace with real email service (SendGrid, AWS SES, etc.)
+ */
+export class MockEmailService implements IEmailService {
+  private logger = getLogger();
+  
+  async sendEmail(options: EmailOptions): Promise<boolean> {
+    this.logger.info('Mock email sent', {
+      to: options.to,
+      subject: options.subject,
+      hasHtml: !!options.html,
+      hasText: !!options.text,
+      attachments: options.attachments?.length || 0,
+    });
+    
+    // Simulate email sending delay
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    return true;
+  }
+  
+  async sendVerificationEmail(email: string, token: string): Promise<boolean> {
+    const verificationUrl = `${process.env.APP_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
+    
+    return this.sendEmail({
+      to: email,
+      subject: 'Verify your GoatedVIPs account',
+      html: `
+        <h1>Welcome to GoatedVIPs!</h1>
+        <p>Please click the link below to verify your email address:</p>
+        <a href="${verificationUrl}">Verify Email</a>
+        <p>If you didn't create an account, please ignore this email.</p>
+      `,
+      text: `
+        Welcome to GoatedVIPs!
+        
+        Please visit the following link to verify your email address:
+        ${verificationUrl}
+        
+        If you didn't create an account, please ignore this email.
+      `,
+    });
+  }
+  
+  async sendPasswordResetEmail(email: string, token: string): Promise<boolean> {
+    const resetUrl = `${process.env.APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+    
+    return this.sendEmail({
+      to: email,
+      subject: 'Reset your GoatedVIPs password',
+      html: `
+        <h1>Password Reset Request</h1>
+        <p>You requested a password reset for your GoatedVIPs account.</p>
+        <p>Click the link below to reset your password:</p>
+        <a href="${resetUrl}">Reset Password</a>
+        <p>This link will expire in 1 hour.</p>
+        <p>If you didn't request this reset, please ignore this email.</p>
+      `,
+      text: `
+        Password Reset Request
+        
+        You requested a password reset for your GoatedVIPs account.
+        
+        Visit the following link to reset your password:
+        ${resetUrl}
+        
+        This link will expire in 1 hour.
+        
+        If you didn't request this reset, please ignore this email.
+      `,
+    });
+  }
+  
+  async sendWelcomeEmail(email: string, username: string): Promise<boolean> {
+    return this.sendEmail({
+      to: email,
+      subject: 'Welcome to GoatedVIPs!',
+      html: `
+        <h1>Welcome to GoatedVIPs, ${username}!</h1>
+        <p>Your account has been successfully created.</p>
+        <p>You can now:</p>
+        <ul>
+          <li>Track your wager statistics</li>
+          <li>Participate in wager races</li>
+          <li>Compete on leaderboards</li>
+          <li>Link your Goated.com account</li>
+        </ul>
+        <p>Get started by visiting your dashboard!</p>
+      `,
+      text: `
+        Welcome to GoatedVIPs, ${username}!
+        
+        Your account has been successfully created.
+        
+        You can now:
+        - Track your wager statistics
+        - Participate in wager races
+        - Compete on leaderboards
+        - Link your Goated.com account
+        
+        Get started by visiting your dashboard!
+      `,
+    });
+  }
+}

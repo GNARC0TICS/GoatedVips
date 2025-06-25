@@ -1,1 +1,243 @@
-import jwt from 'jsonwebtoken';\nimport crypto from 'crypto';\nimport { User } from '../../domain/entities/User';\nimport { ICacheService } from '../cache/ICacheService';\nimport { IUserRepository } from '../../domain/repositories/IUserRepository';\n\nexport interface TokenPayload {\n  userId: string;\n  email: string;\n  role: string;\n  sessionId: string;\n  iat?: number;\n  exp?: number;\n}\n\nexport interface AuthTokens {\n  accessToken: string;\n  refreshToken: string;\n  expiresIn: number;\n}\n\nexport interface SessionData {\n  userId: string;\n  email: string;\n  role: string;\n  ipAddress?: string;\n  userAgent?: string;\n  createdAt: Date;\n  lastAccessedAt: Date;\n}\n\nexport class JWTAuthService {\n  private readonly JWT_SECRET: string;\n  private readonly JWT_REFRESH_SECRET: string;\n  private readonly ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes\n  private readonly REFRESH_TOKEN_EXPIRY = '7d'; // 7 days\n  private readonly SESSION_EXPIRY = 7 * 24 * 60 * 60; // 7 days in seconds\n\n  constructor(\n    private cacheService: ICacheService,\n    private userRepository: IUserRepository,\n    jwtSecret?: string,\n    jwtRefreshSecret?: string\n  ) {\n    this.JWT_SECRET = jwtSecret || process.env.JWT_SECRET || this.generateSecureSecret();\n    this.JWT_REFRESH_SECRET = jwtRefreshSecret || process.env.JWT_REFRESH_SECRET || this.generateSecureSecret();\n    \n    if (!jwtSecret || !jwtRefreshSecret) {\n      console.warn('JWT secrets not provided, using generated secrets (not recommended for production)');\n    }\n  }\n\n  async generateTokens(user: User, ipAddress?: string, userAgent?: string): Promise<AuthTokens> {\n    const sessionId = this.generateSessionId();\n    \n    // Create session data\n    const sessionData: SessionData = {\n      userId: user.id,\n      email: user.email,\n      role: user.role,\n      ipAddress,\n      userAgent,\n      createdAt: new Date(),\n      lastAccessedAt: new Date(),\n    };\n    \n    // Store session in cache\n    await this.cacheService.set(\n      `session:${sessionId}`,\n      sessionData,\n      this.SESSION_EXPIRY\n    );\n    \n    // Create token payload\n    const payload: TokenPayload = {\n      userId: user.id,\n      email: user.email,\n      role: user.role,\n      sessionId,\n    };\n    \n    // Generate tokens\n    const accessToken = jwt.sign(payload, this.JWT_SECRET, {\n      expiresIn: this.ACCESS_TOKEN_EXPIRY,\n      issuer: 'goated-vips',\n      audience: 'goated-vips-app',\n    });\n    \n    const refreshToken = jwt.sign(\n      { userId: user.id, sessionId },\n      this.JWT_REFRESH_SECRET,\n      {\n        expiresIn: this.REFRESH_TOKEN_EXPIRY,\n        issuer: 'goated-vips',\n        audience: 'goated-vips-app',\n      }\n    );\n    \n    // Store refresh token\n    await this.cacheService.set(\n      `refresh:${sessionId}`,\n      refreshToken,\n      this.SESSION_EXPIRY\n    );\n    \n    return {\n      accessToken,\n      refreshToken,\n      expiresIn: 15 * 60, // 15 minutes in seconds\n    };\n  }\n\n  async verifyAccessToken(token: string): Promise<TokenPayload | null> {\n    try {\n      const payload = jwt.verify(token, this.JWT_SECRET, {\n        issuer: 'goated-vips',\n        audience: 'goated-vips-app',\n      }) as TokenPayload;\n      \n      // Verify session exists\n      const sessionExists = await this.cacheService.exists(`session:${payload.sessionId}`);\n      if (!sessionExists) {\n        return null;\n      }\n      \n      // Update last accessed time\n      await this.updateSessionAccess(payload.sessionId);\n      \n      return payload;\n    } catch (error) {\n      return null;\n    }\n  }\n\n  async refreshTokens(refreshToken: string): Promise<AuthTokens | null> {\n    try {\n      const payload = jwt.verify(refreshToken, this.JWT_REFRESH_SECRET, {\n        issuer: 'goated-vips',\n        audience: 'goated-vips-app',\n      }) as any;\n      \n      // Verify refresh token exists in cache\n      const storedToken = await this.cacheService.get(`refresh:${payload.sessionId}`);\n      if (storedToken !== refreshToken) {\n        return null;\n      }\n      \n      // Get session data\n      const sessionData = await this.cacheService.get<SessionData>(`session:${payload.sessionId}`);\n      if (!sessionData) {\n        return null;\n      }\n      \n      // Get user data\n      const user = await this.userRepository.findById(payload.userId);\n      if (!user || user.status !== 'active') {\n        return null;\n      }\n      \n      // Generate new tokens\n      return this.generateTokens(user, sessionData.ipAddress, sessionData.userAgent);\n    } catch (error) {\n      return null;\n    }\n  }\n\n  async revokeSession(sessionId: string): Promise<void> {\n    await Promise.all([\n      this.cacheService.delete(`session:${sessionId}`),\n      this.cacheService.delete(`refresh:${sessionId}`),\n    ]);\n  }\n\n  async revokeAllUserSessions(userId: string): Promise<void> {\n    // In a real Redis implementation, you'd use SCAN to find all sessions for a user\n    // For now, we'll mark the user as requiring re-authentication\n    await this.cacheService.set(`user:${userId}:revoked`, true, this.SESSION_EXPIRY);\n  }\n\n  async validateSession(sessionId: string): Promise<SessionData | null> {\n    // Check if user sessions are revoked\n    const sessionData = await this.cacheService.get<SessionData>(`session:${sessionId}`);\n    if (!sessionData) {\n      return null;\n    }\n    \n    const isRevoked = await this.cacheService.get(`user:${sessionData.userId}:revoked`);\n    if (isRevoked) {\n      await this.revokeSession(sessionId);\n      return null;\n    }\n    \n    return sessionData;\n  }\n\n  async getUserSessions(userId: string): Promise<SessionData[]> {\n    // In a production Redis setup, you'd implement a proper session store\n    // This is a simplified version\n    const sessionData = await this.cacheService.get<SessionData>(`session:${userId}`);\n    return sessionData ? [sessionData] : [];\n  }\n\n  private async updateSessionAccess(sessionId: string): Promise<void> {\n    const sessionData = await this.cacheService.get<SessionData>(`session:${sessionId}`);\n    if (sessionData) {\n      sessionData.lastAccessedAt = new Date();\n      await this.cacheService.set(`session:${sessionId}`, sessionData, this.SESSION_EXPIRY);\n    }\n  }\n\n  private generateSessionId(): string {\n    return crypto.randomBytes(32).toString('hex');\n  }\n\n  private generateSecureSecret(): string {\n    return crypto.randomBytes(64).toString('hex');\n  }\n\n  // Security utilities\n  async isTokenBlacklisted(token: string): Promise<boolean> {\n    return await this.cacheService.exists(`blacklist:${this.hashToken(token)}`);\n  }\n\n  async blacklistToken(token: string, expiresIn: number): Promise<void> {\n    const hashedToken = this.hashToken(token);\n    await this.cacheService.set(`blacklist:${hashedToken}`, true, expiresIn);\n  }\n\n  private hashToken(token: string): string {\n    return crypto.createHash('sha256').update(token).digest('hex');\n  }\n\n  // Admin functions\n  async getActiveSessionsCount(): Promise<number> {\n    // This would need to be implemented with proper Redis SCAN in production\n    return 0;\n  }\n\n  async cleanupExpiredSessions(): Promise<number> {\n    // Redis TTL handles this automatically, but this could be used for cleanup\n    return 0;\n  }\n}"
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { User } from '../../domain/entities/User';
+import { ICacheService } from '../cache/ICacheService';
+import { IUserRepository } from '../../domain/repositories/IUserRepository';
+
+export interface TokenPayload {
+  userId: string;
+  email: string;
+  role: string;
+  sessionId: string;
+  iat?: number;
+  exp?: number;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+
+export interface SessionData {
+  userId: string;
+  email: string;
+  role: string;
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt: Date;
+  lastAccessedAt: Date;
+}
+
+export class JWTAuthService {
+  private readonly JWT_SECRET: string;
+  private readonly JWT_REFRESH_SECRET: string;
+  private readonly ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes
+  private readonly REFRESH_TOKEN_EXPIRY = '7d'; // 7 days
+  private readonly SESSION_EXPIRY = 7 * 24 * 60 * 60; // 7 days in seconds
+
+  constructor(
+    private cacheService: ICacheService,
+    private userRepository: IUserRepository,
+    jwtSecret?: string,
+    jwtRefreshSecret?: string
+  ) {
+    this.JWT_SECRET = jwtSecret || process.env.JWT_SECRET || this.generateSecureSecret();
+    this.JWT_REFRESH_SECRET = jwtRefreshSecret || process.env.JWT_REFRESH_SECRET || this.generateSecureSecret();
+    
+    if (!jwtSecret || !jwtRefreshSecret) {
+      console.warn('JWT secrets not provided, using generated secrets (not recommended for production)');
+    }
+  }
+
+  async generateTokens(user: User, ipAddress?: string, userAgent?: string): Promise<AuthTokens> {
+    const sessionId = this.generateSessionId();
+    
+    // Create session data
+    const sessionData: SessionData = {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      ipAddress,
+      userAgent,
+      createdAt: new Date(),
+      lastAccessedAt: new Date(),
+    };
+    
+    // Store session in cache
+    await this.cacheService.set(
+      `session:${sessionId}`,
+      sessionData,
+      this.SESSION_EXPIRY
+    );
+    
+    // Create token payload
+    const payload: TokenPayload = {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      sessionId,
+    };
+    
+    // Generate tokens
+    const accessToken = jwt.sign(payload, this.JWT_SECRET, {
+      expiresIn: this.ACCESS_TOKEN_EXPIRY,
+      issuer: 'goated-vips',
+      audience: 'goated-vips-app',
+    });
+    
+    const refreshToken = jwt.sign(
+      { userId: user.id, sessionId },
+      this.JWT_REFRESH_SECRET,
+      {
+        expiresIn: this.REFRESH_TOKEN_EXPIRY,
+        issuer: 'goated-vips',
+        audience: 'goated-vips-app',
+      }
+    );
+    
+    // Store refresh token
+    await this.cacheService.set(
+      `refresh:${sessionId}`,
+      refreshToken,
+      this.SESSION_EXPIRY
+    );
+    
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: 15 * 60, // 15 minutes in seconds
+    };
+  }
+
+  async verifyAccessToken(token: string): Promise<TokenPayload | null> {
+    try {
+      const payload = jwt.verify(token, this.JWT_SECRET, {
+        issuer: 'goated-vips',
+        audience: 'goated-vips-app',
+      }) as TokenPayload;
+      
+      // Verify session exists
+      const sessionExists = await this.cacheService.exists(`session:${payload.sessionId}`);
+      if (!sessionExists) {
+        return null;
+      }
+      
+      // Update last accessed time
+      await this.updateSessionAccess(payload.sessionId);
+      
+      return payload;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async refreshTokens(refreshToken: string): Promise<AuthTokens | null> {
+    try {
+      const payload = jwt.verify(refreshToken, this.JWT_REFRESH_SECRET, {
+        issuer: 'goated-vips',
+        audience: 'goated-vips-app',
+      }) as any;
+      
+      // Verify refresh token exists in cache
+      const storedToken = await this.cacheService.get(`refresh:${payload.sessionId}`);
+      if (storedToken !== refreshToken) {
+        return null;
+      }
+      
+      // Get session data
+      const sessionData = await this.cacheService.get<SessionData>(`session:${payload.sessionId}`);
+      if (!sessionData) {
+        return null;
+      }
+      
+      // Get user data
+      const user = await this.userRepository.findById(payload.userId);
+      if (!user || user.status !== 'active') {
+        return null;
+      }
+      
+      // Generate new tokens
+      return this.generateTokens(user, sessionData.ipAddress, sessionData.userAgent);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async revokeSession(sessionId: string): Promise<void> {
+    await Promise.all([
+      this.cacheService.delete(`session:${sessionId}`),
+      this.cacheService.delete(`refresh:${sessionId}`),
+    ]);
+  }
+
+  async revokeAllUserSessions(userId: string): Promise<void> {
+    // In a real Redis implementation, you'd use SCAN to find all sessions for a user
+    // For now, we'll mark the user as requiring re-authentication
+    await this.cacheService.set(`user:${userId}:revoked`, true, this.SESSION_EXPIRY);
+  }
+
+  async validateSession(sessionId: string): Promise<SessionData | null> {
+    // Check if user sessions are revoked
+    const sessionData = await this.cacheService.get<SessionData>(`session:${sessionId}`);
+    if (!sessionData) {
+      return null;
+    }
+    
+    const isRevoked = await this.cacheService.get(`user:${sessionData.userId}:revoked`);
+    if (isRevoked) {
+      await this.revokeSession(sessionId);
+      return null;
+    }
+    
+    return sessionData;
+  }
+
+  async getUserSessions(userId: string): Promise<SessionData[]> {
+    // In a production Redis setup, you'd implement a proper session store
+    // This is a simplified version
+    const sessionData = await this.cacheService.get<SessionData>(`session:${userId}`);
+    return sessionData ? [sessionData] : [];
+  }
+
+  private async updateSessionAccess(sessionId: string): Promise<void> {
+    const sessionData = await this.cacheService.get<SessionData>(`session:${sessionId}`);
+    if (sessionData) {
+      sessionData.lastAccessedAt = new Date();
+      await this.cacheService.set(`session:${sessionId}`, sessionData, this.SESSION_EXPIRY);
+    }
+  }
+
+  private generateSessionId(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  private generateSecureSecret(): string {
+    return crypto.randomBytes(64).toString('hex');
+  }
+
+  // Security utilities
+  async isTokenBlacklisted(token: string): Promise<boolean> {
+    return await this.cacheService.exists(`blacklist:${this.hashToken(token)}`);
+  }
+
+  async blacklistToken(token: string, expiresIn: number): Promise<void> {
+    const hashedToken = this.hashToken(token);
+    await this.cacheService.set(`blacklist:${hashedToken}`, true, expiresIn);
+  }
+
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  // Admin functions
+  async getActiveSessionsCount(): Promise<number> {
+    // This would need to be implemented with proper Redis SCAN in production
+    return 0;
+  }
+
+  async cleanupExpiredSessions(): Promise<number> {
+    // Redis TTL handles this automatically, but this could be used for cleanup
+    return 0;
+  }
+}

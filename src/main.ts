@@ -1,1 +1,168 @@
-#!/usr/bin/env node\n/**\n * Main entry point for Goombas x Goated VIPs v2.0\n * \n * This is a complete rewrite with:\n * - Domain-driven design architecture\n * - Secure authentication with JWT\n * - Redis caching and session management\n * - Comprehensive logging and monitoring\n * - Type-safe API with Zod validation\n * - Optimized database schema\n */\n\nimport 'dotenv/config';\nimport { APIServer } from './api/server';\nimport { getLogger } from './infrastructure/logging/Logger';\nimport { getMetricsCollector } from './infrastructure/monitoring/MetricsCollector';\nimport { MockEmailService } from './infrastructure/email/MockEmailService';\n\n// Initialize logger\nconst logger = getLogger({\n  level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),\n  enableFile: process.env.NODE_ENV === 'production',\n});\n\n// Configuration from environment\nconst config = {\n  port: parseInt(process.env.PORT || '3000'),\n  host: process.env.HOST || '0.0.0.0',\n  corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173'],\n  \n  // Database\n  databaseUrl: process.env.DATABASE_URL || 'postgresql://localhost:5432/goombas_vips_v2',\n  \n  // Redis\n  redisHost: process.env.REDIS_HOST || 'localhost',\n  redisPort: parseInt(process.env.REDIS_PORT || '6379'),\n  redisPassword: process.env.REDIS_PASSWORD,\n  \n  // JWT\n  jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',\n  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-in-production',\n  \n  // Email service (mock for now)\n  emailService: new MockEmailService(),\n};\n\n// Validate critical configuration\nfunction validateConfig() {\n  const requiredVars = [\n    'DATABASE_URL',\n    'JWT_SECRET',\n    'JWT_REFRESH_SECRET',\n  ];\n  \n  const missing = requiredVars.filter(varName => !process.env[varName]);\n  \n  if (missing.length > 0) {\n    logger.error('Missing required environment variables', undefined, {\n      missing,\n      environment: process.env.NODE_ENV,\n    });\n    \n    if (process.env.NODE_ENV === 'production') {\n      process.exit(1);\n    } else {\n      logger.warn('Running in development mode with default values');\n    }\n  }\n  \n  // Warn about insecure defaults in production\n  if (process.env.NODE_ENV === 'production') {\n    const insecureDefaults = [];\n    \n    if (config.jwtSecret === 'dev-secret-change-in-production') {\n      insecureDefaults.push('JWT_SECRET');\n    }\n    \n    if (config.jwtRefreshSecret === 'dev-refresh-secret-change-in-production') {\n      insecureDefaults.push('JWT_REFRESH_SECRET');\n    }\n    \n    if (insecureDefaults.length > 0) {\n      logger.security('Insecure configuration detected in production', {\n        severity: 'critical',\n        variables: insecureDefaults,\n        threat: 'Authentication bypass possible',\n        action: 'Set secure values for production',\n      });\n    }\n  }\n}\n\n// Main startup function\nasync function main() {\n  try {\n    logger.info('Starting Goombas x Goated VIPs v2.0', {\n      version: '2.0.0',\n      environment: process.env.NODE_ENV || 'development',\n      nodeVersion: process.version,\n      pid: process.pid,\n    });\n    \n    // Validate configuration\n    validateConfig();\n    \n    // Initialize metrics collector\n    const metricsCollector = getMetricsCollector();\n    logger.info('Metrics collector initialized');\n    \n    // Create and start server\n    const server = new APIServer(config);\n    await server.start();\n    \n    // Log successful startup\n    logger.info('Server started successfully', {\n      port: config.port,\n      host: config.host,\n      environment: process.env.NODE_ENV,\n    });\n    \n    // Business event\n    logger.business('Application started', {\n      version: '2.0.0',\n      port: config.port,\n    });\n    \n  } catch (error: any) {\n    logger.error('Failed to start server', error, {\n      stack: error.stack,\n      config: {\n        port: config.port,\n        host: config.host,\n        environment: process.env.NODE_ENV,\n      },\n    });\n    \n    process.exit(1);\n  }\n}\n\n// Handle process signals\nprocess.on('SIGTERM', () => {\n  logger.info('SIGTERM received, starting graceful shutdown');\n});\n\nprocess.on('SIGINT', () => {\n  logger.info('SIGINT received, starting graceful shutdown');\n});\n\n// Handle uncaught exceptions\nprocess.on('uncaughtException', (error) => {\n  logger.error('Uncaught exception', error);\n  process.exit(1);\n});\n\nprocess.on('unhandledRejection', (reason, promise) => {\n  logger.error('Unhandled promise rejection', reason as Error, {\n    promise: promise.toString(),\n  });\n  process.exit(1);\n});\n\n// Start the application\nmain().catch((error) => {\n  logger.error('Application startup failed', error);\n  process.exit(1);\n});"
+#!/usr/bin/env node
+/**
+ * Main entry point for Goombas x Goated VIPs v2.0
+ * 
+ * This is a complete rewrite with:
+ * - Domain-driven design architecture
+ * - Secure authentication with JWT
+ * - Redis caching and session management
+ * - Comprehensive logging and monitoring
+ * - Type-safe API with Zod validation
+ * - Optimized database schema
+ */
+
+import 'dotenv/config';
+import { APIServer } from './api/server';
+import { getLogger } from './infrastructure/logging/Logger';
+import { getMetricsCollector } from './infrastructure/monitoring/MetricsCollector';
+import { MockEmailService } from './infrastructure/email/MockEmailService';
+
+// Initialize logger
+const logger = getLogger({
+  level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+  enableFile: process.env.NODE_ENV === 'production',
+});
+
+// Configuration from environment
+const config = {
+  port: parseInt(process.env.PORT || '3000'),
+  host: process.env.HOST || '0.0.0.0',
+  corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173'],
+  
+  // Database
+  databaseUrl: process.env.DATABASE_URL || 'postgresql://localhost:5432/goombas_vips_v2',
+  
+  // Redis
+  redisHost: process.env.REDIS_HOST || 'localhost',
+  redisPort: parseInt(process.env.REDIS_PORT || '6379'),
+  redisPassword: process.env.REDIS_PASSWORD,
+  
+  // JWT
+  jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
+  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-in-production',
+  
+  // Email service (mock for now)
+  emailService: new MockEmailService(),
+};
+
+// Validate critical configuration
+function validateConfig() {
+  const requiredVars = [
+    'DATABASE_URL',
+    'JWT_SECRET',
+    'JWT_REFRESH_SECRET',
+  ];
+  
+  const missing = requiredVars.filter(varName => !process.env[varName]);
+  
+  if (missing.length > 0) {
+    logger.error('Missing required environment variables', undefined, {
+      missing,
+      environment: process.env.NODE_ENV,
+    });
+    
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    } else {
+      logger.warn('Running in development mode with default values');
+    }
+  }
+  
+  // Warn about insecure defaults in production
+  if (process.env.NODE_ENV === 'production') {
+    const insecureDefaults = [];
+    
+    if (config.jwtSecret === 'dev-secret-change-in-production') {
+      insecureDefaults.push('JWT_SECRET');
+    }
+    
+    if (config.jwtRefreshSecret === 'dev-refresh-secret-change-in-production') {
+      insecureDefaults.push('JWT_REFRESH_SECRET');
+    }
+    
+    if (insecureDefaults.length > 0) {
+      logger.security('Insecure configuration detected in production', {
+        severity: 'critical',
+        variables: insecureDefaults,
+        threat: 'Authentication bypass possible',
+        action: 'Set secure values for production',
+      });
+    }
+  }
+}
+
+// Main startup function
+async function main() {
+  try {
+    logger.info('Starting Goombas x Goated VIPs v2.0', {
+      version: '2.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      nodeVersion: process.version,
+      pid: process.pid,
+    });
+    
+    // Validate configuration
+    validateConfig();
+    
+    // Initialize metrics collector
+    const metricsCollector = getMetricsCollector();
+    logger.info('Metrics collector initialized');
+    
+    // Create and start server
+    const server = new APIServer(config);
+    await server.start();
+    
+    // Log successful startup
+    logger.info('Server started successfully', {
+      port: config.port,
+      host: config.host,
+      environment: process.env.NODE_ENV,
+    });
+    
+    // Business event
+    logger.business('Application started', {
+      version: '2.0.0',
+      port: config.port,
+    });
+    
+  } catch (error: any) {
+    logger.error('Failed to start server', error, {
+      stack: error.stack,
+      config: {
+        port: config.port,
+        host: config.host,
+        environment: process.env.NODE_ENV,
+      },
+    });
+    
+    process.exit(1);
+  }
+}
+
+// Handle process signals
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, starting graceful shutdown');
+});
+
+process.on('SIGINT', () => {
+  logger.info('SIGINT received, starting graceful shutdown');
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught exception', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled promise rejection', reason as Error, {
+    promise: promise.toString(),
+  });
+  process.exit(1);
+});
+
+// Start the application
+main().catch((error) => {
+  logger.error('Application startup failed', error);
+  process.exit(1);
+});

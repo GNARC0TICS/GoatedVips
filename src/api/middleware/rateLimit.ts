@@ -1,1 +1,308 @@
-import { Request, Response, NextFunction } from 'express';\nimport { ICacheService } from '../../infrastructure/cache/ICacheService';\n\n// Rate limit configuration\nexport interface RateLimitConfig {\n  windowMs: number;      // Time window in milliseconds\n  max: number;           // Maximum requests per window\n  keyGenerator?: (req: Request) => string;  // Custom key generator\n  skip?: (req: Request) => boolean;         // Skip rate limiting for certain requests\n  message?: string;      // Custom error message\n  standardHeaders?: boolean;                // Include rate limit headers\n  legacyHeaders?: boolean;                  // Include legacy X-RateLimit headers\n}\n\n// Rate limit store interface\nexport interface RateLimitStore {\n  increment(key: string, windowMs: number): Promise<{ totalRequests: number; remainingTime: number }>;\n  reset(key: string): Promise<void>;\n}\n\n// Redis-based rate limit store\nexport class RedisRateLimitStore implements RateLimitStore {\n  constructor(private cache: ICacheService) {}\n\n  async increment(key: string, windowMs: number): Promise<{ totalRequests: number; remainingTime: number }> {\n    const now = Date.now();\n    const window = Math.floor(now / windowMs);\n    const cacheKey = `ratelimit:${key}:${window}`;\n    \n    try {\n      // Increment counter\n      const count = await this.cache.incr(cacheKey);\n      \n      // Set expiration on first increment\n      if (count === 1) {\n        await this.cache.expire(cacheKey, Math.ceil(windowMs / 1000));\n      }\n      \n      const remainingTime = windowMs - (now % windowMs);\n      \n      return {\n        totalRequests: count,\n        remainingTime\n      };\n    } catch (error) {\n      console.error('Rate limit store error:', error);\n      // Fail open - allow request if rate limiting fails\n      return {\n        totalRequests: 1,\n        remainingTime: windowMs\n      };\n    }\n  }\n\n  async reset(key: string): Promise<void> {\n    try {\n      // Find all keys for this identifier\n      const pattern = `ratelimit:${key}:*`;\n      const keys = await this.cache.keys(pattern);\n      \n      if (keys.length > 0) {\n        await this.cache.mdelete(keys);\n      }\n    } catch (error) {\n      console.error('Rate limit reset error:', error);\n    }\n  }\n}\n\n// Memory-based rate limit store (for development/testing)\nexport class MemoryRateLimitStore implements RateLimitStore {\n  private store = new Map<string, { count: number; resetTime: number }>();\n\n  async increment(key: string, windowMs: number): Promise<{ totalRequests: number; remainingTime: number }> {\n    const now = Date.now();\n    const window = Math.floor(now / windowMs);\n    const storeKey = `${key}:${window}`;\n    \n    let entry = this.store.get(storeKey);\n    \n    if (!entry) {\n      entry = { count: 0, resetTime: (window + 1) * windowMs };\n      this.store.set(storeKey, entry);\n    }\n    \n    entry.count++;\n    \n    // Clean up old entries\n    this.cleanup(now);\n    \n    return {\n      totalRequests: entry.count,\n      remainingTime: entry.resetTime - now\n    };\n  }\n\n  async reset(key: string): Promise<void> {\n    for (const [storeKey] of this.store) {\n      if (storeKey.startsWith(`${key}:`)) {\n        this.store.delete(storeKey);\n      }\n    }\n  }\n\n  private cleanup(now: number): void {\n    // Clean up expired entries (run occasionally)\n    if (Math.random() < 0.01) { // 1% chance\n      for (const [key, entry] of this.store) {\n        if (now > entry.resetTime) {\n          this.store.delete(key);\n        }\n      }\n    }\n  }\n}\n\n// Rate limiting middleware factory\nexport function createRateLimitMiddleware(\n  store: RateLimitStore,\n  defaultConfig: Partial<RateLimitConfig> = {}\n) {\n  return function rateLimitMiddleware(config: RateLimitConfig) {\n    const finalConfig = {\n      windowMs: 15 * 60 * 1000, // 15 minutes\n      max: 100,\n      keyGenerator: (req: Request) => req.ip || 'unknown',\n      message: 'Too many requests, please try again later',\n      standardHeaders: true,\n      legacyHeaders: false,\n      ...defaultConfig,\n      ...config,\n    };\n\n    return async (req: Request, res: Response, next: NextFunction) => {\n      try {\n        // Skip if configured to skip\n        if (finalConfig.skip && finalConfig.skip(req)) {\n          return next();\n        }\n\n        const key = finalConfig.keyGenerator!(req);\n        const result = await store.increment(key, finalConfig.windowMs);\n        \n        const remaining = Math.max(0, finalConfig.max - result.totalRequests);\n        const resetTime = new Date(Date.now() + result.remainingTime);\n        \n        // Add standard headers\n        if (finalConfig.standardHeaders) {\n          res.set({\n            'RateLimit-Limit': finalConfig.max.toString(),\n            'RateLimit-Remaining': remaining.toString(),\n            'RateLimit-Reset': resetTime.toISOString(),\n          });\n        }\n        \n        // Add legacy headers\n        if (finalConfig.legacyHeaders) {\n          res.set({\n            'X-RateLimit-Limit': finalConfig.max.toString(),\n            'X-RateLimit-Remaining': remaining.toString(),\n            'X-RateLimit-Reset': Math.ceil(resetTime.getTime() / 1000).toString(),\n          });\n        }\n        \n        // Check if limit exceeded\n        if (result.totalRequests > finalConfig.max) {\n          return res.status(429).json({\n            success: false,\n            error: finalConfig.message,\n            code: 'RATE_LIMIT_EXCEEDED',\n            retryAfter: Math.ceil(result.remainingTime / 1000),\n            limit: finalConfig.max,\n            remaining: 0,\n            reset: resetTime.toISOString(),\n          });\n        }\n        \n        next();\n      } catch (error) {\n        console.error('Rate limit middleware error:', error);\n        // Fail open - allow request if rate limiting fails\n        next();\n      }\n    };\n  };\n}\n\n// Predefined rate limit configurations\nexport const RateLimitPresets = {\n  // Very strict - for sensitive operations\n  strict: {\n    windowMs: 15 * 60 * 1000, // 15 minutes\n    max: 5,\n  },\n  \n  // Moderate - for authentication\n  auth: {\n    windowMs: 15 * 60 * 1000, // 15 minutes\n    max: 10,\n  },\n  \n  // Standard - for general API use\n  standard: {\n    windowMs: 15 * 60 * 1000, // 15 minutes\n    max: 100,\n  },\n  \n  // Lenient - for public endpoints\n  lenient: {\n    windowMs: 15 * 60 * 1000, // 15 minutes\n    max: 1000,\n  },\n  \n  // Burst - short window, higher limit\n  burst: {\n    windowMs: 60 * 1000, // 1 minute\n    max: 20,\n  },\n};\n\n// Simple rate limit middleware (uses memory store)\nexport function rateLimitMiddleware(config: RateLimitConfig) {\n  const store = new MemoryRateLimitStore();\n  const middleware = createRateLimitMiddleware(store);\n  return middleware(config);\n}\n\n// User-specific rate limiting\nexport function userRateLimitMiddleware(\n  store: RateLimitStore,\n  config: RateLimitConfig\n) {\n  const middleware = createRateLimitMiddleware(store, {\n    keyGenerator: (req: Request) => {\n      // Use user ID if authenticated, otherwise fall back to IP\n      return req.user?.id || req.ip || 'unknown';\n    },\n  });\n  \n  return middleware(config);\n}\n\n// IP-based rate limiting with whitelist\nexport function ipRateLimitMiddleware(\n  store: RateLimitStore,\n  config: RateLimitConfig & { whitelist?: string[] }\n) {\n  const middleware = createRateLimitMiddleware(store, {\n    keyGenerator: (req: Request) => `ip:${req.ip}`,\n    skip: (req: Request) => {\n      return config.whitelist?.includes(req.ip || '') || false;\n    },\n  });\n  \n  return middleware(config);\n}\n\n// Sliding window rate limiter\nexport class SlidingWindowRateLimiter {\n  constructor(\n    private cache: ICacheService,\n    private windowMs: number,\n    private maxRequests: number\n  ) {}\n\n  async isAllowed(key: string): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {\n    const now = Date.now();\n    const windowStart = now - this.windowMs;\n    const cacheKey = `sliding:${key}`;\n    \n    try {\n      // Get existing timestamps\n      const timestamps = await this.cache.lrange(cacheKey, 0, -1) || [];\n      \n      // Filter out expired timestamps\n      const validTimestamps = timestamps\n        .map(ts => parseInt(ts))\n        .filter(ts => ts > windowStart);\n      \n      // Check if under limit\n      const allowed = validTimestamps.length < this.maxRequests;\n      \n      if (allowed) {\n        // Add current timestamp\n        await this.cache.lpush(cacheKey, now.toString());\n        await this.cache.expire(cacheKey, Math.ceil(this.windowMs / 1000));\n      }\n      \n      // Calculate reset time (when oldest request expires)\n      const oldestTimestamp = Math.min(...validTimestamps, now);\n      const resetTime = oldestTimestamp + this.windowMs;\n      \n      return {\n        allowed,\n        remaining: Math.max(0, this.maxRequests - validTimestamps.length - (allowed ? 1 : 0)),\n        resetTime\n      };\n    } catch (error) {\n      console.error('Sliding window rate limiter error:', error);\n      // Fail open\n      return {\n        allowed: true,\n        remaining: this.maxRequests - 1,\n        resetTime: now + this.windowMs\n      };\n    }\n  }\n}"
+import { Request, Response, NextFunction } from 'express';
+import { ICacheService } from '../../infrastructure/cache/ICacheService';
+
+// Rate limit configuration
+export interface RateLimitConfig {
+  windowMs: number;      // Time window in milliseconds
+  max: number;           // Maximum requests per window
+  keyGenerator?: (req: Request) => string;  // Custom key generator
+  skip?: (req: Request) => boolean;         // Skip rate limiting for certain requests
+  message?: string;      // Custom error message
+  standardHeaders?: boolean;                // Include rate limit headers
+  legacyHeaders?: boolean;                  // Include legacy X-RateLimit headers
+}
+
+// Rate limit store interface
+export interface RateLimitStore {
+  increment(key: string, windowMs: number): Promise<{ totalRequests: number; remainingTime: number }>;
+  reset(key: string): Promise<void>;
+}
+
+// Redis-based rate limit store
+export class RedisRateLimitStore implements RateLimitStore {
+  constructor(private cache: ICacheService) {}
+
+  async increment(key: string, windowMs: number): Promise<{ totalRequests: number; remainingTime: number }> {
+    const now = Date.now();
+    const window = Math.floor(now / windowMs);
+    const cacheKey = `ratelimit:${key}:${window}`;
+    
+    try {
+      // Increment counter
+      const count = await this.cache.incr(cacheKey);
+      
+      // Set expiration on first increment
+      if (count === 1) {
+        await this.cache.expire(cacheKey, Math.ceil(windowMs / 1000));
+      }
+      
+      const remainingTime = windowMs - (now % windowMs);
+      
+      return {
+        totalRequests: count,
+        remainingTime
+      };
+    } catch (error) {
+      console.error('Rate limit store error:', error);
+      // Fail open - allow request if rate limiting fails
+      return {
+        totalRequests: 1,
+        remainingTime: windowMs
+      };
+    }
+  }
+
+  async reset(key: string): Promise<void> {
+    try {
+      // Find all keys for this identifier
+      const pattern = `ratelimit:${key}:*`;
+      const keys = await this.cache.keys(pattern);
+      
+      if (keys.length > 0) {
+        await this.cache.mdelete(keys);
+      }
+    } catch (error) {
+      console.error('Rate limit reset error:', error);
+    }
+  }
+}
+
+// Memory-based rate limit store (for development/testing)
+export class MemoryRateLimitStore implements RateLimitStore {
+  private store = new Map<string, { count: number; resetTime: number }>();
+
+  async increment(key: string, windowMs: number): Promise<{ totalRequests: number; remainingTime: number }> {
+    const now = Date.now();
+    const window = Math.floor(now / windowMs);
+    const storeKey = `${key}:${window}`;
+    
+    let entry = this.store.get(storeKey);
+    
+    if (!entry) {
+      entry = { count: 0, resetTime: (window + 1) * windowMs };
+      this.store.set(storeKey, entry);
+    }
+    
+    entry.count++;
+    
+    // Clean up old entries
+    this.cleanup(now);
+    
+    return {
+      totalRequests: entry.count,
+      remainingTime: entry.resetTime - now
+    };
+  }
+
+  async reset(key: string): Promise<void> {
+    for (const [storeKey] of this.store) {
+      if (storeKey.startsWith(`${key}:`)) {
+        this.store.delete(storeKey);
+      }
+    }
+  }
+
+  private cleanup(now: number): void {
+    // Clean up expired entries (run occasionally)
+    if (Math.random() < 0.01) { // 1% chance
+      for (const [key, entry] of this.store) {
+        if (now > entry.resetTime) {
+          this.store.delete(key);
+        }
+      }
+    }
+  }
+}
+
+// Rate limiting middleware factory
+export function createRateLimitMiddleware(
+  store: RateLimitStore,
+  defaultConfig: Partial<RateLimitConfig> = {}
+) {
+  return function rateLimitMiddleware(config: RateLimitConfig) {
+    const finalConfig = {
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 100,
+      keyGenerator: (req: Request) => req.ip || 'unknown',
+      message: 'Too many requests, please try again later',
+      standardHeaders: true,
+      legacyHeaders: false,
+      ...defaultConfig,
+      ...config,
+    };
+
+    return async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        // Skip if configured to skip
+        if (finalConfig.skip && finalConfig.skip(req)) {
+          return next();
+        }
+
+        const key = finalConfig.keyGenerator!(req);
+        const result = await store.increment(key, finalConfig.windowMs);
+        
+        const remaining = Math.max(0, finalConfig.max - result.totalRequests);
+        const resetTime = new Date(Date.now() + result.remainingTime);
+        
+        // Add standard headers
+        if (finalConfig.standardHeaders) {
+          res.set({
+            'RateLimit-Limit': finalConfig.max.toString(),
+            'RateLimit-Remaining': remaining.toString(),
+            'RateLimit-Reset': resetTime.toISOString(),
+          });
+        }
+        
+        // Add legacy headers
+        if (finalConfig.legacyHeaders) {
+          res.set({
+            'X-RateLimit-Limit': finalConfig.max.toString(),
+            'X-RateLimit-Remaining': remaining.toString(),
+            'X-RateLimit-Reset': Math.ceil(resetTime.getTime() / 1000).toString(),
+          });
+        }
+        
+        // Check if limit exceeded
+        if (result.totalRequests > finalConfig.max) {
+          return res.status(429).json({
+            success: false,
+            error: finalConfig.message,
+            code: 'RATE_LIMIT_EXCEEDED',
+            retryAfter: Math.ceil(result.remainingTime / 1000),
+            limit: finalConfig.max,
+            remaining: 0,
+            reset: resetTime.toISOString(),
+          });
+        }
+        
+        next();
+      } catch (error) {
+        console.error('Rate limit middleware error:', error);
+        // Fail open - allow request if rate limiting fails
+        next();
+      }
+    };
+  };
+}
+
+// Predefined rate limit configurations
+export const RateLimitPresets = {
+  // Very strict - for sensitive operations
+  strict: {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5,
+  },
+  
+  // Moderate - for authentication
+  auth: {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,
+  },
+  
+  // Standard - for general API use
+  standard: {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100,
+  },
+  
+  // Lenient - for public endpoints
+  lenient: {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 1000,
+  },
+  
+  // Burst - short window, higher limit
+  burst: {
+    windowMs: 60 * 1000, // 1 minute
+    max: 20,
+  },
+};
+
+// Simple rate limit middleware (uses memory store)
+export function rateLimitMiddleware(config: RateLimitConfig) {
+  const store = new MemoryRateLimitStore();
+  const middleware = createRateLimitMiddleware(store);
+  return middleware(config);
+}
+
+// User-specific rate limiting
+export function userRateLimitMiddleware(
+  store: RateLimitStore,
+  config: RateLimitConfig
+) {
+  const middleware = createRateLimitMiddleware(store, {
+    keyGenerator: (req: Request) => {
+      // Use user ID if authenticated, otherwise fall back to IP
+      return req.user?.id || req.ip || 'unknown';
+    },
+  });
+  
+  return middleware(config);
+}
+
+// IP-based rate limiting with whitelist
+export function ipRateLimitMiddleware(
+  store: RateLimitStore,
+  config: RateLimitConfig & { whitelist?: string[] }
+) {
+  const middleware = createRateLimitMiddleware(store, {
+    keyGenerator: (req: Request) => `ip:${req.ip}`,
+    skip: (req: Request) => {
+      return config.whitelist?.includes(req.ip || '') || false;
+    },
+  });
+  
+  return middleware(config);
+}
+
+// Sliding window rate limiter
+export class SlidingWindowRateLimiter {
+  constructor(
+    private cache: ICacheService,
+    private windowMs: number,
+    private maxRequests: number
+  ) {}
+
+  async isAllowed(key: string): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
+    const now = Date.now();
+    const windowStart = now - this.windowMs;
+    const cacheKey = `sliding:${key}`;
+    
+    try {
+      // Get existing timestamps
+      const timestamps = await this.cache.lrange(cacheKey, 0, -1) || [];
+      
+      // Filter out expired timestamps
+      const validTimestamps = timestamps
+        .map(ts => parseInt(ts))
+        .filter(ts => ts > windowStart);
+      
+      // Check if under limit
+      const allowed = validTimestamps.length < this.maxRequests;
+      
+      if (allowed) {
+        // Add current timestamp
+        await this.cache.lpush(cacheKey, now.toString());
+        await this.cache.expire(cacheKey, Math.ceil(this.windowMs / 1000));
+      }
+      
+      // Calculate reset time (when oldest request expires)
+      const oldestTimestamp = Math.min(...validTimestamps, now);
+      const resetTime = oldestTimestamp + this.windowMs;
+      
+      return {
+        allowed,
+        remaining: Math.max(0, this.maxRequests - validTimestamps.length - (allowed ? 1 : 0)),
+        resetTime
+      };
+    } catch (error) {
+      console.error('Sliding window rate limiter error:', error);
+      // Fail open
+      return {
+        allowed: true,
+        remaining: this.maxRequests - 1,
+        resetTime: now + this.windowMs
+      };
+    }
+  }
+}

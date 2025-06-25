@@ -1,1 +1,52 @@
-import { User, CreateUserInput, UpdateUserInput } from '../entities/User';\n\nexport interface IUserRepository {\n  // Basic CRUD\n  create(input: CreateUserInput): Promise<User>;\n  findById(id: string): Promise<User | null>;\n  findByEmail(email: string): Promise<User | null>;\n  findByUsername(username: string): Promise<User | null>;\n  update(id: string, input: UpdateUserInput): Promise<User | null>;\n  delete(id: string): Promise<boolean>;\n  \n  // Goated Integration\n  findByGoatedId(goatedId: string): Promise<User | null>;\n  linkGoatedAccount(userId: string, goatedId: string, goatedUsername: string): Promise<User | null>;\n  unlinkGoatedAccount(userId: string): Promise<User | null>;\n  \n  // Search and Lists\n  search(query: string, limit?: number, offset?: number): Promise<{\n    users: User[];\n    total: number;\n  }>;\n  \n  list(filters?: {\n    role?: string;\n    status?: string;\n    verified?: boolean;\n    goatedLinked?: boolean;\n  }, pagination?: {\n    limit: number;\n    offset: number;\n  }): Promise<{\n    users: User[];\n    total: number;\n  }>;\n  \n  // Authentication helpers\n  findByEmailVerificationToken(token: string): Promise<User | null>;\n  findByPasswordResetToken(token: string): Promise<User | null>;\n  \n  // Activity tracking\n  updateLastActivity(userId: string): Promise<void>;\n  incrementLoginCount(userId: string): Promise<void>;\n  \n  // Admin functions\n  getStats(): Promise<{\n    total: number;\n    verified: number;\n    goatedLinked: number;\n    activeToday: number;\n    activeThisWeek: number;\n  }>;\n}
+import { User, CreateUserInput, UpdateUserInput } from '../entities/User';
+
+export interface IUserRepository {
+  // Basic CRUD
+  create(input: CreateUserInput): Promise<User>;
+  findById(id: string): Promise<User | null>;
+  findByEmail(email: string): Promise<User | null>;
+  findByUsername(username: string): Promise<User | null>;
+  update(id: string, input: UpdateUserInput): Promise<User | null>;
+  delete(id: string): Promise<boolean>;
+  
+  // Goated Integration
+  findByGoatedId(goatedId: string): Promise<User | null>;
+  linkGoatedAccount(userId: string, goatedId: string, goatedUsername: string): Promise<User | null>;
+  unlinkGoatedAccount(userId: string): Promise<User | null>;
+  
+  // Search and Lists
+  search(query: string, limit?: number, offset?: number): Promise<{
+    users: User[];
+    total: number;
+  }>;
+  
+  list(filters?: {
+    role?: string;
+    status?: string;
+    verified?: boolean;
+    goatedLinked?: boolean;
+  }, pagination?: {
+    limit: number;
+    offset: number;
+  }): Promise<{
+    users: User[];
+    total: number;
+  }>;
+  
+  // Authentication helpers
+  findByEmailVerificationToken(token: string): Promise<User | null>;
+  findByPasswordResetToken(token: string): Promise<User | null>;
+  
+  // Activity tracking
+  updateLastActivity(userId: string): Promise<void>;
+  incrementLoginCount(userId: string): Promise<void>;
+  
+  // Admin functions
+  getStats(): Promise<{
+    total: number;
+    verified: number;
+    goatedLinked: number;
+    activeToday: number;
+    activeThisWeek: number;
+  }>;
+}
