@@ -7,6 +7,7 @@ import { createServer } from 'http';
 
 // Infrastructure
 import { RedisCache } from '../infrastructure/cache/RedisCache';
+import { MemoryCache } from '../infrastructure/cache/MemoryCache';
 import { DrizzleUserRepository } from '../infrastructure/database/DrizzleUserRepository';
 import { JWTAuthService } from '../infrastructure/auth/JWTAuthService';
 
