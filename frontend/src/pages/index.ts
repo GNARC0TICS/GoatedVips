@@ -1,0 +1,36 @@
+// Page Components for Goombas x Goated VIPs
+export { default as Home } from './Home';
+export { default as Dashboard } from './Dashboard';
+export { default as AuthPage } from './auth-page';
+export { default as Profile } from './profile';
+export { default as EnhancedUserProfile } from './EnhancedUserProfile';
+export { default as NotFound } from './not-found';
+export { default as VipProgram } from './VipProgram';
+export { default as VipTransfer } from './VipTransfer';
+export { default as ProvablyFair } from './ProvablyFair';
+export { default as WagerRaces } from './WagerRaces';
+export { default as BonusCodes } from './BonusCodes';
+export { default as Leaderboard } from './Leaderboard';
+export { default as Help } from './Help';
+export { default as Support } from './support';
+export { default as FAQ } from './faq';
+export { default as Telegram } from './Telegram';
+export { default as HowItWorks } from './HowItWorks';
+export { default as GoatedToken } from './GoatedToken';
+export { default as TipsAndStrategies } from './tips-and-strategies';
+export { default as Promotions } from './Promotions';
+export { default as Challenges } from './Challenges';
+export { default as WheelChallenge } from './WheelChallenge';
+export { default as WheelSpin } from './WheelSpin';
+export { default as CryptoSwap } from './CryptoSwap';
+export { default as GoombasAdminLogin } from './GoombasAdminLogin';
+export { default as GoombasAdminDashboard } from './GoombasAdminDashboard';
+export { default as NotificationPreferences } from './notification-preferences';
+
+// Admin Pages
+export { default as AdminDashboard } from './admin/AdminDashboard';
+export { default as WagerRaceManagement } from './admin/WagerRaceManagement';
+export { default as UserManagement } from './admin/UserManagement';
+export { default as NotificationManagement } from './admin/NotificationManagement';
+export { default as BonusCodeManagement } from './admin/BonusCodeManagement';
+export { default as SupportManagement } from './admin/SupportManagement';
