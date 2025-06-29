@@ -38,6 +38,127 @@ body, html {
   }
 }
 
+/* Global smooth rounded borders and enhanced styling */
+* {
+  /* Apply smooth border radius globally */
+  border-radius: inherit;
+}
+
+/* Default smooth border radius for common elements */
+button, 
+input, 
+textarea, 
+select, 
+.card, 
+.dialog, 
+.popover, 
+.tooltip, 
+.dropdown-menu,
+.alert,
+.badge,
+.avatar {
+  border-radius: 12px;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Enhanced button styling with smooth borders */
+button {
+  border-radius: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Smooth input field styling */
+input, textarea, select {
+  border-radius: 14px;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-radius: 16px;
+  transform: scale(1.02);
+  box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.1);
+}
+
+/* Card components with enhanced rounded corners */
+.card {
+  border-radius: 20px;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.card:hover {
+  border-radius: 24px;
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Dialog and modal smooth styling */
+.dialog, .modal {
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+/* Enhanced navigation and menu styling */
+.dropdown-menu, .context-menu {
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+/* Smooth image and media borders */
+img, video, canvas {
+  border-radius: 12px;
+}
+
+/* Avatar and profile image smooth styling */
+.avatar {
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.avatar:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(255, 215, 0, 0.3);
+}
+
+/* Progress bars and indicators */
+.progress, .slider {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* Enhanced badge and tag styling */
+.badge, .tag {
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+/* Smooth scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 215, 0, 0.3);
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 215, 0, 0.5);
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

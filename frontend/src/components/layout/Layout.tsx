@@ -1,7 +1,13 @@
 import React, { ReactNode, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SelectUser } from "@db/schema";
+// import type { SelectUser } from "@db/schema"; // Temporarily disabled - using any for user type
+interface SelectUser {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+}
 import { useToast } from "@/hooks/use-toast";
 
 // Component imports
@@ -84,7 +90,7 @@ export function Layout({ children, hideAuthButton }: LayoutProps) {
       </main>
 
       {/* Global UI elements */}
-      <RaceTimer />
+      {/* <RaceTimer /> - Temporarily disabled to fix infinite re-render */}
       <ScrollToTop />
       <Toaster />
 

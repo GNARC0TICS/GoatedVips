@@ -75,7 +75,15 @@ export function RaceTimer() {
       prizePool: raceConfig?.prizePool,
       participants: currentRaceParticipants || [],
     };
-  }, [showPrevious, raceConfig, currentRaceParticipants]);
+  }, [
+    showPrevious, 
+    raceConfig?.name, 
+    raceConfig?.status, 
+    raceConfig?.startDate, 
+    raceConfig?.endDate, 
+    raceConfig?.prizePool,
+    currentRaceParticipants
+  ]);
 
   const handleSpeedIconClick = useCallback(() => {
     if (!isContentVisible) {
@@ -152,10 +160,10 @@ export function RaceTimer() {
   const [hasSeenNotification, setHasSeenNotification] = useState(false);
 
   useEffect(() => {
-    if (raceConfig && !isLoadingRaceConfig) {
+    if (raceConfig && !isLoadingRaceConfig && raceConfig.id) {
       setHasSeenNotification(false);
     }
-  }, [raceConfig, isLoadingRaceConfig]);
+  }, [raceConfig?.id, isLoadingRaceConfig]);
 
   const handleNotificationClick = useCallback(() => {
     setIsContentVisible(true);
