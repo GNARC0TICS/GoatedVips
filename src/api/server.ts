@@ -324,33 +324,34 @@ export class APIServer {
 
     // Get leaderboard
     router.get('/', (req, res) => {
-      const mockLeaderboard = Array.from({ length: 10 }, (_, i) => ({
+      const { timeframe = 'daily', limit = 10, page = 1 } = req.query;
+      
+      // Convert frontend timeframe to backend format
+      const backendTimeframe = timeframe === 'today' ? 'daily' : timeframe;
+      
+      // Generate mock leaderboard entries in the format expected by frontend
+      const mockEntries = Array.from({ length: parseInt(limit as string) }, (_, i) => ({
+        userId: `user_${i + 1}`,
+        username: `player${i + 1}`,
+        avatarUrl: null,
         rank: i + 1,
-        user: {
-          id: `user_${i + 1}`,
-          username: `player${i + 1}`,
-          displayName: `Player ${i + 1}`,
-          avatar: null,
-        },
-        stats: {
-          totalWager: Math.floor(Math.random() * 10000) + 1000,
-          gamesPlayed: Math.floor(Math.random() * 100) + 10,
-          winRate: Math.round((Math.random() * 0.5 + 0.3) * 100) / 100,
-        },
-        change: Math.floor(Math.random() * 10) - 5, // -5 to +5
+        wagered: Math.floor(Math.random() * 10000) + 1000,
+        won: Math.floor(Math.random() * 5000) + 500,
+        profit: Math.floor(Math.random() * 2000) - 1000, // Can be negative
+        profitPercentage: Math.round((Math.random() * 0.4 - 0.2) * 100) / 100, // -20% to +20%
+        isCurrentUser: false,
       }));
 
+      // Return data in the format expected by the frontend schema
       res.json({
-        success: true,
-        data: {
-          leaderboard: mockLeaderboard,
-          pagination: {
-            page: 1,
-            limit: 10,
-            total: 100,
-          },
-          lastUpdated: new Date().toISOString(),
-        }
+        status: "success",
+        entries: mockEntries,
+        timeframe: backendTimeframe,
+        total: 100,
+        timestamp: Date.now(),
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        totalPages: Math.ceil(100 / parseInt(limit as string)),
       });
     });
 

@@ -142,6 +142,9 @@ The application uses environment variables for configuration:
 - Enhanced Tailwind configuration with custom border radius values and animations
 - Added smooth hover effects, transitions, and enhanced visual styling
 - Updated global CSS with smooth scrollbar styling and enhanced component interactions
+- Fixed leaderboard API data format mismatch causing validation errors
+- Backend now returns correct schema format matching frontend expectations
+- All leaderboard timeframes (daily, weekly, monthly, all_time) now working properly
 
 ## User Preferences
 
