@@ -84,14 +84,31 @@ export class APIServer {
   }
 
   private setupRoutes(): void {
+    // Initialize cache (fallback to memory cache if Redis unavailable)
+    let cache: ICacheService;
+    try {
+      cache = new RedisCache(
+        this.config.redisHost || 'localhost', 
+        this.config.redisPort || 6379, 
+        this.config.redisPassword
+      );
+    } catch (error) {
+      console.warn('Redis unavailable, using memory cache:', error);
+      cache = new MemoryCache();
+    }
+
     // Initialize services
-    const cache = new RedisCache(this.config.redisHost || 'localhost', this.config.redisPort || 6379, this.config.redisPassword);
     const userRepository = new DrizzleUserRepository(this.config.databaseUrl);
-    const authService = new JWTAuthService(this.config.jwtSecret, this.config.jwtRefreshSecret);
-    const userService = new UserService(userRepository, this.config.emailService);
+    const authService = new JWTAuthService(
+      cache,
+      userRepository,
+      this.config.jwtSecret, 
+      this.config.jwtRefreshSecret
+    );
+    const userService = new UserService(userRepository, cache);
     
     // Initialize middleware
-    const authMiddleware = new AuthMiddleware(authService);
+    const authMiddleware = new AuthMiddleware(authService, cache);
     const rateLimitStore = new MemoryRateLimitStore();
     const rateLimit = createRateLimitMiddleware(rateLimitStore);
 

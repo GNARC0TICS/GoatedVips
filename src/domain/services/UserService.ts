@@ -10,7 +10,7 @@ export class UserService {
   constructor(
     private userRepository: IUserRepository,
     private cacheService: ICacheService,
-    private emailService: IEmailService
+    private emailService?: IEmailService
   ) {}
 
   async createUser(input: CreateUserInput): Promise<User> {
