@@ -127,10 +127,12 @@ The application uses environment variables for configuration:
 - June 29, 2025: Backend operational with full domain-driven architecture on port 3000
 
 ## Recent Changes
-- Successfully deployed real backend with domain services, authentication, and database layers
-- Fixed module resolution issues and ESM compatibility
-- Backend includes: JWT auth, PostgreSQL via Drizzle, user management, leaderboards, VIP tiers
-- Workflow configuration needs update: current entry point is src/main.ts (not server/index.ts)
+- Successfully deployed complete Goombas x Goated VIPs v2.0 platform with both servers operational
+- Fixed frontend TypeScript path resolution (client/src → frontend/src) and created missing component exports
+- Backend: Domain-driven architecture running on port 3000 with JWT auth, PostgreSQL, VIP tiers, leaderboards
+- Frontend: Vite dev server on port 5174 with hot-reloading and complete component library
+- Workflow updated to run both servers concurrently via npm run dev
+- Memory cache fallback active for Redis unavailability
 
 ## User Preferences
 
