@@ -3,6 +3,9 @@ import React, { Suspense, lazy } from "react";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 // Imports for error handling and boundary
 import { ErrorBoundary } from "react-error-boundary";
+// Imports React Query provider and client
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 // Imports the authentication provider
 import { AuthProvider } from "@/hooks/use-auth";
 // Imports a custom error fallback component
@@ -157,11 +160,13 @@ function MainContent() {
 export default function App() {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <AuthProvider>
-        <TooltipProvider>
-          <MainContent />
-        </TooltipProvider>
-      </AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
+            <MainContent />
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }
