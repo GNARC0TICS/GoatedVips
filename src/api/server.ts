@@ -338,9 +338,11 @@ export class APIServer {
           throw new Error('External API credentials not configured');
         }
 
-        // The GOATED_API_URL is the complete endpoint, so use it directly
-        // Add query parameters to the existing URL
-        const url = new URL(apiUrl);
+        // Use the correct base URL and build the API endpoint
+        const baseUrl = apiUrl.replace('api.goated.com', 'www.goated.com');
+        const url = new URL(baseUrl);
+        
+        // Add timeframe parameters if the API supports them
         url.searchParams.set('timeframe', backendTimeframe as string);
         url.searchParams.set('limit', limit as string);
         url.searchParams.set('page', page as string);
