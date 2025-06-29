@@ -121,7 +121,16 @@ The application uses environment variables for configuration:
 - CORS configuration for cross-origin requests
 
 ## Changelog
-- June 29, 2025. Initial setup
+- June 29, 2025: Initial setup and domain-driven architecture implementation
+- June 29, 2025: Fixed Drizzle ORM compatibility issues (timestamptz → timestamp)
+- June 29, 2025: Implemented memory cache fallback for Redis unavailability
+- June 29, 2025: Backend operational with full domain-driven architecture on port 3000
+
+## Recent Changes
+- Successfully deployed real backend with domain services, authentication, and database layers
+- Fixed module resolution issues and ESM compatibility
+- Backend includes: JWT auth, PostgreSQL via Drizzle, user management, leaderboards, VIP tiers
+- Workflow configuration needs update: current entry point is src/main.ts (not server/index.ts)
 
 ## User Preferences
 
