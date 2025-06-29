@@ -1,7 +1,7 @@
 // UI Component Exports for Goombas x Goated VIPs
-export { default as ErrorFallback } from './ErrorFallback';
-export { default as PreLoader } from './PreLoader';
-export { default as LoadingSpinner } from './loading-spinner';
+export { ErrorFallback } from './ErrorFallback';
+export { PreLoader } from './PreLoader';
+export { LoadingSpinner } from './loading-spinner';
 
 // Shadcn UI Components
 export * from './accordion';
