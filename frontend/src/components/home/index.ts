@@ -1,6 +1,6 @@
 // Home component exports
-export { default as CallToAction } from './CallToAction';
-export { default as FeatureCard } from './FeatureCard';
-export { default as FeatureCardGrid } from './FeatureCardGrid';
-export { default as HeroVideo } from './HeroVideo';
-export { default as PromoBanner } from './PromoBanner';
+export { CallToAction } from './CallToAction';
+export { FeatureCard } from './FeatureCard';
+export { FeatureCardGrid } from './FeatureCardGrid';
+export { HeroVideo } from './HeroVideo';
+export { PromoBanner } from './PromoBanner';
