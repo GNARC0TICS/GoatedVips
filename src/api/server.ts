@@ -177,8 +177,8 @@ export class APIServer {
     // Mock user routes (to be replaced with real routes)
     this.app.use('/api/users', this.createMockUserRoutes());
 
-    // Mock leaderboard routes (to be replaced with real routes)
-    this.app.use('/api/leaderboard', this.createMockLeaderboardRoutes());
+    // Real leaderboard routes with external API integration
+    this.app.use('/api/leaderboard', this.createRealLeaderboardRoutes());
 
     // 404 handler
     this.app.use((req, res) => {
@@ -319,40 +319,88 @@ export class APIServer {
     return router;
   }
 
-  private createMockLeaderboardRoutes() {
+  private createRealLeaderboardRoutes() {
     const router = express.Router();
 
-    // Get leaderboard
-    router.get('/', (req, res) => {
+    // Get leaderboard with real external API data
+    router.get('/', async (req, res) => {
       const { timeframe = 'daily', limit = 10, page = 1 } = req.query;
       
       // Convert frontend timeframe to backend format
       const backendTimeframe = timeframe === 'today' ? 'daily' : timeframe;
       
-      // Generate mock leaderboard entries in the format expected by frontend
-      const mockEntries = Array.from({ length: parseInt(limit as string) }, (_, i) => ({
-        userId: `user_${i + 1}`,
-        username: `player${i + 1}`,
-        avatarUrl: null,
-        rank: i + 1,
-        wagered: Math.floor(Math.random() * 10000) + 1000,
-        won: Math.floor(Math.random() * 5000) + 500,
-        profit: Math.floor(Math.random() * 2000) - 1000, // Can be negative
-        profitPercentage: Math.round((Math.random() * 0.4 - 0.2) * 100) / 100, // -20% to +20%
-        isCurrentUser: false,
-      }));
+      try {
+        // Fetch real data from external Goated API
+        const apiUrl = process.env.GOATED_API_URL;
+        const apiKey = process.env.GOATED_API_KEY;
+        
+        if (!apiUrl || !apiKey) {
+          throw new Error('External API credentials not configured');
+        }
 
-      // Return data in the format expected by the frontend schema
-      res.json({
-        status: "success",
-        entries: mockEntries,
-        timeframe: backendTimeframe,
-        total: 100,
-        timestamp: Date.now(),
-        page: parseInt(page as string),
-        limit: parseInt(limit as string),
-        totalPages: Math.ceil(100 / parseInt(limit as string)),
-      });
+        // The GOATED_API_URL is the complete endpoint, so use it directly
+        // Add query parameters to the existing URL
+        const url = new URL(apiUrl);
+        url.searchParams.set('timeframe', backendTimeframe as string);
+        url.searchParams.set('limit', limit as string);
+        url.searchParams.set('page', page as string);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const response = await fetch(url.toString(), {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'GoatedVIPs/2.0'
+          },
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`External API error: ${response.status} ${response.statusText}`);
+        }
+
+        const externalData = await response.json();
+        
+        // Transform external API data to our frontend format
+        const entries = (externalData.data || externalData.leaderboard || []).map((entry: any, index: number) => ({
+          userId: entry.user_id || entry.id || `user_${index + 1}`,
+          username: entry.username || entry.user?.username || `player${index + 1}`,
+          avatarUrl: entry.avatar_url || entry.user?.avatar || null,
+          rank: entry.rank || index + 1,
+          wagered: parseFloat(entry.total_wagered || entry.wagered || 0),
+          won: parseFloat(entry.total_winnings || entry.winnings || 0),
+          profit: parseFloat(entry.profit || (entry.total_winnings - entry.total_wagered) || 0),
+          profitPercentage: entry.profit_percentage || ((entry.total_winnings - entry.total_wagered) / entry.total_wagered * 100) || 0,
+          isCurrentUser: false,
+        }));
+
+        // Return data in the format expected by the frontend schema
+        res.json({
+          status: "success",
+          entries,
+          timeframe: backendTimeframe,
+          total: externalData.total || entries.length,
+          timestamp: Date.now(),
+          page: parseInt(page as string),
+          limit: parseInt(limit as string),
+          totalPages: Math.ceil((externalData.total || entries.length) / parseInt(limit as string)),
+        });
+
+      } catch (error: any) {
+        console.error('Failed to fetch leaderboard from external API:', error);
+        
+        // Return error response
+        res.status(503).json({
+          status: "error",
+          error: "Failed to fetch leaderboard data",
+          message: error.message,
+          timestamp: Date.now()
+        });
+      }
     });
 
     return router;
