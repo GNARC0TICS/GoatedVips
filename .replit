@@ -1,11 +1,11 @@
 # Specify the main entry point of your application
-entrypoint = "index.js"
+entrypoint = "src/main.ts"
 
 # Define the modules required for your project
-modules = ["nodejs-20", "web", "postgresql-16"]
+modules = ["nodejs-20", "web", "postgresql-16", "redis-7"]
 
 # List of files and directories to hide in the file explorer
-hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
+hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist", "tsconfig.json", "tsconfig.node.json", "frontend.vite.config.ts", "package-lock.json"]
 
 # Nix package manager settings
 [nix]
@@ -13,55 +13,49 @@ channel = "stable-24_05"
 
 # Deployment configuration
 [deployment]
-deploymentTarget = "gce"
-build = ["sh", "-c", "npm run build"]
-run = ["sh", "-c", "node dist/index.js"]
+deploymentTarget = "cloudrun"
+build = ["sh", "-c", "npm install && npm run build:backend"]
+run = ["sh", "-c", "npm run dev"]
 ignorePorts = false
 
 [[ports]]
-localPort = 5000
-externalPort = 5000
-
-[[ports]]
-localPort = 5001
-externalPort = 3001
-
-[[ports]]
-localPort = 5170
-externalPort = 3002
-
-[[ports]]
 localPort = 5173
-externalPort = 3000
+localPort = 3000
+
 
 [server]
 host = "0.0.0.0"
-port = 5000
+port = 3000
+
+[env]
+NODE_ENV = "development"
+DATABASE_URL = "$REPLIT_DB_URL"
+REDIS_HOST = "localhost"
+REDIS_PORT = "6379"
+JWT_SECRET = "goombas-x-goated-vips-jwt-secret-change-in-production"
+JWT_REFRESH_SECRET = "goombas-x-goated-vips-refresh-secret-change-in-production"
+CORS_ORIGINS = "http://localhost:5174,https://$REPL_SLUG.$REPL_OWNER.repl.co"
+
+[unitTest]
+language = "nodejs"
+
+[gitHubImport]
+requiredFiles = [".replit", "replit.nix"]
 
 [workflows]
-runButton = "Start application"
+runButton = "Start Development Server"
 
 [[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start application"
-
-[[workflows.workflow]]
-name = "Start application"
-author = "agent"
-mode = "parallel"
+name = "Start Development Server"
+author = "goombas-x-goated-vips"
 
 [workflows.workflow.metadata]
 agentRequireRestartOnSave = false
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "BOT_PORT=5001 tsx --tsconfig tsconfig.json server/index.ts"
-wait_for_port = 5000
+args = "npm run dev"
+wait_for_port = 3000
 
 # Authentication settings
 [auth]
