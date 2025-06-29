@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, boolean, decimal, integer, uuid, timestamptz, jsonb, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, varchar, boolean, decimal, integer, uuid, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 // Users table
@@ -35,20 +35,20 @@ export const users = pgTable('users', {
   
   emailVerified: boolean('email_verified').default(false),
   emailVerificationToken: text('email_verification_token'),
-  emailVerificationSentAt: timestamptz('email_verification_sent_at'),
+  emailVerificationSentAt: timestamp('email_verification_sent_at'),
   
   twoFactorEnabled: boolean('two_factor_enabled').default(false),
   twoFactorSecret: text('two_factor_secret'),
   passwordResetToken: text('password_reset_token'),
-  passwordResetExpires: timestamptz('password_reset_expires'),
-  lastPasswordChange: timestamptz('last_password_change'),
+  passwordResetExpires: timestamp('password_reset_expires'),
+  lastPasswordChange: timestamp('last_password_change'),
   
-  lastLoginAt: timestamptz('last_login_at'),
-  lastActiveAt: timestamptz('last_active_at'),
+  lastLoginAt: timestamp('last_login_at'),
+  lastActiveAt: timestamp('last_active_at'),
   loginCount: integer('login_count').default(0),
   
-  createdAt: timestamptz('created_at').default(sql`NOW()`),
-  updatedAt: timestamptz('updated_at').default(sql`NOW()`),
+  createdAt: timestamp('created_at').default(sql`NOW()`),
+  updatedAt: timestamp('updated_at').default(sql`NOW()`),
 }, (table) => ({
   emailIdx: index('idx_users_email').on(table.email),
   usernameIdx: index('idx_users_username').on(table.username),
@@ -63,9 +63,9 @@ export const userSessions = pgTable('user_sessions', {
   id: text('id').primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   data: jsonb('data'),
-  expiresAt: timestamptz('expires_at').notNull(),
-  createdAt: timestamptz('created_at').default(sql`NOW()`),
-  lastAccessedAt: timestamptz('last_accessed_at').default(sql`NOW()`),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').default(sql`NOW()`),
+  lastAccessedAt: timestamp('last_accessed_at').default(sql`NOW()`),
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
 }, (table) => ({
@@ -89,11 +89,11 @@ export const wagerStats = pgTable('wager_stats', {
   monthlyRank: integer('monthly_rank'),
   allTimeRank: integer('all_time_rank'),
   
-  lastSyncAt: timestamptz('last_sync_at').default(sql`NOW()`),
+  lastSyncAt: timestamp('last_sync_at').default(sql`NOW()`),
   syncSource: varchar('sync_source', { length: 20 }).default('api'),
   
-  createdAt: timestamptz('created_at').default(sql`NOW()`),
-  updatedAt: timestamptz('updated_at').default(sql`NOW()`),
+  createdAt: timestamp('created_at').default(sql`NOW()`),
+  updatedAt: timestamp('updated_at').default(sql`NOW()`),
 }, (table) => ({
   dailyRankIdx: index('idx_wager_stats_daily_rank').on(table.dailyRank),
   weeklyRankIdx: index('idx_wager_stats_weekly_rank').on(table.weeklyRank),
@@ -117,13 +117,13 @@ export const wagerEntries = pgTable('wager_entries', {
   currency: varchar('currency', { length: 3 }).default('USD'),
   game: varchar('game', { length: 100 }),
   
-  wagerTimestamp: timestamptz('wager_timestamp').notNull(),
-  syncedAt: timestamptz('synced_at').default(sql`NOW()`),
+  wagerTimestamp: timestamp('wager_timestamp').notNull(),
+  syncedAt: timestamp('synced_at').default(sql`NOW()`),
   
   source: varchar('source', { length: 20 }).default('api'),
   verified: boolean('verified').default(false),
   
-  createdAt: timestamptz('created_at').default(sql`NOW()`),
+  createdAt: timestamp('created_at').default(sql`NOW()`),
 }, (table) => ({
   userIdIdx: index('idx_wager_entries_user_id').on(table.userId),
   goatedIdIdx: index('idx_wager_entries_goated_id').on(table.goatedId),
@@ -140,8 +140,8 @@ export const races = pgTable('races', {
   type: varchar('type', { length: 20 }).notNull(),
   status: varchar('status', { length: 20 }).default('upcoming'),
   
-  startTime: timestamptz('start_time').notNull(),
-  endTime: timestamptz('end_time').notNull(),
+  startTime: timestamp('start_time').notNull(),
+  endTime: timestamp('end_time').notNull(),
   
   minWagerAmount: decimal('min_wager_amount', { precision: 15, scale: 2 }).default('0'),
   maxParticipants: integer('max_participants'),
@@ -152,8 +152,8 @@ export const races = pgTable('races', {
   participantCount: integer('participant_count').default(0),
   totalWagered: decimal('total_wagered', { precision: 15, scale: 2 }).default('0'),
   
-  createdAt: timestamptz('created_at').default(sql`NOW()`),
-  updatedAt: timestamptz('updated_at').default(sql`NOW()`),
+  createdAt: timestamp('created_at').default(sql`NOW()`),
+  updatedAt: timestamp('updated_at').default(sql`NOW()`),
 }, (table) => ({
   statusIdx: index('idx_races_status').on(table.status),
   typeIdx: index('idx_races_type').on(table.type),
@@ -178,8 +178,8 @@ export const raceParticipants = pgTable('race_participants', {
   disqualified: boolean('disqualified').default(false),
   disqualificationReason: text('disqualification_reason'),
   
-  joinedAt: timestamptz('joined_at').default(sql`NOW()`),
-  lastWagerAt: timestamptz('last_wager_at'),
+  joinedAt: timestamp('joined_at').default(sql`NOW()`),
+  lastWagerAt: timestamp('last_wager_at'),
 }, (table) => ({
   raceIdIdx: index('idx_race_participants_race_id').on(table.raceId),
   userIdIdx: index('idx_race_participants_user_id').on(table.userId),

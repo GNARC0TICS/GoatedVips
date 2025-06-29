@@ -179,7 +179,7 @@ export class APIServer {
   }
 
   private createMockAuthRoutes() {
-    const router = require('express').Router();
+    const router = express.Router();
 
     // Mock login
     router.post('/login', (req, res) => {
@@ -276,7 +276,7 @@ export class APIServer {
   }
 
   private createMockUserRoutes() {
-    const router = require('express').Router();
+    const router = express.Router();
 
     // Get user profile
     router.get('/:id', (req, res) => {
@@ -306,7 +306,7 @@ export class APIServer {
   }
 
   private createMockLeaderboardRoutes() {
-    const router = require('express').Router();
+    const router = express.Router();
 
     // Get leaderboard
     router.get('/', (req, res) => {
