@@ -112,6 +112,20 @@ export class APIServer {
     const rateLimitStore = new MemoryRateLimitStore();
     const rateLimit = createRateLimitMiddleware(rateLimitStore);
 
+    // Root route for API status
+    this.app.get('/', (req, res) => {
+      res.json({
+        success: true,
+        message: 'Goombas x Goated VIPs v2.0 API is live',
+        version: '2.0.0',
+        endpoints: {
+          health: '/health',
+          api: '/api',
+          docs: '/api/docs'
+        }
+      });
+    });
+
     // Health check
     this.app.get('/health', async (req, res) => {
       let dbStatus = 'healthy';
