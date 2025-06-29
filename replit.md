@@ -133,6 +133,9 @@ The application uses environment variables for configuration:
 - Frontend: Vite dev server on port 5174 with hot-reloading and complete component library
 - Workflow updated to run both servers concurrently via npm run dev
 - Memory cache fallback active for Redis unavailability
+- Fixed QueryClient configuration with proper provider wrapper
+- Added backend root route handler and configured Vite proxy for health endpoint routing
+- All API endpoints now accessible through frontend proxy configuration
 
 ## User Preferences
 
