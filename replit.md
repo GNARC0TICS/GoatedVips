@@ -1,131 +1,127 @@
-# Replit.md - Goombas x Goated VIPs v2.0
+# Goombas x Goated VIPs v2.0
 
 ## Overview
 
-This is a comprehensive web application built for Goombas x Goated VIPs v2.0 - a community platform for VIP casino players. The application serves as an independent platform created by an affiliate partner for players using the GoatedVips affiliate code. It features a modern, secure architecture with domain-driven design principles.
+This is a complete rewrite of the Goombas x Goated VIPs platform, built with a modern domain-driven architecture. The application serves as an independent community platform for players using the GoatedVips affiliate code, offering exclusive rewards, competitions, and VIP experiences.
 
-The platform provides:
-- User authentication and profile management
-- VIP tier tracking and progression
-- Wager race competitions with real-time leaderboards
-- Bonus code distribution system
-- Telegram bot integration
-- Admin management tools
+The platform has been completely redesigned from the ground up with security, scalability, and user experience as top priorities. It features a React frontend with TypeScript and a Node.js backend using Express.js with comprehensive authentication and data management systems.
 
 ## System Architecture
-
-The application follows a full-stack architecture with complete separation between frontend and backend:
 
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript
 - **Build Tool**: Vite for fast development and optimized builds
 - **Styling**: Tailwind CSS with custom design system
-- **State Management**: React Query (TanStack Query) for server state
+- **State Management**: TanStack Query for server state, React Context for auth
 - **Routing**: Wouter for lightweight client-side routing
-- **Animations**: Framer Motion for smooth user experiences
-- **UI Components**: Custom components built on Radix UI primitives
+- **UI Components**: Custom component library with Radix UI primitives
+- **Animations**: Framer Motion for smooth interactions
+- **Forms**: React Hook Form with Zod validation
 
-### Backend Architecture  
+### Backend Architecture
 - **Runtime**: Node.js with TypeScript
-- **Framework**: Express.js with domain-driven design
+- **Framework**: Express.js with comprehensive middleware stack
+- **Architecture**: Domain-driven design with clean separation of concerns
 - **Database**: PostgreSQL with Drizzle ORM
-- **Cache**: Redis for sessions and rate limiting
-- **Authentication**: JWT with refresh tokens (15min access, 7 days refresh)
-- **Security**: Comprehensive security with Helmet, CORS, rate limiting, input validation
+- **Authentication**: JWT with refresh tokens and secure session management
+- **Caching**: Redis for session storage and rate limiting
+- **Security**: Helmet, CORS, bcrypt hashing, input sanitization
+
+### Database Strategy
+- **Primary Database**: PostgreSQL with optimized schema design
+- **ORM**: Drizzle ORM for type-safe database operations
+- **Migrations**: Versioned migration system
+- **Caching Layer**: Redis for performance optimization
 
 ## Key Components
 
-### Domain Layer
-- **User Service**: Handles user management, authentication, and profile operations
-- **VIP Tier System**: Manages tier progression based on wagering activity
-- **Wager Race Service**: Real-time competition tracking and leaderboards
-- **Bonus Code Service**: Distribution and management of exclusive codes
+### Authentication System
+- JWT-based authentication with 15-minute access tokens
+- 7-day refresh tokens for persistent sessions
+- Bcrypt password hashing with 12 rounds
+- Role-based access control for admin features
+- Secure session management with Redis storage
 
-### Infrastructure Layer
-- **Authentication**: JWT-based auth with bcrypt password hashing (12 rounds)
-- **Database**: PostgreSQL with connection pooling and migration system
-- **Cache**: Redis for session storage and rate limiting
-- **Logging**: Structured logging with different levels for development/production
-- **Monitoring**: Prometheus metrics collection for performance tracking
+### User Management
+- Comprehensive user profiles with tier progression
+- VIP level tracking based on wagering activity
+- Achievement system and reward tracking
+- Profile privacy controls and settings
 
-### API Layer
-- **REST Endpoints**: Type-safe API routes with Zod validation
-- **Middleware**: Authentication, rate limiting, input sanitization
-- **Error Handling**: Centralized error handling with proper HTTP status codes
+### Gaming Features
+- **Wager Races**: Real-time competitive wagering events
+- **Bonus Codes**: Exclusive promotional code distribution
+- **Challenges**: Community-driven gaming challenges
+- **Leaderboards**: Dynamic ranking system with multiple timeframes
+- **MVP Tracking**: Most Valuable Player recognition system
 
-### Frontend Components
-- **Layout System**: Responsive navigation with mobile-first design
-- **Data Visualization**: Real-time leaderboards and statistics
-- **Profile Management**: Enhanced user profiles with tier visualization
-- **Authentication UI**: Secure login/register flows with form validation
+### Administrative Tools
+- Admin dashboard for user management
+- Race configuration and management
+- Bonus code administration
+- Support ticket system
+- Analytics and reporting
 
 ## Data Flow
 
+### Authentication Flow
 ```
-User Request → Express Middleware → Domain Services → Database/Cache → Response
-                     ↓
-              Authentication → JWT Validation → User Context
-                     ↓
-              Rate Limiting → Redis Check → Request Processing
-                     ↓
-              Input Validation → Zod Schemas → Sanitized Data
+Login Request → JWT Generation → Redis Session → Protected Routes
 ```
 
-### Real-time Updates
-- WebSocket integration for live leaderboard updates
-- React Query for optimistic updates and cache management
-- Redis pub/sub for cross-service communication
+### Leaderboard Updates
+```
+Game API → Data Transformation → Database Update → WebSocket Broadcast → UI Update
+```
+
+### Reward Distribution
+```
+Wager Tracking → Tier Calculation → Reward Calculation → Database Update → User Notification
+```
 
 ## External Dependencies
 
-### Core Dependencies
-- **Database**: Neon PostgreSQL (cloud-hosted)
-- **Cache**: Redis (optional - falls back to memory store)
-- **Email**: Mock service (production-ready interface for real providers)
+### Required Services
+- **PostgreSQL Database**: Primary data storage (Neon recommended for deployment)
+- **Redis Instance**: Session management and caching (optional fallback to memory)
+- **External Gaming API**: Integration with Goated.com for wager data
 
-### Third-party Integrations
-- **Goated.com API**: For fetching user wagering data and statistics
-- **Telegram Bot**: For user verification and notifications
-- **Payment Processing**: Ready for crypto payment integration
+### Development Dependencies
+- Node.js 20+ for runtime environment
+- TypeScript for type safety
+- Vite for frontend bundling
+- Various npm packages for functionality
 
-### Development Tools
-- **TypeScript**: Full type safety across frontend and backend
-- **ESLint + Prettier**: Code quality and formatting
-- **Vitest**: Testing framework for unit and integration tests
-- **Drizzle Kit**: Database schema management and migrations
+### Optional Integrations
+- **Telegram Bot**: Community notifications and user verification
+- **Email Service**: User communications (currently mocked)
+- **Analytics**: User behavior tracking and metrics
 
 ## Deployment Strategy
 
-### Development
-- **Frontend**: Vite dev server on port 5174
-- **Backend**: Express server on port 5001 with mock API endpoints
-- **Concurrent Development**: Both servers run simultaneously with proxy setup
-
-### Production Build
-- **Frontend**: Static build optimized for CDN deployment
-- **Backend**: Compiled TypeScript bundle for Node.js runtime
-- **Assets**: Optimized images and fonts with proper caching headers
-
 ### Environment Configuration
-- **Local**: SQLite/PostgreSQL + optional Redis
-- **Production**: Neon PostgreSQL + Redis Cloud
-- **Security**: Environment-based secrets management
+The application uses environment variables for configuration:
+- Database connection strings
+- JWT secrets and security keys
+- Redis connection details  
+- CORS origins for security
+- External API credentials
 
-### Scaling Considerations
-- Horizontal scaling ready with stateless design
-- Database connection pooling configured
-- Redis clustering support for high availability
-- CDN-ready static asset optimization
+### Build Process
+- Frontend builds to static assets via Vite
+- Backend compiles TypeScript to JavaScript
+- Single production server serves both frontend and API
+- Optimized for Replit deployment with fallback configurations
+
+### Security Measures
+- Rate limiting with sliding window algorithm
+- Input sanitization and validation on all endpoints
+- SQL injection prevention with parameterized queries
+- XSS protection with security headers
+- CORS configuration for cross-origin requests
 
 ## Changelog
-
-- June 29, 2025: Initial setup
-- June 29, 2025: Fixed server startup issues and created working development environment
-  - Created functional server/index.ts with Express server on port 5001
-  - Fixed frontend App.tsx to remove missing component dependencies
-  - Configured Vite proxy to connect frontend (port 5174) to backend (port 5001)
-  - Backend provides mock API endpoints for development: /api/race-config, /api/leaderboard, /api/auth/*
-  - Application now successfully loads and displays welcome page with API connectivity
+- June 29, 2025. Initial setup
 
 ## User Preferences
 

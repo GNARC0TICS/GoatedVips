@@ -1,147 +1,167 @@
-import React from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Router, Route, Switch } from 'wouter';
+import React, { Suspense, lazy } from "react";
+// Imports necessary components for routing and state management
+import { Switch, Route, useLocation, Redirect } from "wouter";
+// Imports for error handling and boundary
+import { ErrorBoundary } from "react-error-boundary";
+// Imports the authentication provider
+import { AuthProvider } from "@/hooks/use-auth";
+// Imports a custom error fallback component
+import { ErrorFallback } from "@/components/ui/ErrorFallback";
+// Imports the tooltip provider
+import { TooltipProvider } from "@/components/ui/tooltip";
+// Imports for animation
+import { AnimatePresence, motion } from "framer-motion";
+// Imports the toaster for notifications
+import { Toaster } from "@/components/ui/toaster";
+// Imports organized layout components
+import { Layout } from "@/components/layout";
+// Imports organized UI components
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { PreLoader } from "@/components/ui/PreLoader";
+// Imports a protected route component
+import { ProtectedRoute } from "@/lib/protected-route";
+// Imports organized auth components
+import { AdminRoute } from "@/components/auth";
+// Page components – lazy-loaded for code-splitting
+const NotFound = lazy(() => import("@/pages/not-found"));
+const Home = lazy(() => import("@/pages/Home"));
+const AuthPage = lazy(() => import("@/pages/auth-page"));
+const VipTransfer = lazy(() => import("@/pages/VipTransfer"));
+const ProvablyFair = lazy(() => import("@/pages/ProvablyFair"));
+const WagerRaces = lazy(() => import("@/pages/WagerRaces"));
+const BonusCodes = lazy(() => import("@/pages/BonusCodes"));
+const NotificationPreferences = lazy(() => import("@/pages/notification-preferences"));
+const WagerRaceManagement = lazy(() => import("@/pages/admin/WagerRaceManagement"));
+const UserManagement = lazy(() => import("@/pages/admin/UserManagement"));
+const NotificationManagement = lazy(() => import("@/pages/admin/NotificationManagement"));
+const BonusCodeManagement = lazy(() => import("@/pages/admin/BonusCodeManagement"));
+const SupportManagement = lazy(() => import("@/pages/admin/SupportManagement"));
+const Leaderboard = lazy(() => import("@/pages/Leaderboard"));
+const Help = lazy(() => import("@/pages/Help"));
+const EnhancedUserProfile = lazy(() => import("@/pages/EnhancedUserProfile"));
+const Telegram = lazy(() => import("@/pages/Telegram"));
+const HowItWorks = lazy(() => import("@/pages/HowItWorks"));
+const GoatedToken = lazy(() => import("@/pages/GoatedToken"));
+const Support = lazy(() => import("@/pages/support"));
+const FAQ = lazy(() => import("@/pages/faq"));
+const VipProgram = lazy(() => import("@/pages/VipProgram"));
+const TipsAndStrategies = lazy(() => import("@/pages/tips-and-strategies"));
+const Promotions = lazy(() => import("@/pages/Promotions"));
+const Challenges = lazy(() => import("@/pages/Challenges"));
+const WheelChallenge = lazy(() => import("@/pages/WheelChallenge"));
+const GoombasAdminLogin = lazy(() => import("@/pages/GoombasAdminLogin"));
+const GoombasAdminDashboard = lazy(() => import("@/pages/GoombasAdminDashboard"));
+const CryptoSwap = lazy(() => import("@/pages/CryptoSwap"));
+const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
 
-// Create a simple query client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
-  },
-});
-
-// Simple Home component
-function Home() {
-  const [data, setData] = React.useState<any>(null);
-  const [loading, setLoading] = React.useState(true);
+// MainContent Component
+// Handles the core application rendering logic including preloader and route management
+function MainContent() {
+  const [isInitialLoad, setIsInitialLoad] = React.useState(true);
 
   React.useEffect(() => {
-    fetch('/api/race-config')
-      .then(res => res.json())
-      .then(data => {
-        setData(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('API Error:', err);
-        setLoading(false);
-      });
+    const hasVisited = sessionStorage.getItem('hasVisited');
+    if (hasVisited) {
+      setIsInitialLoad(false);
+    } else {
+      const timeout = setTimeout(() => {
+        sessionStorage.setItem('hasVisited', 'true');
+        setIsInitialLoad(false);
+      }, 1500);
+      return () => clearTimeout(timeout);
+    }
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-yellow-500 mx-auto"></div>
-          <p className="mt-4 text-xl">Loading Goombas x Goated VIPs...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <header className="bg-gray-800 border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-yellow-500">
-                Goombas x Goated VIPs
-              </h1>
-            </div>
-            <nav className="flex space-x-8">
-              <a href="#" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
-                Home
-              </a>
-              <a href="#leaderboard" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
-                Leaderboard
-              </a>
-              <a href="#races" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
-                Races
-              </a>
-            </nav>
-          </div>
-        </div>
-      </header>
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <AnimatePresence mode="wait">
+        {isInitialLoad ? (
+          // Show preloader on initial visit
+          <PreLoader key="preloader" onLoadComplete={() => setIsInitialLoad(false)} />
+        ) : (
+          // Main application content with loading state
+          <Suspense fallback={
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 flex items-center justify-center bg-[#14151A] z-50"
+            >
+              <LoadingSpinner size="lg" />
+            </motion.div>
+          }>
+            <TooltipProvider>
+              <Layout>
+                {/* Main routing configuration */}
+                <Switch>
+                  {/* Public Routes */}
+                  <Route path="/" component={Home} />
+                  <Route path="/auth" component={AuthPage} />
+                  <Route path="/wager-races" component={WagerRaces} />
+                  <Route path="/leaderboard" component={Leaderboard} />
+                  <Route path="/tips-and-strategies" component={TipsAndStrategies} />
+                  <Route path="/promotions" component={Promotions} />
+                  <Route path="/help" component={Help} />
+                  <Route path="/provably-fair" component={ProvablyFair} />
+                  <Route path="/telegram" component={Telegram} />
+                  <Route path="/how-it-works" component={HowItWorks} />
+                  <Route path="/goated-token" component={GoatedToken} />
+                  <Route path="/faq" component={FAQ} />
+                  <Route path="/vip-program" component={VipProgram} />
+                  <Route path="/challenges" component={Challenges} />
+                  <Route path="/vip-transfer" component={VipTransfer} />
+                  {/* All user profile routes are public - using enhanced profile component */}
+                  <Route path="/user-profile/:id" component={EnhancedUserProfile} />
+                  <Route path="/user/:id" component={EnhancedUserProfile} />
+                  {/* Redirect for old profile URLs */}
+                  <Route path="/profile/:id">
+                    {params => <Redirect to={`/user-profile/${params.id}`} />}
+                  </Route>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="border-4 border-dashed border-gray-200 rounded-lg p-8 text-center">
-            <h2 className="text-3xl font-bold text-yellow-500 mb-4">
-              Welcome to Goombas x Goated VIPs v2.0
-            </h2>
-            <p className="text-xl text-gray-300 mb-8">
-              Your VIP casino experience starts here
-            </p>
-            
-            {data && (
-              <div className="bg-gray-800 rounded-lg p-6 mb-8">
-                <h3 className="text-xl font-semibold text-yellow-500 mb-4">Current Race</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-                  <div>
-                    <p className="text-gray-400">Name</p>
-                    <p className="text-white font-semibold">{data?.name || 'Daily Race'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Prize</p>
-                    <p className="text-green-400 font-semibold">{data?.prize || '$1000'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Status</p>
-                    <p className="text-green-400 font-semibold">
-                      {data?.isActive ? 'Active' : 'Inactive'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+                  {/* Protected Routes - Require Authentication */}
+                  <ProtectedRoute path="/bonus-codes" component={BonusCodes} />
+                  <ProtectedRoute path="/notification-preferences" component={NotificationPreferences} />
+                  <ProtectedRoute path="/support" component={Support} />
+                  <ProtectedRoute path="/wheel-challenge" component={WheelChallenge} />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-gray-800 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-yellow-500 mb-2">VIP Tiers</h3>
-                <p className="text-gray-300">Track your progress through Bronze, Silver, Gold, and beyond</p>
-              </div>
-              <div className="bg-gray-800 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-yellow-500 mb-2">Wager Races</h3>
-                <p className="text-gray-300">Compete with other players for amazing prizes</p>
-              </div>
-              <div className="bg-gray-800 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-yellow-500 mb-2">Bonus Codes</h3>
-                <p className="text-gray-300">Exclusive codes for VIP members only</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+                  {/* Admin Routes - Require Admin Privileges */}
+                  <AdminRoute path="/admin" component={AdminDashboard} />
+                  <AdminRoute path="/admin/user-management" component={UserManagement} />
+                  <AdminRoute path="/admin/wager-races" component={WagerRaceManagement} />
+                  <AdminRoute path="/admin/bonus-codes" component={BonusCodeManagement} />
+                  <AdminRoute path="/admin/notifications" component={NotificationManagement} />
+                  <AdminRoute path="/admin/support" component={SupportManagement} />
+                  
+                  {/* Custom Admin Routes for goombas.net */}
+                  <Route path="/goombas.net/login" component={GoombasAdminLogin} />
+                  <Route path="/goombas.net/dashboard" component={GoombasAdminDashboard} />
+                  
+                  {/* Crypto Swap Feature */}
+                  <Route path="/crypto-swap" component={CryptoSwap} />
+
+                  {/* Fallback Route */}
+                  <Route component={NotFound} />
+                </Switch>
+              </Layout>
+              <Toaster />
+            </TooltipProvider>
+          </Suspense>
+        )}
+      </AnimatePresence>
+    </ErrorBoundary>
   );
 }
 
-// Simple Not Found component
-function NotFound() {
-  return (
-    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-6xl font-bold text-yellow-500 mb-4">404</h1>
-        <p className="text-xl text-gray-300">Page not found</p>
-      </div>
-    </div>
-  );
-}
-
+// Main App Component
+// Provides global providers and error boundaries for the application
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <div className="App">
-          <Switch>
-            <Route path="/" component={Home} />
-            <Route component={NotFound} />
-          </Switch>
-        </div>
-      </Router>
-    </QueryClientProvider>
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <AuthProvider>
+        <TooltipProvider>
+          <MainContent />
+        </TooltipProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
