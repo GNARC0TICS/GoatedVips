@@ -14,7 +14,7 @@ const queryClient = new QueryClient({
 
 // Simple Home component
 function Home() {
-  const [data, setData] = React.useState<any>(null);
+  const [data, setData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -82,16 +82,16 @@ function Home() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
                   <div>
                     <p className="text-gray-400">Name</p>
-                    <p className="text-white font-semibold">{data?.name || 'Daily Race'}</p>
+                    <p className="text-white font-semibold">{data.name}</p>
                   </div>
                   <div>
                     <p className="text-gray-400">Prize</p>
-                    <p className="text-green-400 font-semibold">{data?.prize || '$1000'}</p>
+                    <p className="text-green-400 font-semibold">{data.prize}</p>
                   </div>
                   <div>
                     <p className="text-gray-400">Status</p>
                     <p className="text-green-400 font-semibold">
-                      {data?.isActive ? 'Active' : 'Inactive'}
+                      {data.isActive ? 'Active' : 'Inactive'}
                     </p>
                   </div>
                 </div>

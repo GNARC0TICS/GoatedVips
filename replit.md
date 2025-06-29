@@ -98,7 +98,7 @@ User Request → Express Middleware → Domain Services → Database/Cache → R
 
 ### Development
 - **Frontend**: Vite dev server on port 5174
-- **Backend**: tsx with hot reload on port 3000
+- **Backend**: Express server on port 5001 with mock API endpoints
 - **Concurrent Development**: Both servers run simultaneously with proxy setup
 
 ### Production Build
@@ -119,7 +119,13 @@ User Request → Express Middleware → Domain Services → Database/Cache → R
 
 ## Changelog
 
-- June 29, 2025. Initial setup
+- June 29, 2025: Initial setup
+- June 29, 2025: Fixed server startup issues and created working development environment
+  - Created functional server/index.ts with Express server on port 5001
+  - Fixed frontend App.tsx to remove missing component dependencies
+  - Configured Vite proxy to connect frontend (port 5174) to backend (port 5001)
+  - Backend provides mock API endpoints for development: /api/race-config, /api/leaderboard, /api/auth/*
+  - Application now successfully loads and displays welcome page with API connectivity
 
 ## User Preferences
 
