@@ -38,64 +38,24 @@ body, html {
   }
 }
 
-/* Global smooth rounded borders and enhanced styling */
-* {
-  /* Apply smooth border radius globally */
-  border-radius: inherit;
+/* Clean, consistent rounded corners */
+:root {
+  --radius: 8px;
 }
 
-/* Default smooth border radius for common elements */
+/* Base components with subtle rounded corners */
 button, 
 input, 
 textarea, 
-select, 
-.card, 
-.dialog, 
-.popover, 
-.tooltip, 
-.dropdown-menu,
-.alert,
-.badge,
-.avatar {
-  border-radius: 12px;
-  transition: all 0.2s ease-in-out;
+select {
+  border-radius: var(--radius);
+  transition: all 0.2s ease;
 }
 
-/* Enhanced button styling with smooth borders */
-button {
-  border-radius: 16px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-/* Smooth input field styling */
-input, textarea, select {
-  border-radius: 14px;
-  border: 2px solid transparent;
-  transition: all 0.3s ease;
-}
-
-input:focus, textarea:focus, select:focus {
-  border-radius: 16px;
-  transform: scale(1.02);
-  box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.1);
-}
-
-/* Card components with enhanced rounded corners */
+/* Cards with consistent styling */
 .card {
-  border-radius: 20px;
-  overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.card:hover {
-  border-radius: 24px;
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  border-radius: calc(var(--radius) + 4px);
+  transition: all 0.2s ease;
 }
 
 /* Dialog and modal smooth styling */
