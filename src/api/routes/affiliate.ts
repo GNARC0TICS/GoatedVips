@@ -2,6 +2,12 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { validateQuery } from '../middleware/validation';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
+import { WagerSyncService } from '../../domain/services/WagerSyncService';
+import { DrizzleWagerRepository } from '../../infrastructure/database/DrizzleWagerRepository';
+import { DrizzleWagerAdjustmentRepository } from '../../infrastructure/database/DrizzleWagerAdjustmentRepository';
+import { UserService } from '../../domain/services/UserService';
+import { DrizzleUserRepository } from '../../infrastructure/database/DrizzleUserRepository';
+import { MemoryCache } from '../../infrastructure/cache/MemoryCache';
 
 // Response schemas for affiliate data
 const AffiliateEntry = z.object({
@@ -44,6 +50,15 @@ const CIRCUIT_BREAKER_TIMEOUT = 120000; // 2 minutes timeout for recovery
 
 export function createAffiliateRoutes(): Router {
   const router = Router();
+  
+  // Initialize repositories and services for database operations
+  const databaseUrl = process.env.DATABASE_URL || '';
+  const wagerRepository = new DrizzleWagerRepository(databaseUrl);
+  const wagerAdjustmentRepository = new DrizzleWagerAdjustmentRepository(databaseUrl);
+  const userRepository = new DrizzleUserRepository(databaseUrl);
+  const cacheService = new MemoryCache();
+  const userService = new UserService(userRepository, cacheService);
+  const wagerSyncService = new WagerSyncService(wagerAdjustmentRepository, userService, cacheService);
 
   // GET /api/affiliate/stats - Get affiliate leaderboard data
   router.get('/stats',
