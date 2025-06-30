@@ -229,14 +229,16 @@ export const UtilityPanelButton = () => {
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <div
+        <motion.div
           role="button"
           tabIndex={0}
           className="relative h-10 w-10 flex items-center justify-center rounded-md hover:bg-[#2A2B31]/60 transition-colors duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#D7FF00]/50"
           aria-label="Open utility panel"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
           <InventoryIcon className="h-5 w-5 text-[#D7FF00]" />
-        </div>
+        </motion.div>
       </DropdownMenuTrigger>
       <DesktopPanel />
     </DropdownMenu>

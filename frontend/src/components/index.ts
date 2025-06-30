@@ -1,15 +1,18 @@
-// Streamlined component exports - core modules only
+// Export all components from their respective directories
 export * from './auth';
-export * from './layout';
-export * from './ui';
-export * from './features';
-export * from './profile';
+export * from './chat';
+export * from './data';
 export * from './effects';
-
-// Remove redundant exports:
-// - home/* merged into features/*
-// - data/* merged into features/*
-// - interactive/* merged into ui/*
-// - utils/* merged into ui/*
-// - icons/* consolidated
-// - skeletons/* merged into ui/*
+export * from './features';
+export * from './home';
+export * from './icons';
+export * from './interactive';
+export * from './layout';
+export * from './linking';
+export * from './mvp';
+export * from './profile';
+export * from './shared';
+export * from './skeletons';
+export * from './ui';
+export * from './username';
+export * from './utils';
