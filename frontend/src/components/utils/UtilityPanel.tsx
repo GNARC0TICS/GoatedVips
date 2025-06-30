@@ -115,68 +115,52 @@ export const UtilityPanelButton = () => {
   const DesktopPanel = () => (
     <DropdownMenuContent
       align="end"
-      className="w-[320px] border border-[#2A2B31] bg-[#1A1B21]/95 backdrop-blur-xl p-4 mt-2"
+      className="w-[280px] border border-[#2A2B31] bg-[#1A1B21]/95 backdrop-blur-xl p-4 mt-2"
     >
       <div className="grid grid-cols-2 gap-3">
-        <motion.button
+        <button
           onClick={() => {
             setLocation("/wheel-challenge");
             setIsOpen(false);
           }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="aspect-square p-4 bg-[#2A2B31]/80 backdrop-blur-sm rounded-xl border border-[#2A2B31]/50 hover:bg-[#2A2B31]/90 transition-all relative group flex flex-col items-center justify-between"
+          className="flex flex-col items-center justify-center gap-2 p-4 bg-[#2A2B31]/80 rounded-xl border border-[#2A2B31]/50 hover:bg-[#2A2B31]/90 transition-colors min-h-[100px]"
         >
-          <div className="flex-1 flex items-center justify-center">
-            <InventoryIcon className="w-10 h-10 text-[#D7FF00] drop-shadow-[0_0_8px_rgba(215,255,0,0.3)]" />
-          </div>
+          <InventoryIcon className="w-8 h-8 text-[#D7FF00]" />
           <span className="text-xs text-[#8A8B91] font-medium text-center">Daily Spin</span>
-        </motion.button>
+        </button>
 
-        <motion.button
+        <button
           onClick={() => {
             setLocation("/bonus-codes");
             setIsOpen(false);
           }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="aspect-square p-4 bg-[#2A2B31]/80 backdrop-blur-sm rounded-xl border border-[#2A2B31]/50 hover:bg-[#2A2B31]/90 transition-all group flex flex-col items-center justify-between"
+          className="flex flex-col items-center justify-center gap-2 p-4 bg-[#2A2B31]/80 rounded-xl border border-[#2A2B31]/50 hover:bg-[#2A2B31]/90 transition-colors min-h-[100px]"
         >
-          <div className="flex-1 flex items-center justify-center">
-            <Ticket className="w-10 h-10 text-[#D7FF00] drop-shadow-[0_0_8px_rgba(215,255,0,0.3)]" />
-          </div>
+          <Ticket className="w-8 h-8 text-[#D7FF00]" />
           <span className="text-xs text-[#8A8B91] font-medium text-center">Bonus Codes</span>
-        </motion.button>
+        </button>
 
-        <motion.a
+        <a
           href="https://t.me/+2dFGi_rMDodjMmZh"
           target="_blank"
           rel="noopener noreferrer"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="aspect-square p-4 bg-[#2A2B31]/80 backdrop-blur-sm rounded-xl border border-[#2A2B31]/50 hover:bg-[#2A2B31]/90 transition-all group flex flex-col items-center justify-between"
+          className="flex flex-col items-center justify-center gap-2 p-4 bg-[#2A2B31]/80 rounded-xl border border-[#2A2B31]/50 hover:bg-[#2A2B31]/90 transition-colors min-h-[100px]"
           onClick={() => setIsOpen(false)}
         >
-          <div className="flex-1 flex items-center justify-center">
-            <Send className="w-10 h-10 text-[#D7FF00] drop-shadow-[0_0_8px_rgba(215,255,0,0.3)]" />
-          </div>
+          <Send className="w-8 h-8 text-[#D7FF00]" />
           <span className="text-xs text-[#8A8B91] font-medium text-center">Telegram</span>
-        </motion.a>
+        </a>
 
-        <motion.a
+        <a
           href="https://t.me/xGoombas"
           target="_blank"
           rel="noopener noreferrer"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="aspect-square p-4 bg-[#2A2B31]/80 backdrop-blur-sm rounded-xl border border-[#2A2B31]/50 hover:bg-[#2A2B31]/90 transition-all group flex flex-col items-center justify-between"
+          className="flex flex-col items-center justify-center gap-2 p-4 bg-[#2A2B31]/80 rounded-xl border border-[#2A2B31]/50 hover:bg-[#2A2B31]/90 transition-colors min-h-[100px]"
           onClick={() => setIsOpen(false)}
         >
-          <div className="flex-1 flex items-center justify-center">
-            <MessageCircle className="w-10 h-10 text-[#D7FF00] drop-shadow-[0_0_8px_rgba(215,255,0,0.3)]" />
-          </div>
+          <MessageCircle className="w-8 h-8 text-[#D7FF00]" />
           <span className="text-xs text-[#8A8B91] font-medium text-center">Support</span>
-        </motion.a>
+        </a>
       </div>
     </DropdownMenuContent>
   );

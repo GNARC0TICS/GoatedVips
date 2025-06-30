@@ -151,6 +151,7 @@ The application uses environment variables for configuration:
 - June 30, 2025: Cleaned up home page description card - removed stats section (10K+ Active Players, Daily Rewards, Total Prizes) keeping only welcome text and body description
 - June 30, 2025: Cleaned up CallToAction component - removed emoji stats section, excessive gradients, floating decorative elements, and complex animations
 - June 30, 2025: Removed accessibility focus rings from all buttons - outline-none applied to button component (focus rings should only be on text inputs)
+- June 30, 2025: Fixed utility panel layout issues - resolved overlapping and squished buttons by simplifying layout structure and adding consistent sizing
 
 ## User Preferences
 
