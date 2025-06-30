@@ -44,8 +44,8 @@ export function createAffiliateRoutes(): Router {
         const { timeframe, limit, page } = req.query as any;
 
         // Get API credentials from environment
-        const apiUrl = process.env.GOATED_API_URL || process.env.API_BASE_URL || 'https://apis.goated.com/user/affiliate/referral-leaderboard/2RW440E';
-        const apiToken = process.env.API_TOKEN || process.env.GOATED_API_TOKEN || process.env.GOATED_API_KEY;
+        const apiUrl = process.env.GOATED_API_URL || 'https://apis.goated.com/user/affiliate/referral-leaderboard/2RW440E';
+        const apiToken = process.env.GOATED_API_TOKEN;
 
         console.log('Fetching affiliate data...', { 
           hasUrl: !!apiUrl, 
