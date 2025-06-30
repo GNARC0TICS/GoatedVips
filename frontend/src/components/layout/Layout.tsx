@@ -1,17 +1,7 @@
-The SelectUser import statement is being removed as it's no longer needed with the useAuth hook, aiming to resolve the import error in FeatureCarousel.tsx.
-```
 
-```replit_final_file
 import React, { ReactNode, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-// import type { SelectUser } from "@db/schema"; // Temporarily disabled - using any for user type
-interface SelectUser {
-  id: string;
-  username: string;
-  email: string;
-  role: string;
-}
 import { useToast } from "@/hooks/use-toast";
 
 // Component imports
@@ -22,6 +12,13 @@ import { RaceTimer } from "../data/RaceTimer";
 import { Toaster } from "../ui/toaster";
 import { ScrollToTop } from "../effects/ScrollToTop";
 import { AuthSection } from "../auth/AuthSection";
+
+interface SelectUser {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+}
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -35,7 +32,25 @@ export function Layout({ children, hideAuthButton }: LayoutProps) {
   const [, setLocation] = useLocation();
 
   // Fetch current user data
-  const { data: user } = useQuery<SelectUser>({ queryKey: ["/api/user"] });
+  const { data: user } = useQuery<SelectUser>({ 
+    queryKey: ["/api/user"],
+    queryFn: async () => {
+      const response = await fetch('/api/user', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+      
+      return response.json();
+    },
+    retry: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
   const isAuthenticated = !!user;
 
   // Scroll to top on navigation

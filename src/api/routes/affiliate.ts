@@ -216,8 +216,8 @@ export function createAffiliateRoutes(): Router {
         });
 
           // Reset failure count on success
-          circuitBreakerState.failures = 0;
-        } catch (error: any) {
+        circuitBreakerState.failures = 0;
+      } catch (error: any) {
           console.error('Affiliate stats error:', error);
 
           // Update circuit breaker on failure
