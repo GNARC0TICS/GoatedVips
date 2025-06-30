@@ -40,6 +40,7 @@ export type RegisterData = z.infer<typeof RegisterSchema>;
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   isLoading: boolean;
   error: Error | null;
   login: (data: LoginData) => Promise<User>;
@@ -186,6 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authContextValue: AuthContextType = {
     user: (user === undefined ? null : user) as User | null,
     isAuthenticated: !!user,
+    isAdmin: user?.role === 'admin',
     isLoading: isLoading || loginMutation.isPending || registerMutation.isPending || logoutMutation.isPending,
     error,
     login: loginMutation.mutateAsync,

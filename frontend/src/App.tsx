@@ -56,6 +56,7 @@ const GoombasAdminLogin = lazy(() => import("@/pages/GoombasAdminLogin"));
 const GoombasAdminDashboard = lazy(() => import("@/pages/GoombasAdminDashboard"));
 const CryptoSwap = lazy(() => import("@/pages/CryptoSwap"));
 const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
+const Admin = lazy(() => import("@/pages/Admin"));
 
 // MainContent Component
 // Handles the core application rendering logic including preloader and route management
@@ -128,7 +129,7 @@ function MainContent() {
                   <ProtectedRoute path="/wheel-challenge" component={WheelChallenge} />
 
                   {/* Admin Routes - Require Admin Privileges */}
-                  <AdminRoute path="/admin" component={AdminDashboard} />
+                  <AdminRoute path="/admin" component={Admin} />
                   <AdminRoute path="/admin/user-management" component={UserManagement} />
                   <AdminRoute path="/admin/wager-races" component={WagerRaceManagement} />
                   <AdminRoute path="/admin/bonus-codes" component={BonusCodeManagement} />

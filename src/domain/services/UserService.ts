@@ -191,6 +191,21 @@ export class UserService {
     return this.userRepository.search(query, limit, offset);
   }
 
+  async findByGoatedId(goatedId: string): Promise<User | null> {
+    // Try cache first
+    const cached = await this.cacheService.get<User>(`user:goated:${goatedId}`);
+    if (cached) return cached;
+    
+    // Fallback to database
+    const user = await this.userRepository.findByGoatedId(goatedId);
+    if (user) {
+      await this.cacheService.set(`user:goated:${goatedId}`, user, 3600);
+      await this.cacheService.set(`user:${user.id}`, user, 3600);
+    }
+    
+    return user;
+  }
+
   async getStats() {
     const cacheKey = 'user:stats';
     const cached = await this.cacheService.get(cacheKey);

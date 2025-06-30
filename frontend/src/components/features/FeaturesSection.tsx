@@ -7,3 +7,8 @@ interface FeatureCardProps {
   title: string;
   description: string;
   icon: React.ReactNode;
+}
+
+export function FeaturesSection() {
+  return <div>Features coming soon...</div>;
+}

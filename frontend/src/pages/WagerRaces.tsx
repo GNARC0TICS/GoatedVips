@@ -79,8 +79,8 @@ export default function WagerRaces() {
     data: leaderboardApiResponse, 
     isLoading: isLoadingLeaderboard, 
   } = useQuery({
-    queryKey: ['/api/leaderboard', 'monthly'],
-    queryFn: () => fetch('/api/leaderboard?timeframe=monthly&limit=10').then(res => res.json()),
+    queryKey: ['/api/affiliate/stats', 'monthly'],
+    queryFn: () => fetch('/api/affiliate/stats?timeframe=monthly&limit=10').then(res => res.json()),
     enabled: viewMode === 'live',
   });
 
@@ -354,6 +354,7 @@ export default function WagerRaces() {
                           onComplete={() => {
                             if (viewMode === 'live') { 
                               queryClient.invalidateQueries({ queryKey: ['/api/race-config'] });
+                              queryClient.invalidateQueries({ queryKey: ['/api/affiliate/stats', 'monthly'] });
                             }
                           }}
                         />

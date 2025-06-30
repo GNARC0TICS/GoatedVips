@@ -1,10 +1,18 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface ApiOptions {
   enabled?: boolean;
   refetchInterval?: number | false;
   staleTime?: number;
   cacheTime?: number;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  code?: string;
+  message?: string;
 }
 
 // Default cache times
@@ -14,24 +22,50 @@ const CACHE_TIMES = {
   LONG: 1000 * 60 * 5, // 5 minutes
 };
 
-// Reusable fetch function with error handling and retry logic
-async function fetchApi(endpoint: string, options: RequestInit = {}) {
+// Auth token management
+let authToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+  if (token) {
+    localStorage.setItem('auth_token', token);
+  } else {
+    localStorage.removeItem('auth_token');
+  }
+}
+
+export function getAuthToken(): string | null {
+  if (!authToken) {
+    authToken = localStorage.getItem('auth_token');
+  }
+  return authToken;
+}
+
+// Consolidated fetch function with error handling and retry logic
+async function fetchApi<T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
   const MAX_RETRIES = 3;
   const INITIAL_RETRY_DELAY = 1000;
 
   let lastError;
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
+      const token = getAuthToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      };
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       const response = await fetch(endpoint, {
         ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
+        headers,
       });
 
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -127,3 +161,75 @@ export function useBatchRequest(requests: string[], options: ApiOptions = {}) {
     ...options,
   });
 }
+
+// Authentication hooks
+export function useLogin() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (credentials: { email: string; password: string }) =>
+      fetchApi('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      }),
+    onSuccess: (data) => {
+      if (data.success && data.data?.tokens?.accessToken) {
+        setAuthToken(data.data.tokens.accessToken);
+        queryClient.invalidateQueries({ queryKey: ['current-user'] });
+      }
+    },
+  });
+}
+
+export function useRegister() {
+  return useMutation({
+    mutationFn: (userData: { username: string; email: string; password: string }) =>
+      fetchApi('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(userData),
+      }),
+  });
+}
+
+export function useLogout() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: () =>
+      fetchApi('/api/auth/logout', {
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      setAuthToken(null);
+      queryClient.clear();
+    },
+  });
+}
+
+// User data hooks
+export function useCurrentUser(options: ApiOptions = {}) {
+  return useQuery({
+    queryKey: ['current-user'],
+    queryFn: () => fetchApi('/api/auth/me'),
+    staleTime: CACHE_TIMES.MEDIUM,
+    retry: false, // Don't retry auth requests
+    ...options,
+  });
+}
+
+// Generic API mutation hook
+export function useApiMutation<TData = any, TVariables = any>(
+  endpoint: string,
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'POST'
+) {
+  return useMutation<ApiResponse<TData>, Error, TVariables>({
+    mutationFn: (variables: TVariables) =>
+      fetchApi(endpoint, {
+        method,
+        body: JSON.stringify(variables),
+      }),
+  });
+}
+
+// Export the fetchApi function for direct use
+export { fetchApi };

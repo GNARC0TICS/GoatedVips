@@ -1,6 +1,5 @@
 import React from 'react';
 import { QuickProfileCard } from './QuickProfileCard';
-import { EnhancedQuickProfileCard } from './EnhancedQuickProfileCard';
 import { isFeatureEnabled } from '@/config/feature-flags';
 
 // Base interface for profile card props
@@ -21,7 +20,7 @@ export interface ProfileCardProps extends ProfileCardBaseProps {
  * ProfileCard - A unified component that can render either the original or enhanced version
  * based on a feature flag.
  * 
- * This wrapper allows for gradual migration from QuickProfileCard to EnhancedQuickProfileCard
+ * This wrapper provides a unified interface for profile cards
  * without requiring changes to all component consumers.
  * 
  * @example
@@ -52,7 +51,7 @@ export function ProfileCard({
   // If the enhanced flag is enabled, use the enhanced version
   if (shouldUseEnhanced) {
     return (
-      <EnhancedQuickProfileCard
+      <QuickProfileCard
         profileId={profileId}
         onClose={onClose}
         size={size}

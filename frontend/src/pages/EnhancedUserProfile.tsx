@@ -7,7 +7,7 @@ import { ProfileSkeleton } from "@/components/skeletons/ProfileSkeleton";
 import { ErrorFallback } from "@/components/ui/ErrorFallback";
 import { useProfile } from "@/hooks/use-profile";
 import { ErrorBoundary } from "react-error-boundary";
-import { EnhancedProfileLayout } from "@/components/profile/EnhancedProfileLayout";
+import { ProfileLayout } from "@/components/profile/ProfileLayout";
 import { PrivacySettingsDialog } from "@/components/profile/PrivacySettingsDialog"; // Import new dialog
 import { Button } from "@/components/ui/button"; // Import Button
 import { Settings } from "lucide-react"; // Import Settings icon
@@ -51,7 +51,7 @@ export function EnhancedUserProfile() {
             </p>
           </div>
         ) : (
-          <EnhancedProfileLayout
+          <ProfileLayout
             profile={profile}
             isOwner={isOwner}
             onEdit={() => {
@@ -101,7 +101,7 @@ export function EnhancedUserProfile() {
                 </div>
               </div>
             </div>
-          </EnhancedProfileLayout>
+          </ProfileLayout>
         )}
         {profile && isOwner && profile.goatedAccountLinked && (
           <PrivacySettingsDialog

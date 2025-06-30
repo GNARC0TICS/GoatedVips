@@ -9,10 +9,16 @@ import { createServer } from 'http';
 import { RedisCache } from '../infrastructure/cache/RedisCache';
 import { MemoryCache } from '../infrastructure/cache/MemoryCache';
 import { DrizzleUserRepository } from '../infrastructure/database/DrizzleUserRepository';
+import { DrizzleWagerRepository } from '../infrastructure/database/DrizzleWagerRepository';
+import { DrizzleWagerAdjustmentRepository } from '../infrastructure/database/DrizzleWagerAdjustmentRepository';
+import { DrizzleGoatedLinkingRepository } from '../infrastructure/database/DrizzleGoatedLinkingRepository';
 import { JWTAuthService } from '../infrastructure/auth/JWTAuthService';
 
 // Domain Services
 import { UserService } from '../domain/services/UserService';
+import { WagerAdjustmentService } from '../domain/services/WagerAdjustmentService';
+import { WagerSyncService } from '../domain/services/WagerSyncService';
+import { GoatedLinkingService } from '../domain/services/GoatedLinkingService';
 
 // API Middleware
 import { AuthMiddleware } from './middleware/auth';
@@ -21,6 +27,11 @@ import { sanitizeInput } from './middleware/validation';
 
 // Routes
 import { createAuthRoutes } from './routes/auth';
+import { createAffiliateRoutes } from './routes/affiliate';
+import { createRaceConfigRoutes } from './routes/race-config';
+import { createAdminRoutes } from './routes/admin';
+import { createAdminWagerRoutes } from './routes/admin-wager';
+import { createLinkingRoutes } from './routes/linking';
 
 // Types
 import { ICacheService } from '../infrastructure/cache/ICacheService';
@@ -97,8 +108,13 @@ export class APIServer {
       cache = new MemoryCache();
     }
 
-    // Initialize services
+    // Initialize repositories
     const userRepository = new DrizzleUserRepository(this.config.databaseUrl);
+    const wagerRepository = new DrizzleWagerRepository(this.config.databaseUrl);
+    const wagerAdjustmentRepository = new DrizzleWagerAdjustmentRepository(this.config.databaseUrl);
+    const goatedLinkingRepository = new DrizzleGoatedLinkingRepository(this.config.databaseUrl);
+    
+    // Initialize core services
     const authService = new JWTAuthService(
       cache,
       userRepository,
@@ -107,8 +123,24 @@ export class APIServer {
     );
     const userService = new UserService(userRepository, cache);
     
+    // Initialize domain services
+    const wagerAdjustmentService = new WagerAdjustmentService(
+      wagerAdjustmentRepository,
+      wagerRepository,
+      userRepository
+    );
+    const wagerSyncService = new WagerSyncService(
+      wagerRepository,
+      wagerAdjustmentRepository,
+      userRepository
+    );
+    const goatedLinkingService = new GoatedLinkingService(
+      goatedLinkingRepository,
+      userRepository
+    );
+    
     // Initialize middleware
-    const authMiddleware = new AuthMiddleware(authService, cache);
+    const authMiddleware = new AuthMiddleware(authService, userService);
     const rateLimitStore = new MemoryRateLimitStore();
     const rateLimit = createRateLimitMiddleware(rateLimitStore);
 
@@ -162,10 +194,11 @@ export class APIServer {
         description: 'Secure, scalable API for Goombas x Goated VIPs platform',
         endpoints: {
           auth: '/api/auth',
-          users: '/api/users',
-          wagers: '/api/wagers',
-          races: '/api/races',
-          leaderboard: '/api/leaderboard',
+          affiliate: '/api/affiliate',
+          'race-config': '/api/race-config',
+          admin: '/api/admin',
+          'admin-wagers': '/api/admin/wagers',
+          linking: '/api/linking',
           health: '/health',
         },
       });
@@ -174,11 +207,35 @@ export class APIServer {
     // Real authentication routes
     this.app.use('/api/auth', createAuthRoutes(authService, userService, rateLimit));
 
-    // Mock user routes (to be replaced with real routes)
-    this.app.use('/api/users', this.createMockUserRoutes());
+    // Real affiliate routes - Core business feature
+    this.app.use('/api/affiliate', createAffiliateRoutes());
 
-    // Real leaderboard routes with external API integration
-    this.app.use('/api/leaderboard', this.createRealLeaderboardRoutes());
+    // Race configuration routes
+    this.app.use('/api/race-config', createRaceConfigRoutes());
+
+    // Admin routes
+    this.app.use('/api/admin', createAdminRoutes(
+      userService, 
+      wagerAdjustmentService, 
+      goatedLinkingService, 
+      authMiddleware, 
+      rateLimit
+    ));
+
+    // Admin wager routes
+    this.app.use('/api/admin/wagers', createAdminWagerRoutes(
+      wagerAdjustmentService,
+      wagerSyncService,
+      authMiddleware,
+      rateLimit
+    ));
+
+    // Account linking routes
+    this.app.use('/api/linking', createLinkingRoutes(
+      goatedLinkingService,
+      authMiddleware,
+      rateLimit
+    ));
 
     // 404 handler
     this.app.use((req, res) => {
@@ -192,221 +249,8 @@ export class APIServer {
     });
   }
 
-  private createMockAuthRoutes() {
-    const router = express.Router();
 
-    // Mock login
-    router.post('/login', (req, res) => {
-      const { email, password } = req.body;
-      
-      if (!email || !password) {
-        return res.status(400).json({
-          success: false,
-          error: 'Email and password are required',
-          code: 'MISSING_CREDENTIALS'
-        });
-      }
 
-      // Mock successful login
-      res.json({
-        success: true,
-        message: 'Login successful',
-        data: {
-          user: {
-            id: 'user_123',
-            username: 'testuser',
-            email: email,
-            role: 'user',
-            isEmailVerified: true,
-          },
-          tokens: {
-            accessToken: 'mock_access_token_123',
-            refreshToken: 'mock_refresh_token_123',
-          }
-        }
-      });
-    });
-
-    // Mock register
-    router.post('/register', (req, res) => {
-      const { username, email, password } = req.body;
-      
-      if (!username || !email || !password) {
-        return res.status(400).json({
-          success: false,
-          error: 'Username, email, and password are required',
-          code: 'MISSING_FIELDS'
-        });
-      }
-
-      // Mock successful registration
-      res.status(201).json({
-        success: true,
-        message: 'Registration successful',
-        data: {
-          user: {
-            id: 'user_' + Date.now(),
-            username: username,
-            email: email,
-            role: 'user',
-            isEmailVerified: false,
-            createdAt: new Date().toISOString(),
-          },
-          tokens: {
-            accessToken: 'mock_access_token_' + Date.now(),
-            refreshToken: 'mock_refresh_token_' + Date.now(),
-          }
-        }
-      });
-    });
-
-    // Mock me endpoint
-    router.get('/me', (req, res) => {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({
-          success: false,
-          error: 'Authentication required',
-          code: 'NO_TOKEN'
-        });
-      }
-
-      res.json({
-        success: true,
-        data: {
-          user: {
-            id: 'user_123',
-            username: 'testuser',
-            email: 'test@example.com',
-            role: 'user',
-            isEmailVerified: true,
-            createdAt: '2024-01-01T00:00:00Z',
-          }
-        }
-      });
-    });
-
-    return router;
-  }
-
-  private createMockUserRoutes() {
-    const router = express.Router();
-
-    // Get user profile
-    router.get('/:id', (req, res) => {
-      res.json({
-        success: true,
-        data: {
-          user: {
-            id: req.params.id,
-            username: 'testuser',
-            displayName: 'Test User',
-            avatar: null,
-            role: 'user',
-            stats: {
-              totalWager: 1500.50,
-              gamesPlayed: 45,
-              winRate: 0.67,
-              rank: 15,
-            },
-            isOnline: true,
-            lastSeen: new Date().toISOString(),
-          }
-        }
-      });
-    });
-
-    return router;
-  }
-
-  private createRealLeaderboardRoutes() {
-    const router = express.Router();
-
-    // Get leaderboard with real external API data
-    router.get('/', async (req, res) => {
-      const { timeframe = 'daily', limit = 10, page = 1 } = req.query;
-      
-      // Convert frontend timeframe to backend format
-      const backendTimeframe = timeframe === 'today' ? 'daily' : timeframe;
-      
-      try {
-        // Fetch real data from external Goated API
-        const apiUrl = process.env.GOATED_API_URL;
-        const apiKey = process.env.GOATED_API_KEY;
-        
-        if (!apiUrl || !apiKey) {
-          throw new Error('External API credentials not configured');
-        }
-
-        // Use the correct base URL and build the API endpoint
-        const baseUrl = apiUrl.replace('api.goated.com', 'www.goated.com');
-        const url = new URL(baseUrl);
-        
-        // Add timeframe parameters if the API supports them
-        url.searchParams.set('timeframe', backendTimeframe as string);
-        url.searchParams.set('limit', limit as string);
-        url.searchParams.set('page', page as string);
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-        
-        const response = await fetch(url.toString(), {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-            'User-Agent': 'GoatedVIPs/2.0'
-          },
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          throw new Error(`External API error: ${response.status} ${response.statusText}`);
-        }
-
-        const externalData = await response.json();
-        
-        // Transform external API data to our frontend format
-        const entries = (externalData.data || externalData.leaderboard || []).map((entry: any, index: number) => ({
-          userId: entry.user_id || entry.id || `user_${index + 1}`,
-          username: entry.username || entry.user?.username || `player${index + 1}`,
-          avatarUrl: entry.avatar_url || entry.user?.avatar || null,
-          rank: entry.rank || index + 1,
-          wagered: parseFloat(entry.total_wagered || entry.wagered || 0),
-          won: parseFloat(entry.total_winnings || entry.winnings || 0),
-          profit: parseFloat(entry.profit || (entry.total_winnings - entry.total_wagered) || 0),
-          profitPercentage: entry.profit_percentage || ((entry.total_winnings - entry.total_wagered) / entry.total_wagered * 100) || 0,
-          isCurrentUser: false,
-        }));
-
-        // Return data in the format expected by the frontend schema
-        res.json({
-          status: "success",
-          entries,
-          timeframe: backendTimeframe,
-          total: externalData.total || entries.length,
-          timestamp: Date.now(),
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
-          totalPages: Math.ceil((externalData.total || entries.length) / parseInt(limit as string)),
-        });
-
-      } catch (error: any) {
-        console.error('Failed to fetch leaderboard from external API:', error);
-        
-        // Return error response
-        res.status(503).json({
-          status: "error",
-          error: "Failed to fetch leaderboard data",
-          message: error.message,
-          timestamp: Date.now()
-        });
-      }
-    });
-
-    return router;
-  }
 
   private setupErrorHandling(): void {
     // Global error handler

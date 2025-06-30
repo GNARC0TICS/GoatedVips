@@ -252,6 +252,8 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
 
   // Control mobile search dropdown visibility
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+
     if (isMobile) {
       // Get the dropdown element
       const searchDropdown = document.getElementById('mobile-search-dropdown');
@@ -261,7 +263,7 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
           searchDropdown.classList.remove('h-0');
         } else {
           // Add a slight delay before hiding to allow for animations
-          setTimeout(() => {
+          timeoutId = setTimeout(() => {
             if (!isFocused) {
               searchDropdown.classList.remove('h-16');
               searchDropdown.classList.add('h-0');
@@ -270,6 +272,13 @@ export function UserSearch({ isMobile = false }: UserSearchProps) {
         }
       }
     }
+
+    // Cleanup function to clear timeout
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [isFocused, isMobile]);
 
   return (

@@ -232,4 +232,11 @@ export function MobileNavigation({
   );
 }
 
-export default React.memo(MobileNavigation);
+export default React.memo(MobileNavigation, (prevProps, nextProps) => {
+  return (
+    prevProps.isAuthenticated === nextProps.isAuthenticated &&
+    prevProps.user?.id === nextProps.user?.id &&
+    prevProps.user?.isAdmin === nextProps.user?.isAdmin &&
+    prevProps.openMobile === nextProps.openMobile
+  );
+});

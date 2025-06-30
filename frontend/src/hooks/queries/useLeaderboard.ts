@@ -2,18 +2,29 @@ import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { z } from 'zod';
 import { createQueryFn } from '@/lib/queryClient';
 
-// Schema for a single leaderboard entry
+// Schema for a single leaderboard entry (matching our API response)
 export const LeaderboardEntrySchema = z.object({
-  userId: z.string(),
-  username: z.string(),
-  avatarUrl: z.string().optional().nullable(),
-  rank: z.number(),
-  wagered: z.number(),
-  won: z.number(),
-  profit: z.number(),
-  profitPercentage: z.number().optional(),
-  isCurrentUser: z.boolean().optional().default(false),
-});
+  uid: z.string(),
+  name: z.string(),
+  wagered: z.object({
+    today: z.number(),
+    this_week: z.number(), 
+    this_month: z.number(),
+    all_time: z.number(),
+  }),
+  rank: z.number().optional(),
+}).transform((data) => ({
+  userId: data.uid,
+  username: data.name,
+  avatarUrl: null,
+  rank: data.rank || 0,
+  wagered: data.wagered.all_time, // Default to all_time for compatibility
+  won: 0, // Not available in current API
+  profit: 0, // Not available in current API
+  profitPercentage: 0,
+  isCurrentUser: false,
+  wagerData: data.wagered, // Keep original structure for timeframe-specific access
+}));
 
 // Schema for the actual leaderboard data structure (what the hook should return)
 export const LeaderboardResponseSchema = z.object({
@@ -26,16 +37,19 @@ export const LeaderboardResponseSchema = z.object({
   totalPages: z.number().optional(),
 });
 
-// Schema for the API envelope that includes the 'status' field (backend uses different timeframe values)
+// Schema for the actual API response structure from /api/affiliate/stats
 const ApiLeaderboardEnvelopeSchema = z.object({
-  status: z.literal("success"),
-  entries: z.array(LeaderboardEntrySchema),
-  timeframe: z.enum(['daily', 'weekly', 'monthly', 'all_time']), // Backend uses 'daily' instead of 'today'
-  total: z.number(),
-  timestamp: z.number().optional(),
-  page: z.number().optional(),
-  limit: z.number().optional(),
-  totalPages: z.number().optional(),
+  success: z.literal(true),
+  data: z.array(LeaderboardEntrySchema),
+  metadata: z.object({
+    totalUsers: z.number(),
+    lastUpdated: z.string(),
+    source: z.string(),
+    timeframe: z.enum(['daily', 'weekly', 'monthly', 'all_time']),
+    page: z.number(),
+    limit: z.number(), 
+    totalPages: z.number(),
+  }),
 });
 
 // TypeScript types derived from the schemas
@@ -64,26 +78,54 @@ export function useLeaderboard(
   
   // The queryFn returns the full API response (including the envelope)
   return useQuery<z.infer<typeof ApiLeaderboardEnvelopeSchema>, Error, LeaderboardResponse>({
-    queryKey: ['/api/leaderboard', { timeframe: backendTimeframe, limit, page }],
+    queryKey: ['/api/affiliate/stats', { timeframe: backendTimeframe, limit, page }],
     queryFn: createQueryFn(),
     staleTime: 2 * 60 * 1000, 
     refetchInterval: 2 * 60 * 1000, 
-    select: (data) => { // data is the full API response e.g. { status: "success", entries: [], ... }
+    select: (data) => { // data is the full API response e.g. { success: true, data: [], metadata: {...} }
       try {
         const parsedEnvelope = ApiLeaderboardEnvelopeSchema.parse(data);
         
-        // Construct the object that LeaderboardResponseSchema expects
         // Map backend timeframe back to frontend timeframe
-        const frontendTimeframe = parsedEnvelope.timeframe === 'daily' ? 'today' : parsedEnvelope.timeframe;
+        const frontendTimeframe = parsedEnvelope.metadata.timeframe === 'daily' ? 'today' : parsedEnvelope.metadata.timeframe;
         
+        // Transform entries to use correct wagered amount based on timeframe
+        const transformedEntries = parsedEnvelope.data.map(entry => {
+          let wagerAmount = entry.wagered;
+          
+          // If entry has wagerData, use timeframe-specific amount
+          if (entry.wagerData) {
+            switch (frontendTimeframe) {
+              case 'today':
+                wagerAmount = entry.wagerData.today;
+                break;
+              case 'weekly':
+                wagerAmount = entry.wagerData.this_week;
+                break;
+              case 'monthly':
+                wagerAmount = entry.wagerData.this_month;
+                break;
+              case 'all_time':
+              default:
+                wagerAmount = entry.wagerData.all_time;
+                break;
+            }
+          }
+          
+          return {
+            ...entry,
+            wagered: wagerAmount,
+          };
+        });
+
         const leaderboardData: LeaderboardResponse = {
-          entries: parsedEnvelope.entries,
+          entries: transformedEntries,
           timeframe: frontendTimeframe as LeaderboardTimeframe,
-          total: parsedEnvelope.total,
-          timestamp: parsedEnvelope.timestamp,
-          page: parsedEnvelope.page,
-          limit: parsedEnvelope.limit,
-          totalPages: parsedEnvelope.totalPages,
+          total: parsedEnvelope.metadata.totalUsers,
+          timestamp: new Date(parsedEnvelope.metadata.lastUpdated).getTime(),
+          page: parsedEnvelope.metadata.page,
+          limit: parsedEnvelope.metadata.limit,
+          totalPages: parsedEnvelope.metadata.totalPages,
         };
         
         return leaderboardData;

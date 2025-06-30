@@ -45,10 +45,12 @@ export const EnhancedCard = React.forwardRef<HTMLDivElement, EnhancedCardProps>(
     React.useEffect(() => {
       if (!animateIn || hasBeenVisible) return;
 
+      let timeoutId: NodeJS.Timeout | null = null;
+
       const observer = new IntersectionObserver(
         ([entry]) => {
           if (entry.isIntersecting) {
-            setTimeout(() => {
+            timeoutId = setTimeout(() => {
               setHasBeenVisible(true);
             }, delay);
           }
@@ -60,7 +62,12 @@ export const EnhancedCard = React.forwardRef<HTMLDivElement, EnhancedCardProps>(
         observer.observe(cardRef.current);
       }
 
-      return () => observer.disconnect();
+      return () => {
+        observer.disconnect();
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+      };
     }, [animateIn, hasBeenVisible, delay]);
 
     const isClickable = typeof onClick === 'function';

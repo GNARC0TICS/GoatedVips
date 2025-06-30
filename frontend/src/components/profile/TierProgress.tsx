@@ -1,6 +1,5 @@
 import React from 'react';
 import { ProfileTierProgress } from './ProfileTierProgress';
-import { EnhancedProfileTierProgress } from './EnhancedProfileTierProgress';
 import { isFeatureEnabled } from '@/config/feature-flags';
 import type { UserProfile } from '@/services/profileService';
 
@@ -20,7 +19,7 @@ export interface TierProgressProps {
  * TierProgress - A unified component that can render either the original or enhanced
  * tier progress visualization based on a feature flag.
  * 
- * This wrapper allows for gradual migration from ProfileTierProgress to EnhancedProfileTierProgress
+ * This wrapper provides a unified interface for tier progress components
  * without requiring changes to all component consumers.
  * 
  * @example
@@ -47,7 +46,7 @@ export function TierProgress({
   // If the enhanced flag is enabled, use the enhanced version
   if (shouldUseEnhanced) {
     return (
-      <EnhancedProfileTierProgress
+      <ProfileTierProgress
         profile={profile}
         className={className}
       />

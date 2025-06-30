@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Gift, Copy, Bell, CheckCircle, ArrowLeft, Webhook } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ interface BonusCode {
 
 export default function BonusCodes() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: bonusCodes, isLoading } = useQuery<BonusCode[]>({
     queryKey: ["bonus-codes"],
@@ -32,10 +33,29 @@ export default function BonusCodes() {
     },
   });
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   const copyToClipboard = (code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2000);
+    
+    // Clear previous timeout if exists
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    // Set new timeout
+    timeoutRef.current = setTimeout(() => {
+      setCopiedCode(null);
+      timeoutRef.current = null;
+    }, 2000);
   };
 
   const isExpired = (expiresAt: string) => new Date(expiresAt) < new Date();

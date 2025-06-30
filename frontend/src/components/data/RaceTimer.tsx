@@ -42,7 +42,7 @@ export function RaceTimer() {
   } = useQuery({
     queryKey: ['monthly-leaderboard'],
     queryFn: async () => {
-      const response = await fetch('/api/leaderboard?timeframe=monthly&limit=10');
+      const response = await fetch('/api/affiliate/stats?timeframe=monthly&limit=10');
       if (!response.ok) throw new Error('Failed to fetch leaderboard');
       const data = await response.json();
       return data.entries || [];
