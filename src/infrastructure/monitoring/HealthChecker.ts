@@ -189,7 +189,7 @@ export class ExternalAPIHealthChecker implements IHealthChecker {
   constructor(
     private apiUrl: string,
     private apiToken?: string,
-    private timeout = 5000
+    private timeout = 21000 // Increased timeout for external API
   ) {}
   
   async check(): Promise<HealthCheck> {
@@ -200,7 +200,9 @@ export class ExternalAPIHealthChecker implements IHealthChecker {
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
       
       const headers: Record<string, string> = {
-        'User-Agent': 'GoatedVIPs-HealthChecker/1.0',
+        'User-Agent': 'GoatedVIPs-HealthChecker/2.0',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
       };
       
       if (this.apiToken) {
@@ -208,6 +210,7 @@ export class ExternalAPIHealthChecker implements IHealthChecker {
       }
       
       const response = await fetch(this.apiUrl, {
+        method: 'GET',
         signal: controller.signal,
         headers,
       });
@@ -215,43 +218,94 @@ export class ExternalAPIHealthChecker implements IHealthChecker {
       clearTimeout(timeoutId);
       const duration = Date.now() - start;
       
+      // Handle different response scenarios
+      if (response.status === 503) {
+        return {
+          name: this.name,
+          status: 'degraded',
+          message: 'External API service temporarily unavailable (503)',
+          duration,
+          metadata: {
+            url: this.apiUrl,
+            statusCode: response.status,
+            statusText: response.statusText,
+            responseTime: `${duration}ms`,
+            note: 'Service may be under maintenance',
+          },
+        };
+      }
+      
       if (response.ok) {
         return {
           name: this.name,
-          status: duration < 2000 ? 'healthy' : 'degraded',
-          message: duration < 2000 ? 'External API responding normally' : 'External API responding slowly',
+          status: duration < 5000 ? 'healthy' : 'degraded',
+          message: duration < 5000 ? 'External API responding normally' : 'External API responding slowly',
           duration,
           metadata: {
             url: this.apiUrl,
             statusCode: response.status,
             responseTime: `${duration}ms`,
-            threshold: '2000ms',
+            threshold: '5000ms',
+          },
+        };
+      } else if (response.status >= 400 && response.status < 500) {
+        return {
+          name: this.name,
+          status: 'degraded',
+          message: `External API client error (${response.status}): Possible authentication or rate limiting`,
+          duration,
+          metadata: {
+            url: this.apiUrl,
+            statusCode: response.status,
+            statusText: response.statusText,
+            category: 'client_error',
           },
         };
       } else {
         return {
           name: this.name,
           status: 'unhealthy',
-          message: `External API returned error status: ${response.status}`,
+          message: `External API server error: ${response.status}`,
           duration,
           metadata: {
             url: this.apiUrl,
             statusCode: response.status,
             statusText: response.statusText,
+            category: 'server_error',
           },
         };
       }
     } catch (error: any) {
       const duration = Date.now() - start;
       
+      // Enhanced error categorization
+      let errorCategory = 'unknown';
+      let statusMessage = 'External API check failed';
+      
+      if (error.name === 'AbortError') {
+        errorCategory = 'timeout';
+        statusMessage = `External API timeout after ${this.timeout}ms`;
+      } else if (error.code === 'ECONNREFUSED') {
+        errorCategory = 'connection_refused';
+        statusMessage = 'External API connection refused';
+      } else if (error.code === 'ENOTFOUND') {
+        errorCategory = 'dns_resolution';
+        statusMessage = 'External API DNS resolution failed';
+      } else if (error.code === 'ECONNRESET') {
+        errorCategory = 'connection_reset';
+        statusMessage = 'External API connection reset';
+      }
+      
       return {
         name: this.name,
         status: 'unhealthy',
-        message: `External API check failed: ${error.message}`,
+        message: `${statusMessage}: ${error.message}`,
         duration,
         metadata: {
           url: this.apiUrl,
           error: error.name,
+          errorCode: error.code,
+          errorCategory,
           timeout: this.timeout,
         },
       };

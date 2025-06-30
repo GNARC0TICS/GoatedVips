@@ -31,8 +31,9 @@ import { createAffiliateRoutes } from './routes/affiliate';
 import { createRaceConfigRoutes } from './routes/race-config';
 import { createAdminRoutes } from './routes/admin';
 import { createAdminTestRoutes } from './routes/admin-test';
-import { createLinkingRoutes } from './routes/linking';
 import { createAdminWagerRoutes } from './routes/admin-wager';
+import { createExternalAPITestRoutes } from './routes/external-api-test';
+import { createLinkingRoutes } from './routes/linking';
 
 // Types
 import { ICacheService } from '../infrastructure/cache/ICacheService';
@@ -217,21 +218,18 @@ export class APIServer {
     // Admin routes
     this.app.use('/api/admin', createAdminRoutes(userService, wagerAdjustmentService, goatedLinkingService, authMiddleware, rateLimit));
     this.app.use('/api/admin/test', createAdminTestRoutes(authMiddleware));
-
-    // Admin wager routes
     this.app.use('/api/admin/wagers', createAdminWagerRoutes(
       wagerAdjustmentService,
       wagerSyncService,
       authMiddleware,
       rateLimit
     ));
-
-    // Account linking routes
     this.app.use('/api/linking', createLinkingRoutes(
       goatedLinkingService,
       authMiddleware,
       rateLimit
     ));
+    this.app.use('/api/admin/external-api', createExternalAPITestRoutes(authMiddleware));
 
     // 404 handler
     this.app.use((req, res) => {
