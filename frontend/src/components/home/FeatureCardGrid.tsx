@@ -85,7 +85,7 @@ export function FeatureCardGrid() {
                 <FeatureCard 
                   title={feature.title}
                   description={feature.description}
-                  icon={<div className="w-8 h-8 text-[#D7FF00]">🎯</div>} // Placeholder icon
+                  icon={<div className="w-8 h-8 text-[#D7FF00]"></div>}
                   href={feature.link}
                   linkText={feature.ctaText}
                   authRequired={feature.requiresAuth}
@@ -229,7 +229,7 @@ export function FeatureCardGrid() {
                     <FeatureCard 
                       title={feature.title}
                       description={feature.description}
-                      icon={<div className="w-8 h-8 text-[#D7FF00]">🎯</div>} // Placeholder icon
+                      icon={<div className="w-8 h-8 text-[#D7FF00]"></div>}
                       href={feature.link}
                       linkText={feature.ctaText}
                       authRequired={feature.requiresAuth}

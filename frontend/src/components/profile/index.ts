@@ -5,14 +5,16 @@
  */
 
 export { ProfileCard } from './ProfileCard';
-export { ProfileHeader } from './ProfileHeader';
-export { ProfileStats } from './ProfileStats';
-export { ProfileActions } from './ProfileActions';
-export { ProfileLayout } from './ProfileLayout';
+export { ProfileCardBio } from './ProfileCardBio';
+export { ProfileCardFooter } from './ProfileCardFooter';
+export { ProfileCardHeader } from './ProfileCardHeader';
+export { ProfileCardStats } from './ProfileCardStats';
+export { ProfileCardStatus } from './ProfileCardStatus';
 export { ProfileEmblem } from './ProfileEmblem';
-export { AccountLinkingDialog } from './AccountLinkingDialog';
-export { PrivacySettingsDialog } from './PrivacySettingsDialog';
-export { ProfileAchievements } from './ProfileAchievements';
+export { ProfileHeader } from './ProfileHeader';
+export { ProfileLayout } from './ProfileLayout';
+export { ProfileStats } from './ProfileStats';
+export { ProfileTierProgress } from './ProfileTierProgress';
 export { QuickProfile } from './QuickProfile';
 export { QuickProfileCard } from './QuickProfileCard';
 export { TierProgress } from './TierProgress';
