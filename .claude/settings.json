@@ -1,0 +1,78 @@
+
+{
+  "superclaude_version": "2.0.1",
+  "platform": "goatedvips",
+  "environment": "replit",
+  "configuration": {
+    "evidence_based_development": true,
+    "security_first": true,
+    "performance_focused": true,
+    "accessibility_compliant": true,
+    "domain_driven_design": true
+  },
+  "default_personas": {
+    "security_operations": "persona-security",
+    "performance_work": "persona-performance", 
+    "architecture_decisions": "persona-architect",
+    "ui_ux_changes": "persona-frontend",
+    "code_quality": "persona-qa",
+    "backend_development": "persona-backend",
+    "troubleshooting": "persona-analyzer",
+    "refactoring": "persona-refactorer",
+    "documentation": "persona-mentor"
+  },
+  "validation_rules": {
+    "require_evidence": true,
+    "security_validation": true,
+    "performance_validation": true,
+    "accessibility_validation": true,
+    "test_coverage_minimum": 80
+  },
+  "prohibited_language": [
+    "best", "optimal", "faster", "secure", "better", 
+    "improved", "enhanced", "always", "never", "guaranteed"
+  ],
+  "required_evidence_phrases": [
+    "testing confirms", "metrics show", "benchmarks prove", 
+    "data indicates", "documentation states", "measured",
+    "documented", "validated"
+  ],
+  "platform_specific": {
+    "goatedvips": {
+      "focus_areas": [
+        "real_time_wager_races",
+        "affiliate_leaderboards", 
+        "performance_analytics",
+        "user_experience",
+        "security_compliance"
+      ],
+      "architecture_patterns": [
+        "domain_driven_design",
+        "event_driven_architecture", 
+        "microservices_ready",
+        "caching_strategies",
+        "websocket_management"
+      ],
+      "quality_standards": [
+        "accessibility_wcag_2.1",
+        "performance_web_vitals",
+        "security_owasp_top_10",
+        "responsive_design",
+        "progressive_enhancement"
+      ]
+    }
+  },
+  "workflow_automation": {
+    "auto_apply_personas": true,
+    "auto_validate_security": true,
+    "auto_check_performance": true,
+    "auto_test_accessibility": true,
+    "auto_generate_documentation": false
+  },
+  "integration": {
+    "replit_agent": true,
+    "git_integration": true,
+    "deployment_validation": true,
+    "continuous_monitoring": true
+  }
+}
