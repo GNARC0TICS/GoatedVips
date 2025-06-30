@@ -63,78 +63,56 @@ export function createAffiliateRoutes(): Router {
         }
 
         // Fetch data from Goated.com API with retry logic for 503 errors
-        let response;
-        let lastError;
-        const maxRetries = 2;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 21000); // 21 seconds timeout
         
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 21000); // 21 seconds timeout
+        let fetchResponse: globalThis.Response;
+        try {
+          console.log(`Making API request to: ${apiUrl}`);
+          console.log(`Using token: ${apiToken.substring(0, 20)}...`);
           
-          try {
-            console.log(`Making API request to: ${apiUrl} (attempt ${attempt}/${maxRetries})`);
-            console.log(`Using token: ${apiToken.substring(0, 20)}...`);
-            
-            response = await fetch(apiUrl, {
-              headers: {
-                'Authorization': `Bearer ${apiToken}`,
-                'Content-Type': 'application/json',
-                'User-Agent': 'GoatedVIPs/2.0',
-                'Accept': 'application/json',
-              },
-              signal: controller.signal,
-            });
-            
-            clearTimeout(timeoutId);
-            
-            console.log(`API Response status: ${response.status} ${response.statusText}`);
-            
-            if (response.ok) {
-              break; // Success, exit retry loop
-            }
-            
-            // Handle different error types
-            if (response.status === 503 && attempt < maxRetries) {
-              console.log(`Service unavailable, retrying in 2 seconds... (attempt ${attempt}/${maxRetries})`);
-              await new Promise(resolve => setTimeout(resolve, 2000));
-              continue;
-            }
-            
-            const errorText = await response.text().catch(() => 'No response body');
+          fetchResponse = await fetch(apiUrl, {
+            headers: {
+              'Authorization': `Bearer ${apiToken}`,
+              'Content-Type': 'application/json',
+              'User-Agent': 'GoatedVIPs/2.0',
+              'Accept': 'application/json',
+            },
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeoutId);
+          
+          console.log(`API Response status: ${fetchResponse.status} ${fetchResponse.statusText}`);
+          
+          if (!fetchResponse.ok) {
+            const errorText = await fetchResponse.text().catch(() => 'No response body');
             console.log(`API Error response: ${errorText}`);
-            throw new Error(`External API error: ${response.status} ${response.statusText} - ${errorText}`);
-            
-          } catch (error: any) {
-            clearTimeout(timeoutId);
-            lastError = error;
-            
-            if (error.name === 'AbortError') {
-              console.log('API request timed out');
-              if (attempt === maxRetries) {
-                throw new Error('External API request timed out after 21 seconds');
-              }
-              continue;
-            }
-            
-            if (attempt === maxRetries) {
-              console.log(`API request failed after ${maxRetries} attempts: ${error.message}`);
-              throw error;
-            }
-            
-            console.log(`API request failed (attempt ${attempt}), retrying: ${error.message}`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            throw new Error(`External API error: ${fetchResponse.status} ${fetchResponse.statusText} - ${errorText}`);
           }
+        } catch (error: any) {
+          clearTimeout(timeoutId);
+          
+          if (error.name === 'AbortError') {
+            console.log('API request timed out');
+            throw new Error('External API request timed out after 21 seconds');
+          }
+          
+          console.log(`API request failed: ${error.message}`);
+          throw error;
         }
 
-        const externalData = await response.json();
+        const externalData = await fetchResponse.json();
         console.log(`API Response data length: ${externalData.data?.length || 0}`);
         
         // Process and transform the data
         const affiliateData = externalData.data || [];
         
-        // Sort by the requested timeframe
+        // Sort by the requested timeframe (map 'daily' to 'today' for consistency)
         let sortedData = affiliateData;
-        switch (timeframe) {
+        const normalizedTimeframe = timeframe === 'daily' ? 'today' : timeframe;
+        
+        switch (normalizedTimeframe) {
           case 'today':
             sortedData = affiliateData.sort((a: any, b: any) => b.wagered.today - a.wagered.today);
             break;

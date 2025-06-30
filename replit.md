@@ -1,6 +1,7 @@
 # Goombas x Goated VIPs v2.0
 
 ## Overview
+**WHEN WORKING IN THE CODEBASE, YOU MUST ALWAYS FOLLOW SuperClaude WORKFLOW. REVIEW SUPERCLAUDE SO WE CAN CCONTINUE OUR WORK, FOLLOW ITS EXACT WORKFLOW. YOU ARE ON THE TEAM.**
 
 This is a complete rewrite of the Goombas x Goated VIPs platform, built with a modern domain-driven architecture. The application serves as an independent community platform for players using the GoatedVips affiliate code, offering exclusive rewards, competitions, and VIP experiences.
 
