@@ -83,21 +83,27 @@ export function createAffiliateRoutes(): Router {
         if (circuitBreakerState.isOpen) {
           if (now - circuitBreakerState.lastFailure < CIRCUIT_BREAKER_TIMEOUT) {
             return res.status(503).json({
-              status: 'error',
+              success: false,
               error: 'External API temporarily unavailable',
               message: 'Circuit breaker is open, please try again later',
-              retryAfter: Math.ceil((CIRCUIT_BREAKER_TIMEOUT - (now - circuitBreakerState.lastFailure)) / 1000)
+              retryAfter: Math.ceil((CIRCUIT_BREAKER_TIMEOUT - (now - circuitBreakerState.lastFailure)) / 1000),
+              metadata: {
+                failures: circuitBreakerState.failures,
+                lastFailure: new Date(circuitBreakerState.lastFailure).toISOString(),
+                nextRetryTime: new Date(circuitBreakerState.lastFailure + CIRCUIT_BREAKER_TIMEOUT).toISOString()
+              }
             });
           } else {
             // Reset circuit breaker
             circuitBreakerState.isOpen = false;
             circuitBreakerState.failures = 0;
+            console.log('Circuit breaker reset - attempting reconnection');
           }
         }
 
-        // Fetch data from Goated.com API with retry logic for 503 errors
+        // Fetch data from Goated.com API with optimized timeout
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 21000); // 21 seconds timeout
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased to 30 seconds
 
         let fetchResponse: globalThis.Response;
         try {
