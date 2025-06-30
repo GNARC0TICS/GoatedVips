@@ -65,7 +65,7 @@ export async function apiRequest<T = any>(
     // Network-level error handling
     const response = await fetch(endpoint, config);
     const contentType = response.headers.get('content-type');
-    
+
     // Parse response based on content type
     let data: any;
     if (contentType?.includes('application/json')) {
@@ -105,32 +105,32 @@ export function createQueryFn(options: {
 } = {}) {
   return async ({ queryKey }: { queryKey: QueryKey }): Promise<any> => {
     const { shouldReturnNullOn401 = false, useMemoryCache = false } = options;
-    
+
     try {
       // Build the endpoint from the queryKey
       // If the first item is a string and starts with /, use it as the endpoint
       const endpoint = typeof queryKey[0] === 'string' && queryKey[0].startsWith('/')
         ? queryKey[0]
         : `/api/${queryKey.join('/')}`;
-      
+
       // Add params if they exist in queryKey
       const params = queryKey.length > 1 && typeof queryKey[1] === 'object' 
         ? queryKey[1] 
         : undefined;
-        
+
       const url = params 
         ? `${endpoint}?${new URLSearchParams(params as Record<string, string>).toString()}`
         : endpoint;
-      
+
       console.log(`[QueryClient] Fetching: ${url}`);
-      
+
       return await apiRequest(url);
     } catch (error) {
       // Handle specific error cases
       if (error instanceof Error && error.message.includes('401') && shouldReturnNullOn401) {
         return null;
       }
-      
+
       // Rethrow the error for React Query to handle
       throw error;
     }
@@ -143,7 +143,7 @@ export function createQueryFn(options: {
  * - Better retry logic with exponential backoff
  * - Automatic background refetching
  */
-export const queryClient = new QueryClient({
+const queryClientConfig: QueryClientConfig = {
   defaultOptions: {
     queries: {
       queryFn: createQueryFn(),
@@ -158,43 +158,11 @@ export const queryClient = new QueryClient({
         return failureCount < 3;
       },
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-    },
-    mutations: {
-      retry: 1,
-      retryDelay: 1000,
-    },
-  },
-});
-const queryClientConfig: QueryClientConfig = {
-  defaultOptions: {
-    queries: {
-      // Don't set a default queryFn to allow for more flexibility in individual hooks
       staleTime: 2 * 60 * 1000,      // 2 minutes
       gcTime: 10 * 60 * 1000,        // 10 minutes
       refetchOnWindowFocus: true,    // Refetch when window regains focus
       refetchOnReconnect: true,      // Refetch when network reconnects
       refetchOnMount: true,          // Refetch when component mounts
-      retry: (failureCount, error: any) => {
-        // Don't retry auth errors or after 3 failures
-        if (error.message?.includes('401') || error.message?.includes('403')) {
-          return false;
-        }
-        return failureCount < 3;
-      },
-      retryDelay: (attemptIndex) => {
-        // Exponential backoff with jitter
-        const baseDelay = 1000; // 1 second
-        const maxDelay = 30000; // 30 seconds
-        const calculatedDelay = Math.min(
-          baseDelay * (2 ** attemptIndex) * (0.8 + Math.random() * 0.4), // Add 20% jitter
-          maxDelay
-        );
-        return calculatedDelay;
-      },
     },
     mutations: {
       retry: (failureCount, error: any) => {

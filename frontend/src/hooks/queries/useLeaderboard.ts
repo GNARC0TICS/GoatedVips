@@ -8,7 +8,7 @@ export const LeaderboardEntrySchema = z.object({
   name: z.string(),
   wagered: z.object({
     today: z.number(),
-    this_week: z.number(), 
+    this_week: z.number(),
     this_month: z.number(),
     all_time: z.number(),
   }),
@@ -47,7 +47,7 @@ const ApiLeaderboardEnvelopeSchema = z.object({
     source: z.string(),
     timeframe: z.enum(['daily', 'weekly', 'monthly', 'all_time']),
     page: z.number(),
-    limit: z.number(), 
+    limit: z.number(),
     totalPages: z.number(),
   }),
 });
@@ -62,14 +62,14 @@ export type LeaderboardTimeframe = 'today' | 'weekly' | 'monthly' | 'all_time';
 /**
  * Custom hook for fetching and validating leaderboard data
  * Uses optimized caching and stale-time settings
- * 
+ *
  * @param timeframe - The timeframe to fetch (today, weekly, monthly, all_time)
  * @param options - Additional query options to customize the behavior
  */
 export function useLeaderboard(
   timeframe: LeaderboardTimeframe = 'today',
-  options: Omit<UseQueryOptions<LeaderboardResponse, Error>, 'queryKey' | 'queryFn'> & 
-           { limit?: number; page?: number } = {}
+  options: Omit<UseQueryOptions<LeaderboardResponse, Error>, 'queryKey' | 'queryFn'> &
+  { limit?: number; page?: number } = {}
 ) {
   const { limit, page, ...queryOptions } = options;
 
@@ -80,8 +80,8 @@ export function useLeaderboard(
   return useQuery<z.infer<typeof ApiLeaderboardEnvelopeSchema>, Error, LeaderboardResponse>({
     queryKey: ['/api/affiliate/stats', { timeframe: backendTimeframe, limit, page }],
     queryFn: createQueryFn(),
-    staleTime: 2 * 60 * 1000, 
-    refetchInterval: 2 * 60 * 1000, 
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: 2 * 60 * 1000,
     select: (data) => {
       try {
         // Handle both old and new API response formats
@@ -113,13 +113,17 @@ export function useLeaderboard(
         };
       }
     },
+    onError: (error) => {
+      console.error('useLeaderboard query error:', error);
+    },
+    retry: 1, // Reduced retries for better UX
     ...queryOptions,
   });
 }
 
 /**
  * Hook for fetching a specific user's leaderboard position
- * 
+ *
  * @param userId - The user ID to fetch position for
  * @param timeframe - The timeframe to check
  */
@@ -138,6 +142,10 @@ export function useUserLeaderboardPosition(
     enabled: !!userId,
     // Use longer stale time for user positions
     staleTime: 5 * 60 * 1000, // 5 minutes
+    onError: (error) => {
+      console.error('useUserLeaderboardPosition query error:', error);
+    },
+    retry: 1,
     ...options,
   });
 }

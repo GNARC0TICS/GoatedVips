@@ -63,7 +63,7 @@ const DialogContent = React.forwardRef<
     ) {
       return;
     }
-    
+
     setTouchStartY(event.touches[0].clientY);
     setIsDragging(true);
     // No transition during drag for immediate feedback
@@ -80,12 +80,12 @@ const DialogContent = React.forwardRef<
 
     // Only allow dragging downwards or a little bit upwards
     if (deltaY < -20) deltaY = -20; // Resist upward swipe a bit
-    
+
     // Prevent page scroll when swiping dialog down
     if (deltaY > 0 && event.cancelable) {
       event.preventDefault();
     }
-    
+
     setCurrentTranslateY(deltaY);
   };
 
@@ -109,7 +109,7 @@ const DialogContent = React.forwardRef<
       setCurrentTranslateY(0);
     }
   };
-  
+
   // Reset transform if dialog is closed by other means (e.g. X button, Escape key)
   React.useEffect(() => {
     const node = contentRef.current;
@@ -146,37 +146,16 @@ const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={combinedRef}
         className={cn(
-          "fixed z-50 grid w-full gap-4 border bg-background p-6 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
-          "max-h-[85vh] overflow-y-auto", // Added max-height and overflow for mobile
-          // Desktop positioning
-          "sm:left-[50%] sm:top-[50%] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%] sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
-          // Mobile positioning - full width with margins, adjusted positioning
-          "left-2 right-6 top-[45%] translate-y-[-50%] sm:left-[50%] sm:right-auto",
+          "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
           className
         )}
         {...props}
-        style={{
-          ...props.style,
-          transform: `translateY(${currentTranslateY}px)`,
-          willChange: 'transform', // Hint browser for transform optimization
-          // transition is handled dynamically in touch handlers and useEffect
-        }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onPointerDownCapture={(e) => { // Prevent Radix focusing logic from interfering with touch start
-          if (e.pointerType === 'touch') {
-            e.stopPropagation();
-          }
-        }}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm p-2 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-          <X className="h-6 w-6" />
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+          <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
-        {/* Invisible button to trigger close programmatically via swipe */}
-        <DialogPrimitive.Close ref={closeButtonRef} style={{ display: 'none' }} aria-hidden="true" />
       </DialogPrimitive.Content>
     </DialogPortal>
   );

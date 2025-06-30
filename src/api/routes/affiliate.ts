@@ -62,6 +62,41 @@ export function createAffiliateRoutes(): Router {
           });
         }
 
+        // Circuit breaker for external API
+        let circuitBreakerState = {
+          failures: 0,
+          lastFailure: 0,
+          isOpen: false
+        };
+
+        const CIRCUIT_BREAKER_THRESHOLD = 5;
+        const CIRCUIT_BREAKER_TIMEOUT = 30000; // 30 seconds
+
+          const { timeframe: queryTimeframe = 'daily', limit: queryLimit = '10', page: queryPage = '1' } = req.query;
+
+          console.log('Fetching affiliate stats...', {
+            timeframe: queryTimeframe,
+            limit: queryLimit,
+            page: queryPage
+          });
+
+          // Check circuit breaker
+          const now = Date.now();
+          if (circuitBreakerState.isOpen) {
+            if (now - circuitBreakerState.lastFailure < CIRCUIT_BREAKER_TIMEOUT) {
+              return res.status(503).json({
+                status: 'error',
+                error: 'External API temporarily unavailable',
+                message: 'Circuit breaker is open, please try again later',
+                retryAfter: Math.ceil((CIRCUIT_BREAKER_TIMEOUT - (now - circuitBreakerState.lastFailure)) / 1000)
+              });
+            } else {
+              // Reset circuit breaker
+              circuitBreakerState.isOpen = false;
+              circuitBreakerState.failures = 0;
+            }
+          }
+
         // Fetch data from Goated.com API with retry logic for 503 errors
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 21000); // 21 seconds timeout
@@ -180,23 +215,36 @@ export function createAffiliateRoutes(): Router {
           },
         });
 
-      } catch (error: any) {
-        console.error('Affiliate stats error:', error);
+          // Reset failure count on success
+          circuitBreakerState.failures = 0;
+        } catch (error: any) {
+          console.error('Affiliate stats error:', error);
 
-        if (error.name === 'AbortError') {
-          return res.status(504).json({
-            success: false,
-            error: 'External API timeout',
-            code: 'API_TIMEOUT',
-          });
+          // Update circuit breaker on failure
+          circuitBreakerState.failures++;
+          circuitBreakerState.lastFailure = Date.now();
+
+          if (circuitBreakerState.failures >= CIRCUIT_BREAKER_THRESHOLD) {
+            circuitBreakerState.isOpen = true;
+            console.log('Circuit breaker opened due to repeated failures');
+          }
+
+          // Check if it's an external API error (503)
+          if (error instanceof Error && error.message.includes('503')) {
+            res.status(503).json({
+              status: 'error',
+              error: 'External API temporarily unavailable',
+              message: 'The Goated.com API is currently experiencing issues. Please try again later.',
+              retryAfter: 60
+            });
+          } else {
+            res.status(500).json({
+              status: 'error',
+              error: 'Failed to fetch affiliate stats',
+              message: error instanceof Error ? error.message : 'Unknown error'
+            });
+          }
         }
-
-        res.status(500).json({
-          success: false,
-          error: 'Failed to fetch affiliate stats',
-          code: 'AFFILIATE_ERROR',
-          message: error.message,
-        });
       }
     }
   );

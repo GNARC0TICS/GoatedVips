@@ -113,7 +113,7 @@ export class APIServer {
     const wagerRepository = new DrizzleWagerRepository(this.config.databaseUrl);
     const wagerAdjustmentRepository = new DrizzleWagerAdjustmentRepository(this.config.databaseUrl);
     const goatedLinkingRepository = new DrizzleGoatedLinkingRepository(this.config.databaseUrl);
-    
+
     // Initialize core services
     const authService = new JWTAuthService(
       cache,
@@ -122,7 +122,7 @@ export class APIServer {
       this.config.jwtRefreshSecret
     );
     const userService = new UserService(userRepository, cache);
-    
+
     // Initialize domain services
     const wagerAdjustmentService = new WagerAdjustmentService(
       wagerAdjustmentRepository,
@@ -138,7 +138,7 @@ export class APIServer {
       goatedLinkingRepository,
       userRepository
     );
-    
+
     // Initialize middleware
     const authMiddleware = new AuthMiddleware(authService, userService);
     const rateLimitStore = new MemoryRateLimitStore();
@@ -162,13 +162,13 @@ export class APIServer {
     this.app.get('/health', async (req, res) => {
       let dbStatus = 'healthy';
       let cacheStatus = 'healthy';
-      
+
       try {
         await userRepository.getStats();
       } catch {
         dbStatus = 'unhealthy';
       }
-      
+
       try {
         await cache.ping();
       } catch {
@@ -256,9 +256,9 @@ export class APIServer {
     // Global error handler
     this.app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
       console.error('Unhandled error:', error);
-      
+
       const isDevelopment = process.env.NODE_ENV === 'development';
-      
+
       res.status(error.status || 500).json({
         success: false,
         error: isDevelopment ? error.message : 'Internal server error',
@@ -271,13 +271,13 @@ export class APIServer {
   public async start(): Promise<void> {
     try {
       this.server = createServer(this.app);
-      
+
       this.server.listen(this.config.port, this.config.host, () => {
         console.log(`🚀 Server running on http://${this.config.host}:${this.config.port}`);
         console.log(`📊 Health check available at http://${this.config.host}:${this.config.port}/health`);
         console.log(`🔐 API available at http://${this.config.host}:${this.config.port}/api`);
       });
-      
+
     } catch (error) {
       console.error('Failed to start server:', error);
       process.exit(1);
