@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { User, CreateUserInput, UpdateUserInput } from '../../domain/entities/User';
 import { IUserRepository } from '../../domain/repositories/IUserRepository';
-import { users, userSessions } from './schema';
+import { users, userSessions, wagerStats } from './schema';
 
 export class DrizzleUserRepository implements IUserRepository {
   private db;

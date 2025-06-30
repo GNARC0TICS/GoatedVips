@@ -6,7 +6,7 @@ const router = Router();
 
 // Query validation schema
 const RaceConfigQuery = z.object({
-  type: z.enum(['monthly', 'weekly', 'daily']).optional().default('monthly'),
+  type: z.enum(['monthly', 'weekly']).optional().default('monthly'),
 });
 
 // Static race configuration - in production this would come from a database
