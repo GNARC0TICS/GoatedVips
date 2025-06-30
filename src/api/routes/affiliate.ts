@@ -45,7 +45,7 @@ export function createAffiliateRoutes(): Router {
         
         // Get API credentials from environment
         const apiUrl = process.env.API_BASE_URL || process.env.GOATED_API_URL || 'https://apis.goated.com/user/affiliate/referral-leaderboard/2RW440E';
-        const apiToken = process.env.GOATED_API_TOKEN || process.env.GOATED_API_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJNZ2xjTU9DNEl6cWpVbzVhTXFBVyIsInNlc3Npb24iOiJ5MmNBM0Nva05WdmgiLCJpYXQiOjE3NTEyNTM1NzgsImV4cCI6MTc1MTMzOTk3OH0.woqA7k83flLSO2w3zZWS5pctt6_ybOryj6hXlzZzJiw';
+        const apiToken = process.env.API_TOKEN || process.env.GOATED_API_TOKEN || process.env.GOATED_API_KEY;
         
         console.log('Fetching affiliate data...', { 
           hasUrl: !!apiUrl, 
@@ -62,23 +62,45 @@ export function createAffiliateRoutes(): Router {
           });
         }
 
-        // Fetch data from Goated.com API
+        // Fetch data from Goated.com API with improved error handling
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 seconds
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds timeout
         
-        const response = await fetch(apiUrl, {
-          headers: {
-            'Authorization': `Bearer ${apiToken}`,
-            'Content-Type': 'application/json',
-            'User-Agent': 'GoatedVIPs/2.0',
-          },
-          signal: controller.signal,
-        });
-        
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          throw new Error(`External API error: ${response.status} ${response.statusText}`);
+        let response;
+        try {
+          console.log(`Making API request to: ${apiUrl}`);
+          console.log(`Using token: ${apiToken.substring(0, 20)}...`);
+          
+          response = await fetch(apiUrl, {
+            headers: {
+              'Authorization': `Bearer ${apiToken}`,
+              'Content-Type': 'application/json',
+              'User-Agent': 'GoatedVIPs/2.0',
+              'Accept': 'application/json',
+            },
+            signal: controller.signal,
+            timeout: 10000,
+          });
+          
+          clearTimeout(timeoutId);
+          
+          console.log(`API Response status: ${response.status} ${response.statusText}`);
+          
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => 'No response body');
+            console.log(`API Error response: ${errorText}`);
+            throw new Error(`External API error: ${response.status} ${response.statusText} - ${errorText}`);
+          }
+        } catch (error: any) {
+          clearTimeout(timeoutId);
+          
+          if (error.name === 'AbortError') {
+            console.log('API request timed out');
+            throw new Error('External API request timed out after 10 seconds');
+          }
+          
+          console.log(`API request failed: ${error.message}`);
+          throw error;
         }
 
         const externalData = await response.json();
