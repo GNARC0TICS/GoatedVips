@@ -27,7 +27,7 @@ const AffiliateStatsResponse = z.object({
 
 // Query parameters
 const AffiliateStatsQuery = z.object({
-  timeframe: z.enum(['today', 'weekly', 'monthly', 'all_time']).default('all_time'),
+  timeframe: z.enum(['daily', 'today', 'weekly', 'monthly', 'all_time']).default('all_time'),
   limit: z.coerce.number().min(1).max(100).default(50),
   page: z.coerce.number().min(1).default(1),
 });
@@ -44,7 +44,7 @@ export function createAffiliateRoutes(): Router {
         const { timeframe, limit, page } = req.query as any;
         
         // Get API credentials from environment
-        const apiUrl = process.env.API_BASE_URL || process.env.GOATED_API_URL || 'https://apis.goated.com/user/affiliate/referral-leaderboard/2RW440E';
+        const apiUrl = process.env.GOATED_API_URL || process.env.API_BASE_URL || 'https://apis.goated.com/user/affiliate/referral-leaderboard/2RW440E';
         const apiToken = process.env.API_TOKEN || process.env.GOATED_API_TOKEN || process.env.GOATED_API_KEY;
         
         console.log('Fetching affiliate data...', { 
@@ -62,48 +62,72 @@ export function createAffiliateRoutes(): Router {
           });
         }
 
-        // Fetch data from Goated.com API with improved error handling
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds timeout
-        
+        // Fetch data from Goated.com API with retry logic for 503 errors
         let response;
-        try {
-          console.log(`Making API request to: ${apiUrl}`);
-          console.log(`Using token: ${apiToken.substring(0, 20)}...`);
+        let lastError;
+        const maxRetries = 2;
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 21000); // 21 seconds timeout
           
-          response = await fetch(apiUrl, {
-            headers: {
-              'Authorization': `Bearer ${apiToken}`,
-              'Content-Type': 'application/json',
-              'User-Agent': 'GoatedVIPs/2.0',
-              'Accept': 'application/json',
-            },
-            signal: controller.signal,
-            timeout: 10000,
-          });
-          
-          clearTimeout(timeoutId);
-          
-          console.log(`API Response status: ${response.status} ${response.statusText}`);
-          
-          if (!response.ok) {
+          try {
+            console.log(`Making API request to: ${apiUrl} (attempt ${attempt}/${maxRetries})`);
+            console.log(`Using token: ${apiToken.substring(0, 20)}...`);
+            
+            response = await fetch(apiUrl, {
+              headers: {
+                'Authorization': `Bearer ${apiToken}`,
+                'Content-Type': 'application/json',
+                'User-Agent': 'GoatedVIPs/2.0',
+                'Accept': 'application/json',
+              },
+              signal: controller.signal,
+            });
+            
+            clearTimeout(timeoutId);
+            
+            console.log(`API Response status: ${response.status} ${response.statusText}`);
+            
+            if (response.ok) {
+              break; // Success, exit retry loop
+            }
+            
+            // Handle different error types
+            if (response.status === 503 && attempt < maxRetries) {
+              console.log(`Service unavailable, retrying in 2 seconds... (attempt ${attempt}/${maxRetries})`);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              continue;
+            }
+            
             const errorText = await response.text().catch(() => 'No response body');
             console.log(`API Error response: ${errorText}`);
             throw new Error(`External API error: ${response.status} ${response.statusText} - ${errorText}`);
+            
+          } catch (error: any) {
+            clearTimeout(timeoutId);
+            lastError = error;
+            
+            if (error.name === 'AbortError') {
+              console.log('API request timed out');
+              if (attempt === maxRetries) {
+                throw new Error('External API request timed out after 21 seconds');
+              }
+              continue;
+            }
+            
+            if (attempt === maxRetries) {
+              console.log(`API request failed after ${maxRetries} attempts: ${error.message}`);
+              throw error;
+            }
+            
+            console.log(`API request failed (attempt ${attempt}), retrying: ${error.message}`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
-        } catch (error: any) {
-          clearTimeout(timeoutId);
-          
-          if (error.name === 'AbortError') {
-            console.log('API request timed out');
-            throw new Error('External API request timed out after 10 seconds');
-          }
-          
-          console.log(`API request failed: ${error.message}`);
-          throw error;
         }
 
         const externalData = await response.json();
+        console.log(`API Response data length: ${externalData.data?.length || 0}`);
         
         // Process and transform the data
         const affiliateData = externalData.data || [];

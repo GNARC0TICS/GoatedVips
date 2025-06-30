@@ -159,6 +159,8 @@ The application uses environment variables for configuration:
 - June 30, 2025: Completed database schema migration to full UUID-based structure with proper domain-driven architecture
 - June 30, 2025: Fixed server startup issues and confirmed monthly race configuration shows correct $500 prize pool
 - June 30, 2025: Both frontend (port 5175) and backend (port 3000) servers operational with database connectivity established
+- June 30, 2025: Updated external API configuration with correct token and URL, set timeout to 21 seconds
+- June 30, 2025: External API properly configured but Goated.com service returning 503 errors (service temporarily unavailable)
 
 ## User Preferences
 
