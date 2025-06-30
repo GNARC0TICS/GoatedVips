@@ -32,6 +32,7 @@ import { createRaceConfigRoutes } from './routes/race-config';
 import { createAdminRoutes } from './routes/admin';
 import { createAdminTestRoutes } from './routes/admin-test';
 import { createLinkingRoutes } from './routes/linking';
+import { createAdminWagerRoutes } from './routes/admin-wager';
 
 // Types
 import { ICacheService } from '../infrastructure/cache/ICacheService';

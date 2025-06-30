@@ -183,4 +183,6 @@ const queryClientConfig: QueryClientConfig = {
 };
 
 // Create the QueryClient instance - removing duplicate export
-const queryClient = new QueryClient(queryClientConfig);
+export const queryClient = new QueryClient(queryClientConfig);
+
+export default queryClient;
