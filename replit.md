@@ -145,6 +145,8 @@ The application uses environment variables for configuration:
 - Fixed leaderboard API data format mismatch causing validation errors
 - Backend now returns correct schema format matching frontend expectations
 - All leaderboard timeframes (daily, weekly, monthly, all_time) now working properly
+- June 30, 2025: Fixed ProfileTierProgress component import error by renaming EnhancedProfileTierProgress to ProfileTierProgress
+- June 30, 2025: Reverted Home.tsx to clean, professional design - removed excessive gradients, floating decorative elements, over-engineered animations, and complex motion effects
 
 ## User Preferences
 
