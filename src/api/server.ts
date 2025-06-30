@@ -30,7 +30,7 @@ import { createAuthRoutes } from './routes/auth';
 import { createAffiliateRoutes } from './routes/affiliate';
 import { createRaceConfigRoutes } from './routes/race-config';
 import { createAdminRoutes } from './routes/admin';
-import { createAdminWagerRoutes } from './routes/admin-wager';
+import { createAdminTestRoutes } from './routes/admin-test';
 import { createLinkingRoutes } from './routes/linking';
 
 // Types
@@ -214,13 +214,8 @@ export class APIServer {
     this.app.use('/api/race-config', createRaceConfigRoutes());
 
     // Admin routes
-    this.app.use('/api/admin', createAdminRoutes(
-      userService, 
-      wagerAdjustmentService, 
-      goatedLinkingService, 
-      authMiddleware, 
-      rateLimit
-    ));
+    this.app.use('/api/admin', createAdminRoutes(userService, wagerAdjustmentService, goatedLinkingService, authMiddleware, rateLimit));
+    this.app.use('/api/admin/test', createAdminTestRoutes(authMiddleware));
 
     // Admin wager routes
     this.app.use('/api/admin/wagers', createAdminWagerRoutes(

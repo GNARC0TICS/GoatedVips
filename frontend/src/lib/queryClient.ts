@@ -147,28 +147,22 @@ const queryClientConfig: QueryClientConfig = {
   defaultOptions: {
     queries: {
       queryFn: createQueryFn(),
+      retry: (failureCount, error) => {
+        // Don't retry on 4xx errors except 401
+        if (error instanceof Error && error.message.includes('4')) {
+          const status = parseInt(error.message.match(/(\d{3})/)?.[1] || '0');
+          if (status >= 400 && status < 500 && status !== 401) {
+            return false;
+          }
+        }
+        return failureCount < 3;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       staleTime: 2 * 60 * 1000,      // 2 minutes
       gcTime: 10 * 60 * 1000,        // 10 minutes
       refetchOnWindowFocus: true,    // Refetch when window regains focus
       refetchOnReconnect: true,      // Refetch when network reconnects
       refetchOnMount: true,          // Refetch when component mounts
-      retry: (failureCount, error: any) => {
-        // Don't retry auth errors or after 3 failures
-        if (error.message?.includes('401') || error.message?.includes('403')) {
-          return false;
-        }
-        return failureCount < 3;
-      },
-      retryDelay: (attemptIndex) => {
-        // Exponential backoff with jitter
-        const baseDelay = 1000; // 1 second
-        const maxDelay = 30000; // 30 seconds
-        const calculatedDelay = Math.min(
-          baseDelay * (2 ** attemptIndex) * (0.8 + Math.random() * 0.4), // Add 20% jitter
-          maxDelay
-        );
-        return calculatedDelay;
-      },
     },
     mutations: {
       retry: (failureCount, error: any) => {
@@ -188,5 +182,5 @@ const queryClientConfig: QueryClientConfig = {
   },
 };
 
-// Create and export the QueryClient instance
-export const queryClient = new QueryClient(queryClientConfig);
+// Create the QueryClient instance - removing duplicate export
+const queryClient = new QueryClient(queryClientConfig);

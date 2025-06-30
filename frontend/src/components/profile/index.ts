@@ -13,6 +13,6 @@ export * from './QuickProfileCard';
 export * from './QuickProfile';
 export { default as TierProgress } from './TierProgress';
 export { default as TierProgress } from './TierProgress';
-export { default as ProfileTierProgress } from './TierProgress';
+// ProfileTierProgress component moved to archive - removing export
 export { default as QuickProfile } from './QuickProfile';
 export { default as QuickProfileCard } from './QuickProfileCard';
