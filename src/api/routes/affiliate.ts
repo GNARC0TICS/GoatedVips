@@ -32,15 +32,15 @@ const AffiliateStatsQuery = z.object({
   page: z.coerce.number().min(1).default(1),
 });
 
-// Circuit breaker state - Reset for fresh testing
+// Circuit breaker state - Reset to allow fresh requests
 let circuitBreakerState = {
   failures: 0,
   lastFailure: 0,
   isOpen: false
 };
 
-const CIRCUIT_BREAKER_THRESHOLD = 3; // Reduced for faster testing
-const CIRCUIT_BREAKER_TIMEOUT = 60000; // Increased to 60 seconds
+const CIRCUIT_BREAKER_THRESHOLD = 5; // Allow more retries for intermittent API
+const CIRCUIT_BREAKER_TIMEOUT = 120000; // 2 minutes timeout for recovery
 
 export function createAffiliateRoutes(): Router {
   const router = Router();
@@ -101,16 +101,16 @@ export function createAffiliateRoutes(): Router {
           }
         }
 
-        // Fetch data from Goated.com API with optimized timeout
+        // Fetch data from Goated.com API with extended timeout for large datasets
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased to 30 seconds
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds for large responses
 
         let fetchResponse: globalThis.Response;
         try {
           console.log(`Making API request to: ${apiUrl}`);
           console.log(`Using token: ${apiToken.substring(0, 20)}...`);
 
-          fetchResponse = await fetch(apiUrl, {
+          fetchResponse = await fetch('https://apis.goated.com/user/affiliate/referral-leaderboard/2RW440E', {
             headers: {
               'Authorization': `Bearer ${apiToken}`,
               'Content-Type': 'application/json',
@@ -250,7 +250,7 @@ export function createAffiliateRoutes(): Router {
           });
         }
 
-        const response = await fetch(apiUrl, {
+        const response = await fetch('https://apis.goated.com/user/affiliate/referral-leaderboard/2RW440E', {
           headers: {
             'Authorization': `Bearer ${apiToken}`,
             'Content-Type': 'application/json',
