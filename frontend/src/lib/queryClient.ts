@@ -183,6 +183,26 @@ const queryClientConfig: QueryClientConfig = {
 };
 
 // Create the QueryClient instance - removing duplicate export
-export const queryClient = new QueryClient(queryClientConfig);
+// export const queryClient = new QueryClient(queryClientConfig);
+
+// export default queryClient;
+
+import { QueryClient } from '@tanstack/react-query';
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      queryFn: async ({ queryKey }) => {
+        const response = await fetch(queryKey[0] as string);
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      },
+    },
+  },
+});
 
 export default queryClient;

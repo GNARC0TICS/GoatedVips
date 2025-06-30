@@ -16,4 +16,4 @@ export { ProfileAchievements } from './ProfileAchievements';
 export { QuickProfile } from './QuickProfile';
 export { QuickProfileCard } from './QuickProfileCard';
 export { TierProgress } from './TierProgress';
-export { ProfileTierProgress } from './ProfileTierProgress';
+// ProfileTierProgress moved to archive - use TierProgress instead
