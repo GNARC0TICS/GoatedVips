@@ -32,15 +32,15 @@ const AffiliateStatsQuery = z.object({
   page: z.coerce.number().min(1).default(1),
 });
 
-// Circuit breaker state
+// Circuit breaker state - Reset for fresh testing
 let circuitBreakerState = {
   failures: 0,
   lastFailure: 0,
   isOpen: false
 };
 
-const CIRCUIT_BREAKER_THRESHOLD = 5;
-const CIRCUIT_BREAKER_TIMEOUT = 30000; // 30 seconds
+const CIRCUIT_BREAKER_THRESHOLD = 3; // Reduced for faster testing
+const CIRCUIT_BREAKER_TIMEOUT = 60000; // Increased to 60 seconds
 
 export function createAffiliateRoutes(): Router {
   const router = Router();
@@ -153,9 +153,9 @@ export function createAffiliateRoutes(): Router {
           console.log(`Processing ${affiliateData.length} affiliate entries`);
 
           // Transform and validate data
-          const processedData = affiliateData.map((entry: any) => ({
-            uid: String(entry.uid || entry.id || entry.user_id || 'unknown'),
-            name: String(entry.name || entry.username || entry.display_name || 'Unknown'),
+          const processedData = affiliateData.map((entry: any, index: number) => ({
+            uid: String(entry.uid || entry.id || entry.user_id || `user_${index}`),
+            name: String(entry.name || entry.username || entry.display_name || `User ${index + 1}`),
             wagered: {
               today: Number(entry.wagered?.today || entry.today || entry.daily_wagered || 0),
               this_week: Number(entry.wagered?.this_week || entry.weekly || entry.weekly_wagered || 0),
@@ -170,7 +170,7 @@ export function createAffiliateRoutes(): Router {
           const paginatedData = processedData.slice(startIndex, endIndex);
 
           // Add rank to each entry
-          const rankedData = paginatedData.map((entry, index) => ({
+          const rankedData = paginatedData.map((entry: any, index: number) => ({
             ...entry,
             rank: startIndex + index + 1,
           }));
