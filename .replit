@@ -39,7 +39,7 @@ localPort = 5175
 externalPort = 80
 
 [workflows]
-runButton = "Start Servers"
+runButton = "Start Development"
 
 [[workflows.workflow]]
 name = "Project"
@@ -91,6 +91,15 @@ args = "npm run dev"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "node scripts/verify-startup.js"
+
+[[workflows.workflow]]
+name = "Start Development"
+author = 38337569
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
 
 # Authentication settings
 [auth]
