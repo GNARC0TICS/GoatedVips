@@ -15,7 +15,7 @@ export const buttonVariants = ({
   className = "",
 }: Partial<ButtonProps> = {}) => {
   return cn(
-    "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+    "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors outline-none disabled:pointer-events-none disabled:opacity-50",
 
     // Variants
     variant === "default" && "bg-primary text-primary-foreground hover:bg-primary/90",
