@@ -16,3 +16,4 @@ export { ProfileAchievements } from './ProfileAchievements';
 export { QuickProfile } from './QuickProfile';
 export { QuickProfileCard } from './QuickProfileCard';
 export { TierProgress } from './TierProgress';
+// ProfileTierProgress component exists in the file system

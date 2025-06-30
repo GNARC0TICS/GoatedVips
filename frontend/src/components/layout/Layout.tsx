@@ -1,3 +1,7 @@
+The SelectUser import statement is being removed as it's no longer needed with the useAuth hook, aiming to resolve the import error in FeatureCarousel.tsx.
+```
+
+```replit_final_file
 import React, { ReactNode, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
