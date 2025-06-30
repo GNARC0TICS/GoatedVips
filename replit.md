@@ -147,6 +147,7 @@ The application uses environment variables for configuration:
 - All leaderboard timeframes (daily, weekly, monthly, all_time) now working properly
 - June 30, 2025: Fixed ProfileTierProgress component import error by renaming EnhancedProfileTierProgress to ProfileTierProgress
 - June 30, 2025: Reverted Home.tsx to clean, professional design - removed excessive gradients, floating decorative elements, over-engineered animations, and complex motion effects
+- June 30, 2025: Reverted HeroVideo component to original clean design - removed borders, shadows, hover effects, background glows, and excessive framer-motion animations
 
 ## User Preferences
 
