@@ -1,47 +1,43 @@
 
+#!/usr/bin/env node
+
 const http = require('http');
 
-const checkPort = (port, name) => {
+const checkEndpoint = (url, timeout = 5000) => {
   return new Promise((resolve) => {
-    const req = http.request({
-      hostname: 'localhost',
-      port: port,
-      timeout: 5000
-    }, (res) => {
-      console.log(`✅ ${name} is running on port ${port}`);
-      resolve(true);
-    });
+    const timer = setTimeout(() => {
+      resolve({ success: false, error: 'Timeout' });
+    }, timeout);
 
-    req.on('error', () => {
-      console.log(`❌ ${name} is not running on port ${port}`);
-      resolve(false);
+    http.get(url, (res) => {
+      clearTimeout(timer);
+      resolve({ success: res.statusCode === 200, status: res.statusCode });
+    }).on('error', (err) => {
+      clearTimeout(timer);
+      resolve({ success: false, error: err.message });
     });
-
-    req.on('timeout', () => {
-      console.log(`⏰ ${name} on port ${port} timed out`);
-      resolve(false);
-    });
-
-    req.end();
   });
 };
 
 async function verifyStartup() {
-  console.log('🔍 Verifying server startup...');
+  console.log('🔍 Verifying server startup...\n');
   
-  // Give servers time to start
-  await new Promise(resolve => setTimeout(resolve, 3000));
-  
-  const backendRunning = await checkPort(3000, 'Backend');
-  const frontendRunning = await checkPort(5174, 'Frontend');
-  
-  if (backendRunning && frontendRunning) {
-    console.log('🎉 All servers are running successfully!');
-    console.log('🌐 Frontend: http://localhost:5174');
-    console.log('🔧 Backend: http://localhost:3000');
-  } else {
-    console.log('⚠️  Some servers may not be running properly');
+  const checks = [
+    { name: 'Backend Health', url: 'http://localhost:3000/health' },
+    { name: 'Backend API', url: 'http://localhost:3000/api' },
+    { name: 'Frontend Server', url: 'http://localhost:5174/' }
+  ];
+
+  for (const check of checks) {
+    const result = await checkEndpoint(check.url);
+    if (result.success) {
+      console.log(`✅ ${check.name}: OK`);
+    } else {
+      console.log(`❌ ${check.name}: ${result.error || `HTTP ${result.status}`}`);
+    }
   }
+  
+  console.log('\n🎯 If all checks pass, your application is ready!');
 }
 
 verifyStartup().catch(console.error);
