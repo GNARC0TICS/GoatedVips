@@ -225,39 +225,6 @@ export class DrizzleWagerAdjustmentRepository implements IWagerAdjustmentReposit
     };
   }
 
-  // Get computed leaderboard from computed_wager_stats table
-  async getComputedLeaderboard(
-    timeframe: 'daily' | 'weekly' | 'monthly' | 'all_time',
-    limit = 10,
-    offset = 0
-  ): Promise<ComputedWagerStats[]> {
-    let orderColumn;
-    switch (timeframe) {
-      case 'daily':
-        orderColumn = computedWagerStats.finalDailyWager;
-        break;
-      case 'weekly':
-        orderColumn = computedWagerStats.finalWeeklyWager;
-        break;
-      case 'monthly':
-        orderColumn = computedWagerStats.finalMonthlyWager;
-        break;
-      case 'all_time':
-      default:
-        orderColumn = computedWagerStats.finalAllTimeWager;
-        break;
-    }
-
-    const results = await this.db
-      .select()
-      .from(computedWagerStats)
-      .orderBy(desc(orderColumn))
-      .limit(limit)
-      .offset(offset);
-
-    return results.map(stats => this.mapComputedStatsToEntity(stats));
-  }
-
   // Search and filtering
   async searchAdjustments(filters: {
     adminId?: string;

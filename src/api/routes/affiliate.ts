@@ -2,12 +2,6 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { validateQuery } from '../middleware/validation';
 import { rateLimitMiddleware } from '../middleware/rateLimit';
-import { WagerSyncService } from '../../domain/services/WagerSyncService';
-import { DrizzleWagerRepository } from '../../infrastructure/database/DrizzleWagerRepository';
-import { DrizzleWagerAdjustmentRepository } from '../../infrastructure/database/DrizzleWagerAdjustmentRepository';
-import { UserService } from '../../domain/services/UserService';
-import { DrizzleUserRepository } from '../../infrastructure/database/DrizzleUserRepository';
-import { MemoryCache } from '../../infrastructure/cache/MemoryCache';
 
 // Response schemas for affiliate data
 const AffiliateEntry = z.object({
@@ -38,130 +32,130 @@ const AffiliateStatsQuery = z.object({
   page: z.coerce.number().min(1).default(1),
 });
 
-// Circuit breaker state - Reset to allow fresh requests
+// Circuit breaker state
 let circuitBreakerState = {
   failures: 0,
   lastFailure: 0,
   isOpen: false
 };
 
-const CIRCUIT_BREAKER_THRESHOLD = 5; // Allow more retries for intermittent API
-const CIRCUIT_BREAKER_TIMEOUT = 120000; // 2 minutes timeout for recovery
+const CIRCUIT_BREAKER_THRESHOLD = 5;
+const CIRCUIT_BREAKER_TIMEOUT = 30000; // 30 seconds
 
 export function createAffiliateRoutes(): Router {
   const router = Router();
-  
-  // Initialize repositories and services for database operations
-  const databaseUrl = process.env.DATABASE_URL || '';
-  const cacheService = new MemoryCache();
-  const wagerRepository = new DrizzleWagerRepository(databaseUrl);
-  const wagerAdjustmentRepository = new DrizzleWagerAdjustmentRepository(databaseUrl);
-  const userRepository = new DrizzleUserRepository(databaseUrl);
-  const userService = new UserService(userRepository, cacheService);
-  const wagerSyncService = new WagerSyncService(wagerAdjustmentRepository, userService, cacheService);
 
-  // POST /api/affiliate/sync - Sync wager data from external API to database
-  router.post('/sync', 
-    rateLimitMiddleware(10, 60000), // 10 requests per minute
-    async (req: Request, res: Response) => {
-      try {
-        console.log('Starting wager data sync...');
-        
-        // Sync data from external API to database
-        const syncResult = await wagerSyncService.syncAllUsers('all_time');
-        
-        console.log('Wager sync completed:', {
-          syncId: syncResult.id,
-          status: syncResult.status,
-          usersProcessed: syncResult.usersProcessed,
-          usersUpdated: syncResult.usersUpdated,
-          errors: syncResult.errors
-        });
-        
-        res.json({
-          success: true,
-          data: syncResult,
-          message: 'Wager data synchronized successfully'
-        });
-        
-      } catch (error) {
-        console.error('Wager sync error:', error);
-        res.status(500).json({
-          success: false,
-          error: 'Failed to sync wager data',
-          message: error instanceof Error ? error.message : 'Unknown error occurred'
-        });
-      }
-    }
-  );
-
-  // GET /api/affiliate/stats - Get affiliate leaderboard data from database
+  // GET /api/affiliate/stats - Get affiliate leaderboard data
   router.get('/stats',
     rateLimitMiddleware({ windowMs: 15 * 60 * 1000, max: 60 }), // 60 requests per 15 minutes
     validateQuery(AffiliateStatsQuery),
     async (req: Request, res: Response) => {
       try {
-        const { timeframe = 'all_time', limit = 10, page = 1 } = req.query;
-        console.log('Fetching stats from database...', { timeframe, limit, page });
+        const { timeframe, limit, page } = req.query as any;
 
-        // Query computed_wager_stats table for processed data
-        const offset = (Number(page) - 1) * Number(limit);
-        
-        // Get computed stats from database
-        const dbStats = await wagerAdjustmentRepository.getComputedLeaderboard(
-          timeframe as 'daily' | 'weekly' | 'monthly' | 'all_time',
-          Number(limit),
-          offset
-        );
+        // Get API credentials from environment
+        const apiUrl = process.env.GOATED_API_URL || 'https://apis.goated.com/user/affiliate/referral-leaderboard/2RW440E';
+        const apiToken = process.env.GOATED_API_TOKEN;
 
-        console.log(`Database returned ${dbStats.length} computed stats entries`);
+        console.log('Fetching affiliate data...', { 
+          hasUrl: !!apiUrl, 
+          hasToken: !!apiToken, 
+          url: apiUrl?.substring(0, 50) + '...',
+          tokenPrefix: apiToken?.substring(0, 20) + '...' 
+        });
 
-        // Transform database results to API format
-        const transformedData = dbStats.map((entry, index) => ({
-          uid: entry.goatedId,
-          name: entry.username,
-          wagered: {
-            today: entry.finalDailyWager,
-            this_week: entry.finalWeeklyWager,
-            this_month: entry.finalMonthlyWager,
-            all_time: entry.finalAllTimeWager
-          },
-          rank: entry.dailyRank || entry.weeklyRank || entry.monthlyRank || entry.allTimeRank || (offset + index + 1)
-        }));
+        if (!apiUrl || !apiToken) {
+          return res.status(500).json({
+            success: false,
+            error: 'External API credentials not configured',
+            code: 'MISSING_API_CONFIG',
+          });
+        }
 
-        const response = AffiliateStatsResponse.parse({
-          success: true,
-          data: transformedData,
-          metadata: {
-            totalUsers: transformedData.length,
-            lastUpdated: new Date().toISOString(),
-            source: 'database',
-            timeframe: timeframe as string,
-            page: Number(page),
-            limit: Number(limit),
-            totalPages: Math.ceil(transformedData.length / Number(limit))
+        console.log('Fetching affiliate stats...', {
+          timeframe,
+          limit,
+          page
+        });
+
+        // Check circuit breaker
+        const now = Date.now();
+        if (circuitBreakerState.isOpen) {
+          if (now - circuitBreakerState.lastFailure < CIRCUIT_BREAKER_TIMEOUT) {
+            return res.status(503).json({
+              success: false,
+              error: 'External API temporarily unavailable',
+              message: 'Circuit breaker is open, please try again later',
+              retryAfter: Math.ceil((CIRCUIT_BREAKER_TIMEOUT - (now - circuitBreakerState.lastFailure)) / 1000),
+              metadata: {
+                failures: circuitBreakerState.failures,
+                lastFailure: new Date(circuitBreakerState.lastFailure).toISOString(),
+                nextRetryTime: new Date(circuitBreakerState.lastFailure + CIRCUIT_BREAKER_TIMEOUT).toISOString()
+              }
+            });
+          } else {
+            // Reset circuit breaker
+            circuitBreakerState.isOpen = false;
+            circuitBreakerState.failures = 0;
+            console.log('Circuit breaker reset - attempting reconnection');
           }
-        });
+        }
 
-        res.json(response);
+        // Fetch data from Goated.com API with optimized timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased to 30 seconds
 
-      } catch (error) {
-        console.error('Database stats error:', error);
-        res.status(500).json({
-          success: false,
-          error: 'Failed to fetch stats from database',
-          message: error instanceof Error ? error.message : 'Unknown error occurred'
-        });
-      }
-    }
+        let fetchResponse: globalThis.Response;
+        try {
+          console.log(`Making API request to: ${apiUrl}`);
+          console.log(`Using token: ${apiToken.substring(0, 20)}...`);
+
+          fetchResponse = await fetch(apiUrl, {
+            headers: {
+              'Authorization': `Bearer ${apiToken}`,
+              'Content-Type': 'application/json',
+              'User-Agent': 'GoatedVIPs/2.0',
+              'Accept': 'application/json',
+            },
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          console.log(`API Response: ${fetchResponse.status} ${fetchResponse.statusText}`);
+
+          if (!fetchResponse.ok) {
+            throw new Error(`HTTP ${fetchResponse.status}: ${fetchResponse.statusText}`);
+          }
+
+          const externalData = await fetchResponse.json();
+          console.log('External API response received:', {
+            hasData: !!externalData,
+            dataType: typeof externalData,
+            isArray: Array.isArray(externalData),
+            hasDataProp: !!externalData?.data,
+            dataCount: externalData?.data?.length || 0
+          });
+
+          // Handle different response formats
+          let affiliateData = [];
+          if (externalData && Array.isArray(externalData)) {
+            affiliateData = externalData;
+          } else if (externalData && externalData.data && Array.isArray(externalData.data)) {
+            affiliateData = externalData.data;
+          } else if (externalData && externalData.users && Array.isArray(externalData.users)) {
+            affiliateData = externalData.users;
+          } else {
+            console.warn('Unexpected API response format:', externalData);
+            affiliateData = [];
           }
 
           console.log(`Processing ${affiliateData.length} affiliate entries`);
 
           // Transform and validate data
-          const processedData = affiliateData.map((entry: any, index: number) => ({
-            uid: String(entry.uid || entry.id || entry.user_id || `user_${index}`),
-            name: String(entry.name || entry.username || entry.display_name || `User ${index + 1}`),
+          const processedData = affiliateData.map((entry: any) => ({
+            uid: String(entry.uid || entry.id || entry.user_id || 'unknown'),
+            name: String(entry.name || entry.username || entry.display_name || 'Unknown'),
             wagered: {
               today: Number(entry.wagered?.today || entry.today || entry.daily_wagered || 0),
               this_week: Number(entry.wagered?.this_week || entry.weekly || entry.weekly_wagered || 0),
@@ -176,7 +170,7 @@ export function createAffiliateRoutes(): Router {
           const paginatedData = processedData.slice(startIndex, endIndex);
 
           // Add rank to each entry
-          const rankedData = paginatedData.map((entry: any, index: number) => ({
+          const rankedData = paginatedData.map((entry, index) => ({
             ...entry,
             rank: startIndex + index + 1,
           }));
@@ -256,7 +250,7 @@ export function createAffiliateRoutes(): Router {
           });
         }
 
-        const response = await fetch('https://apis.goated.com/user/affiliate/referral-leaderboard/2RW440E', {
+        const response = await fetch(apiUrl, {
           headers: {
             'Authorization': `Bearer ${apiToken}`,
             'Content-Type': 'application/json',
