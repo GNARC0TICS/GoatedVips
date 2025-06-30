@@ -9,7 +9,7 @@ import { Info } from 'lucide-react';
 import { colors } from '@/lib/style-constants';
 import { fadeIn, fadeInUp } from '@/lib/animation-presets';
 
-interface EnhancedProfileTierProgressProps {
+interface ProfileTierProgressProps {
   profile: UserProfile;
   showLabel?: boolean;
   showNextTier?: boolean;
@@ -18,15 +18,15 @@ interface EnhancedProfileTierProgressProps {
 }
 
 /**
- * Enhanced component to display a user's tier progress with visual improvements
+ * Component to display a user's tier progress with visual improvements
  */
-export function EnhancedProfileTierProgress({
+export function ProfileTierProgress({
   profile,
   showLabel = true,
   showNextTier = true,
   showMilestones = true,
   className,
-}: EnhancedProfileTierProgressProps) {
+}: ProfileTierProgressProps) {
   // Determine the current tier based on the total wager
   const totalWager = profile.totalWager ? parseFloat(String(profile.totalWager)) : 0;
   // Need to cast tier to TierLevel since the profile might have it as a string
