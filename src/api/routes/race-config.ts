@@ -14,7 +14,7 @@ const RACE_CONFIGS = {
   monthly: {
     name: "Monthly Wager Race",
     description: "Compete with other players to wager the most this month and win big prizes!",
-    prizePool: 10000, // $10,000
+    prizePool: 500, // $500
     currency: "USD",
     timeframe: "monthly",
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
@@ -22,16 +22,16 @@ const RACE_CONFIGS = {
     nextRaceStartDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
     status: "active" as const,
     prizeDistribution: {
-      "1": 0.425,  // 42.5% - $4,250
-      "2": 0.2,    // 20% - $2,000
-      "3": 0.125,  // 12.5% - $1,250
-      "4": 0.075,  // 7.5% - $750
-      "5": 0.05,   // 5% - $500
-      "6": 0.035,  // 3.5% - $350
-      "7": 0.025,  // 2.5% - $250
-      "8": 0.02,   // 2% - $200
-      "9": 0.02,   // 2% - $200
-      "10": 0.0225, // 2.25% - $225
+      "1": 0.425,  // 42.5% - $212.50
+      "2": 0.2,    // 20% - $100
+      "3": 0.125,  // 12.5% - $62.50
+      "4": 0.075,  // 7.5% - $37.50
+      "5": 0.05,   // 5% - $25
+      "6": 0.035,  // 3.5% - $17.50
+      "7": 0.025,  // 2.5% - $12.50
+      "8": 0.02,   // 2% - $10
+      "9": 0.02,   // 2% - $10
+      "10": 0.0225, // 2.25% - $11.25
     },
     totalWinners: 10,
   },
