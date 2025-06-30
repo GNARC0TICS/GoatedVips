@@ -152,6 +152,10 @@ The application uses environment variables for configuration:
 - June 30, 2025: Cleaned up CallToAction component - removed emoji stats section, excessive gradients, floating decorative elements, and complex animations
 - June 30, 2025: Removed accessibility focus rings from all buttons - outline-none applied to button component (focus rings should only be on text inputs)
 - June 30, 2025: Fixed utility panel layout issues - resolved overlapping and squished buttons by simplifying layout structure and adding consistent sizing
+- June 30, 2025: Updated database schema to UUID-based structure with proper domain-driven architecture integration
+- June 30, 2025: Fixed monthly race configuration from $10,000 to correct $500 prize pool
+- June 30, 2025: Consolidated card styling removing excessive shadows, glows, and complex animations for clean design
+- June 30, 2025: Updated global CSS to use consistent 8px border radius across all components
 
 ## User Preferences
 

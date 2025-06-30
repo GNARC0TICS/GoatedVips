@@ -176,7 +176,7 @@ export class DrizzleUserRepository implements IUserRepository {
     };
   }
 
-  async list(filters = {}, pagination = { limit: 20, offset: 0 }): Promise<{ users: User[]; total: number }> {
+  async list(filters: any = {}, pagination = { limit: 20, offset: 0 }): Promise<{ users: User[]; total: number }> {
     const conditions = [];
     
     if (filters.role) {

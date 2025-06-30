@@ -20,7 +20,7 @@ const RACE_CONFIGS = {
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
     endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).toISOString(),
     nextRaceStartDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
-    status: "active" as const,
+    status: "active" as "active" | "upcoming" | "ended" | "transition",
     prizeDistribution: {
       "1": 0.425,  // 42.5% - $212.50
       "2": 0.2,    // 20% - $100
@@ -44,7 +44,7 @@ const RACE_CONFIGS = {
     startDate: getWeekStart().toISOString(),
     endDate: getWeekEnd().toISOString(),
     nextRaceStartDate: getNextWeekStart().toISOString(),
-    status: "active" as const,
+    status: "active" as "active" | "upcoming" | "ended" | "transition",
     prizeDistribution: {
       "1": 0.5,   // 50%
       "2": 0.3,   // 30%
