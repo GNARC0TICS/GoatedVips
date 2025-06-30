@@ -43,7 +43,7 @@ export default function Home() {
                   {isAuthenticated ? `Welcome back, ${user?.username}!` : "Welcome to the Elite"}
                 </h3>
                 
-                <p className="text-lg leading-relaxed text-[#B8B9C0] text-center max-w-3xl mx-auto mb-8">
+                <p className="text-lg leading-relaxed text-[#B8B9C0] text-center max-w-3xl mx-auto">
                   Join an elite community of players at Goated.com, where your
                   wagering transforms into rewards. Compete in exclusive wager races,
                   claim daily bonus codes, and earn monthly payouts in our
@@ -51,23 +51,6 @@ export default function Home() {
                   become part of a thriving community where winning strategies are
                   shared daily.
                 </p>
-                
-                {/* Stats Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  {[
-                    { label: "Active Players", value: "10K+", icon: Crown },
-                    { label: "Daily Rewards", value: "$50K+", icon: Zap },
-                    { label: "Total Prizes", value: "$2M+", icon: Trophy }
-                  ].map((stat) => (
-                    <div key={stat.label} className="text-center">
-                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#D7FF00]/10 border border-[#D7FF00]/20 mb-3">
-                        <stat.icon className="w-6 h-6 text-[#D7FF00]" />
-                      </div>
-                      <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
-                      <div className="text-sm text-[#8A8B91]">{stat.label}</div>
-                    </div>
-                  ))}
-                </div>
               </div>
             </section>
 

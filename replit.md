@@ -148,6 +148,7 @@ The application uses environment variables for configuration:
 - June 30, 2025: Fixed ProfileTierProgress component import error by renaming EnhancedProfileTierProgress to ProfileTierProgress
 - June 30, 2025: Reverted Home.tsx to clean, professional design - removed excessive gradients, floating decorative elements, over-engineered animations, and complex motion effects
 - June 30, 2025: Reverted HeroVideo component to original clean design - removed borders, shadows, hover effects, background glows, and excessive framer-motion animations
+- June 30, 2025: Cleaned up home page description card - removed stats section (10K+ Active Players, Daily Rewards, Total Prizes) keeping only welcome text and body description
 
 ## User Preferences
 
