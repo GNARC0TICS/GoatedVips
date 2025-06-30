@@ -95,109 +95,65 @@ export function createAffiliateRoutes(): Router {
     }
   );
 
-  // GET /api/affiliate/stats - Get affiliate leaderboard data (database-first with API fallback)
+  // GET /api/affiliate/stats - Get affiliate leaderboard data from database
   router.get('/stats',
     rateLimitMiddleware({ windowMs: 15 * 60 * 1000, max: 60 }), // 60 requests per 15 minutes
     validateQuery(AffiliateStatsQuery),
     async (req: Request, res: Response) => {
       try {
-        const { timeframe, limit, page } = req.query as any;
+        const { timeframe = 'all_time', limit = 10, page = 1 } = req.query;
+        console.log('Fetching stats from database...', { timeframe, limit, page });
 
-        // Get API credentials from environment
-        const apiUrl = process.env.GOATED_API_URL || 'https://apis.goated.com/user/affiliate/referral-leaderboard/2RW440E';
-        const apiToken = process.env.GOATED_API_TOKEN;
+        // Query computed_wager_stats table for processed data
+        const offset = (Number(page) - 1) * Number(limit);
+        
+        // Get computed stats from database
+        const dbStats = await wagerAdjustmentRepository.getComputedLeaderboard(
+          timeframe as 'daily' | 'weekly' | 'monthly' | 'all_time',
+          Number(limit),
+          offset
+        );
 
-        console.log('Fetching affiliate data...', { 
-          hasUrl: !!apiUrl, 
-          hasToken: !!apiToken, 
-          url: apiUrl?.substring(0, 50) + '...',
-          tokenPrefix: apiToken?.substring(0, 20) + '...' 
+        console.log(`Database returned ${dbStats.length} computed stats entries`);
+
+        // Transform database results to API format
+        const transformedData = dbStats.map((entry, index) => ({
+          uid: entry.goatedId,
+          name: entry.username,
+          wagered: {
+            today: entry.finalDailyWager,
+            this_week: entry.finalWeeklyWager,
+            this_month: entry.finalMonthlyWager,
+            all_time: entry.finalAllTimeWager
+          },
+          rank: entry.dailyRank || entry.weeklyRank || entry.monthlyRank || entry.allTimeRank || (offset + index + 1)
+        }));
+
+        const response = AffiliateStatsResponse.parse({
+          success: true,
+          data: transformedData,
+          metadata: {
+            totalUsers: transformedData.length,
+            lastUpdated: new Date().toISOString(),
+            source: 'database',
+            timeframe: timeframe as string,
+            page: Number(page),
+            limit: Number(limit),
+            totalPages: Math.ceil(transformedData.length / Number(limit))
+          }
         });
 
-        if (!apiUrl || !apiToken) {
-          return res.status(500).json({
-            success: false,
-            error: 'External API credentials not configured',
-            code: 'MISSING_API_CONFIG',
-          });
-        }
+        res.json(response);
 
-        console.log('Fetching affiliate stats...', {
-          timeframe,
-          limit,
-          page
+      } catch (error) {
+        console.error('Database stats error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch stats from database',
+          message: error instanceof Error ? error.message : 'Unknown error occurred'
         });
-
-        // Check circuit breaker
-        const now = Date.now();
-        if (circuitBreakerState.isOpen) {
-          if (now - circuitBreakerState.lastFailure < CIRCUIT_BREAKER_TIMEOUT) {
-            return res.status(503).json({
-              success: false,
-              error: 'External API temporarily unavailable',
-              message: 'Circuit breaker is open, please try again later',
-              retryAfter: Math.ceil((CIRCUIT_BREAKER_TIMEOUT - (now - circuitBreakerState.lastFailure)) / 1000),
-              metadata: {
-                failures: circuitBreakerState.failures,
-                lastFailure: new Date(circuitBreakerState.lastFailure).toISOString(),
-                nextRetryTime: new Date(circuitBreakerState.lastFailure + CIRCUIT_BREAKER_TIMEOUT).toISOString()
-              }
-            });
-          } else {
-            // Reset circuit breaker
-            circuitBreakerState.isOpen = false;
-            circuitBreakerState.failures = 0;
-            console.log('Circuit breaker reset - attempting reconnection');
-          }
-        }
-
-        // Fetch data from Goated.com API with extended timeout for large datasets
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds for large responses
-
-        let fetchResponse: globalThis.Response;
-        try {
-          console.log(`Making API request to: ${apiUrl}`);
-          console.log(`Using token: ${apiToken.substring(0, 20)}...`);
-
-          fetchResponse = await fetch('https://apis.goated.com/user/affiliate/referral-leaderboard/2RW440E', {
-            headers: {
-              'Authorization': `Bearer ${apiToken}`,
-              'Content-Type': 'application/json',
-              'User-Agent': 'GoatedVIPs/2.0',
-              'Accept': 'application/json',
-            },
-            signal: controller.signal,
-          });
-
-          clearTimeout(timeoutId);
-
-          console.log(`API Response: ${fetchResponse.status} ${fetchResponse.statusText}`);
-
-          if (!fetchResponse.ok) {
-            throw new Error(`HTTP ${fetchResponse.status}: ${fetchResponse.statusText}`);
-          }
-
-          const externalData = await fetchResponse.json();
-          console.log('External API response received:', {
-            hasData: !!externalData,
-            dataType: typeof externalData,
-            isArray: Array.isArray(externalData),
-            hasDataProp: !!externalData?.data,
-            dataCount: externalData?.data?.length || 0
-          });
-
-          // Handle different response formats
-          let affiliateData = [];
-          if (externalData && Array.isArray(externalData)) {
-            affiliateData = externalData;
-          } else if (externalData && externalData.data && Array.isArray(externalData.data)) {
-            affiliateData = externalData.data;
-          } else if (externalData && externalData.users && Array.isArray(externalData.users)) {
-            affiliateData = externalData.users;
-          } else {
-            console.warn('Unexpected API response format:', externalData);
-            affiliateData = [];
+      }
+    }
           }
 
           console.log(`Processing ${affiliateData.length} affiliate entries`);
