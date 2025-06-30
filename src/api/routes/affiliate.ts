@@ -53,12 +53,47 @@ export function createAffiliateRoutes(): Router {
   
   // Initialize repositories and services for database operations
   const databaseUrl = process.env.DATABASE_URL || '';
+  const cacheService = new MemoryCache();
   const wagerRepository = new DrizzleWagerRepository(databaseUrl);
   const wagerAdjustmentRepository = new DrizzleWagerAdjustmentRepository(databaseUrl);
   const userRepository = new DrizzleUserRepository(databaseUrl);
-  const cacheService = new MemoryCache();
   const userService = new UserService(userRepository, cacheService);
   const wagerSyncService = new WagerSyncService(wagerAdjustmentRepository, userService, cacheService);
+
+  // POST /api/affiliate/sync - Sync wager data from external API to database
+  router.post('/sync', 
+    rateLimitMiddleware(10, 60000), // 10 requests per minute
+    async (req: Request, res: Response) => {
+      try {
+        console.log('Starting wager data sync...');
+        
+        // Sync data from external API to database
+        const syncResult = await wagerSyncService.syncAllUsers('all_time');
+        
+        console.log('Wager sync completed:', {
+          syncId: syncResult.id,
+          status: syncResult.status,
+          usersProcessed: syncResult.usersProcessed,
+          usersUpdated: syncResult.usersUpdated,
+          errors: syncResult.errors
+        });
+        
+        res.json({
+          success: true,
+          data: syncResult,
+          message: 'Wager data synchronized successfully'
+        });
+        
+      } catch (error) {
+        console.error('Wager sync error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to sync wager data',
+          message: error instanceof Error ? error.message : 'Unknown error occurred'
+        });
+      }
+    }
+  );
 
   // GET /api/affiliate/stats - Get affiliate leaderboard data
   router.get('/stats',
