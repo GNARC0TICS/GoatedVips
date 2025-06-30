@@ -95,7 +95,7 @@ export function createAffiliateRoutes(): Router {
     }
   );
 
-  // GET /api/affiliate/stats - Get affiliate leaderboard data
+  // GET /api/affiliate/stats - Get affiliate leaderboard data (database-first with API fallback)
   router.get('/stats',
     rateLimitMiddleware({ windowMs: 15 * 60 * 1000, max: 60 }), // 60 requests per 15 minutes
     validateQuery(AffiliateStatsQuery),
