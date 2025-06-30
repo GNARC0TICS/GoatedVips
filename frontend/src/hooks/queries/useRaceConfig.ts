@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { createQueryFn } from '@/lib/queryClient';
+import { useEffect } from 'react';
 
 // Schema for Prize Distribution
 export const PrizeDistributionSchema = z.record(z.number()); // e.g., { "1": 0.425, "2": 0.2, ... }
@@ -63,3 +64,45 @@ export function useRaceConfig(
     ...options,
   });
 } 
+
+useEffect(() => {
+    // WebSocket connection with error handling
+    let ws: WebSocket | null = null;
+    let reconnectTimer: NodeJS.Timeout;
+
+    const connectWebSocket = () => {
+      try {
+        ws = new WebSocket(`ws://${window.location.host}/ws/races`);
+
+        ws.onopen = () => {
+          console.log('WagerRaces WebSocket connected');
+        };
+
+        ws.onerror = (error) => {
+          console.error('WagerRaces WebSocket error:', error);
+          // Attempt reconnect after 5 seconds
+          reconnectTimer = setTimeout(connectWebSocket, 5000);
+        };
+
+        ws.onclose = () => {
+          console.log('WagerRaces WebSocket disconnected');
+          // Attempt reconnect after 3 seconds
+          reconnectTimer = setTimeout(connectWebSocket, 3000);
+        };
+      } catch (error) {
+        console.error('Failed to create WebSocket connection:', error);
+      }
+    };
+
+    // Uncomment when WebSocket endpoint is ready
+    // connectWebSocket();
+
+    return () => {
+      if (ws) {
+        ws.close();
+      }
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+    };
+  }, []);

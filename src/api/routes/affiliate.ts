@@ -91,19 +91,20 @@ export function createAffiliateRoutes(): Router {
 
             // For 503 errors, return cached data or graceful fallback
             if (fetchResponse.status === 503) {
-                console.log('API service unavailable, returning fallback data');
-                // Return valid response structure matching expected schema
+                console.log('External API service unavailable (503), returning graceful fallback');
+                // Return properly structured response that matches frontend expectations
                 return res.json({
                   success: true,
                   data: [],
                   metadata: {
                     totalUsers: 0,
                     lastUpdated: new Date().toISOString(),
-                    source: 'fallback_empty',
-                    timeframe: normalizedTimeframe,
-                    page: page,
-                    limit: limit,
+                    source: 'fallback_503',
+                    timeframe,
+                    page,
+                    limit,
                     totalPages: 0,
+                    serviceStatus: 'unavailable'
                   },
                 });
             }
@@ -113,11 +114,17 @@ export function createAffiliateRoutes(): Router {
           clearTimeout(timeoutId);
 
           if (error.name === 'AbortError') {
-            console.log('API request timed out');
+            console.log('API request timed out after 21 seconds');
             throw new Error('External API request timed out after 21 seconds');
           }
 
-          console.log(`API request failed: ${error.message}`);
+          console.error('API request failed:', {
+            error: error.message,
+            endpoint: apiUrl,
+            timeframe,
+            timestamp: new Date().toISOString(),
+            stack: error.stack
+          });
           throw error;
         }
 

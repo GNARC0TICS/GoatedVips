@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   Dialog,
@@ -38,7 +37,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { login, register: registerUser } = useAuth();
   const { toast } = useToast();
-  
+
   // Common styles for form inputs - increased font size on mobile to prevent zooming
   const inputStyles = "bg-[#2A2B31] border-[#3A3B41] focus:border-[#D7FF00] focus:ring-1 focus:ring-[#D7FF00] transition-all duration-300 md:text-sm text-base h-12";
 
@@ -70,7 +69,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
           username: loginValues.username,
           password: loginValues.password
         });
-        
+
         toast({
           title: "Success",
           description: "Welcome back!",
@@ -84,13 +83,13 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
           password: registerValues.password,
           confirmPassword: registerValues.confirmPassword
         });
-        
+
         toast({
           title: "Success",
           description: "Account created successfully!",
         });
       }
-      
+
       setIsOpen(false);
       loginForm.reset();
       registerForm.reset();
@@ -105,7 +104,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
           message: error instanceof Error ? error.message : "Registration failed"
         });
       }
-      
+
       // Show toast notification
       toast({
         title: "Error",
@@ -153,6 +152,10 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
           WebkitTapHighlightColor: "transparent"
         }}
       >
+        {/* Adding DialogTitle for accessibility */}
+        <DialogTitle className="sr-only">
+          {mode === "login" ? 'Sign In' : 'Create Account'}
+        </DialogTitle>
         <DialogHeader>
           <DialogTitle className="text-[#D7FF00]">
             {mode === "login" ? "Welcome Back!" : "Create an Account"}
@@ -163,7 +166,7 @@ export default function AuthModal({ isMobile = false }: AuthModalProps) {
               : "Join us to get started"}
           </DialogDescription>
         </DialogHeader>
-        
+
         {mode === "login" ? (
           <Form {...loginForm}>
             <form 

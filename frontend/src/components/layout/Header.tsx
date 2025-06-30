@@ -65,7 +65,7 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
           <CryptoSwapIcon className="w-4 h-4" />
         </Button>
       </Link>
-      
+
       <Link href="https://t.me/xGoombas" target="_blank" rel="noopener noreferrer">
         <Button
           variant="ghost"
@@ -80,7 +80,7 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
           <TelegramIcon className="w-4 h-4" />
         </Button>
       </Link>
-      
+
       <Link href="/wager-races">
         <Button
           variant="ghost"
@@ -95,7 +95,7 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
           <WagerRacesIcon className="w-4 h-4" />
         </Button>
       </Link>
-      
+
       <UtilityPanelButton />
     </div>
   ), []);
@@ -126,7 +126,7 @@ export function Header({ isAuthenticated, user, handleLogout }: HeaderProps) {
             />
           )}
         </AnimatePresence>
-        
+
         {/* Mobile Left: Enhanced Hamburger Menu */}
         <motion.div 
           className="flex-shrink-0"

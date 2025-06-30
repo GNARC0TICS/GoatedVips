@@ -143,6 +143,32 @@ export function createQueryFn(options: {
  * - Better retry logic with exponential backoff
  * - Automatic background refetching
  */
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      queryFn: createQueryFn(),
+      retry: (failureCount, error) => {
+        // Don't retry on 4xx errors except 401
+        if (error instanceof Error && error.message.includes('4')) {
+          const status = parseInt(error.message.match(/(\d{3})/)?.[1] || '0');
+          if (status >= 400 && status < 500 && status !== 401) {
+            return false;
+          }
+        }
+        return failureCount < 3;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+    },
+    mutations: {
+      retry: 1,
+      retryDelay: 1000,
+    },
+  },
+});
 const queryClientConfig: QueryClientConfig = {
   defaultOptions: {
     queries: {
