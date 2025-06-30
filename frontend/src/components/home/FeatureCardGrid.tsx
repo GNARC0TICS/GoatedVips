@@ -1,7 +1,7 @@
 import { motion, useInView } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { homeFeatures } from "@/data/homeFeatures";
-import { FeatureCard } from "./FeatureCard";
+import { FeatureCard } from "@/components/features/FeatureCard";
 import { staggerContainer, staggerItem } from "@/lib/animation-presets";
 import React, { useRef, useMemo } from "react";
 
@@ -54,7 +54,7 @@ export function FeatureCardGrid() {
       >
         {/* Background Glow Effect */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#D7FF00]/5 via-transparent to-[#00C9FF]/5 rounded-3xl blur-xl" />
-        
+
         <motion.div className="relative grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8 max-w-7xl mx-auto px-4">
           {firstGridFeatures.map((feature, index) => (
             <motion.div 
@@ -80,9 +80,20 @@ export function FeatureCardGrid() {
                 className="absolute inset-0 bg-gradient-to-r from-[#D7FF00]/10 to-[#00C9FF]/10 rounded-xl opacity-0 group-hover:opacity-100 blur-lg transition-opacity duration-500"
                 whileHover={{ scale: 1.05 }}
               />
-              
+
               <div className="relative">
-                <FeatureCard feature={feature} isAuthenticated={isAuthenticated} />
+                <FeatureCard 
+                  title={feature.title}
+                  description={feature.description}
+                  icon={<div className="w-8 h-8 text-[#D7FF00]">🎯</div>} // Placeholder icon
+                  href={feature.link}
+                  linkText={feature.ctaText}
+                  authRequired={feature.requiresAuth}
+                  isAuthenticated={isAuthenticated}
+                  authSensitiveLink={feature.authSensitiveLink}
+                  ctaRequiresAuthAction={feature.ctaRequiresAuthAction}
+                  badge={feature.badgeText ? { text: feature.badgeText } : undefined}
+                />
               </div>
             </motion.div>
           ))}
@@ -112,7 +123,7 @@ export function FeatureCardGrid() {
         >
           {/* Enhanced Background Effect */}
           <div className="absolute inset-0 bg-gradient-to-l from-[#00C9FF]/5 via-transparent to-[#D7FF00]/5 rounded-3xl blur-xl" />
-          
+
           <motion.div className="relative">
             {/* Enhanced Section Divider */}
             <motion.div 
@@ -132,7 +143,7 @@ export function FeatureCardGrid() {
               </div>
               <div className="h-px bg-gradient-to-r from-transparent via-[#D7FF00]/50 to-transparent w-full max-w-md" />
             </motion.div>
-            
+
             <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 max-w-7xl mx-auto px-4">
               {secondGridFeatures.map((feature, index) => (
                 <motion.div 
@@ -182,7 +193,7 @@ export function FeatureCardGrid() {
                       rotate: 1
                     }}
                   />
-                  
+
                   {/* Floating particles effect */}
                   <motion.div
                     className="absolute inset-0 pointer-events-none"
@@ -213,9 +224,21 @@ export function FeatureCardGrid() {
                       />
                     ))}
                   </motion.div>
-                  
+
                   <div className="relative">
-                    <FeatureCard feature={feature} isAuthenticated={isAuthenticated} />
+                    <FeatureCard 
+                      title={feature.title}
+                      description={feature.description}
+                      icon={<div className="w-8 h-8 text-[#D7FF00]">🎯</div>} // Placeholder icon
+                      href={feature.link}
+                      linkText={feature.ctaText}
+                      authRequired={feature.requiresAuth}
+                      isAuthenticated={isAuthenticated}
+                      authSensitiveLink={feature.authSensitiveLink}
+                      ctaRequiresAuthAction={feature.ctaRequiresAuthAction}
+                      badge={feature.badgeText ? { text: feature.badgeText } : undefined}
+                      enhanced={true}
+                    />
                   </div>
                 </motion.div>
               ))}
