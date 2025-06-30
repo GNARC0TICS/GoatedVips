@@ -114,13 +114,10 @@ function MainContent() {
                   <Route path="/vip-program" component={VipProgram} />
                   <Route path="/challenges" component={Challenges} />
                   <Route path="/vip-transfer" component={VipTransfer} />
-                  {/* All user profile routes are public - using enhanced profile component */}
-                  <Route path="/user-profile/:id" component={EnhancedUserProfile} />
+                  {/* Simplified profile routing */}
                   <Route path="/user/:id" component={EnhancedUserProfile} />
-                  {/* Redirect for old profile URLs */}
-                  <Route path="/profile/:id">
-                    {params => <Redirect to={`/user-profile/${params.id}`} />}
-                  </Route>
+                  <Route path="/user-profile/:id" component={EnhancedUserProfile} />
+                  <Route path="/profile/:id" component={EnhancedUserProfile} />
 
                   {/* Protected Routes - Require Authentication */}
                   <ProtectedRoute path="/bonus-codes" component={BonusCodes} />

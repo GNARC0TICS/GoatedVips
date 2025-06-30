@@ -1,17 +1,15 @@
-// Component exports for Goombas x Goated VIPs
-export * from './ui';
-export * from './layout';
+// Streamlined component exports - core modules only
 export * from './auth';
-export * from './profile';
+export * from './layout';
+export * from './ui';
 export * from './features';
-export * from './data';
-export * from './interactive';
+export * from './profile';
 export * from './effects';
-export * from './home';
-export * from './icons';
-export * from './mvp';
-export * from './shared';
-export * from './skeletons';
-export * from './username';
-export * from './utils';
-export * from './chat';
+
+// Remove redundant exports:
+// - home/* merged into features/*
+// - data/* merged into features/*
+// - interactive/* merged into ui/*
+// - utils/* merged into ui/*
+// - icons/* consolidated
+// - skeletons/* merged into ui/*
