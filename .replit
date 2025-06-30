@@ -39,7 +39,7 @@ localPort = 5175
 externalPort = 80
 
 [workflows]
-runButton = "Fix and Start Servers"
+runButton = "Start Servers"
 
 [[workflows.workflow]]
 name = "Project"
@@ -70,6 +70,19 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run scripts:fix-ports"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node scripts/verify-startup.js"
+
+[[workflows.workflow]]
+name = "Start Servers"
+author = 38337569
+mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
