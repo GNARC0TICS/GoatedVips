@@ -19,10 +19,10 @@ export function ErrorFallback({ error, resetErrorBoundary, errorInfo }: ErrorFal
       <Card className="w-full max-w-md border-red-200 dark:border-red-800 shadow-lg">
         <CardHeader className="bg-red-50 dark:bg-red-950 rounded-t-lg">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="h-6 w-6 text-red-500" />
-            <CardTitle>Something went wrong</CardTitle>
+            <AlertTriangle className="h-6 w-6 text-red-500" aria-hidden="true" />
+            <CardTitle id="error-title">Something went wrong</CardTitle>
           </div>
-          <CardDescription className="text-red-700 dark:text-red-300">
+          <CardDescription className="text-red-700 dark:text-red-300" aria-describedby="error-title">
             {errorMessage}
           </CardDescription>
         </CardHeader>

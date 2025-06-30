@@ -91,21 +91,20 @@ export function createAffiliateRoutes(): Router {
 
             // For 503 errors, return cached data or graceful fallback
             if (fetchResponse.status === 503) {
-                // Assuming cacheService and cacheKey are defined elsewhere in your code
-                // and appropriately handle caching.  Since they are not provided,
-                // I am commenting them out to avoid errors.
-                //const cachedData = await cacheService.get(cacheKey);
-                //if (cachedData) {
-                //  return res.json(cachedData);
-                //}
-                // Return empty but valid response structure
+                console.log('API service unavailable, returning fallback data');
+                // Return valid response structure matching expected schema
                 return res.json({
-                  status: 'success',
+                  success: true,
                   data: [],
-                  timeframe: timeframe || 'daily',
-                  total: 0,
-                  page: parseInt(page?.toString() || '1'),
-                  limit: parseInt(limit?.toString() || '10')
+                  metadata: {
+                    totalUsers: 0,
+                    lastUpdated: new Date().toISOString(),
+                    source: 'fallback_empty',
+                    timeframe: normalizedTimeframe,
+                    page: page,
+                    limit: limit,
+                    totalPages: 0,
+                  },
                 });
             }
             throw new Error(`External API error: ${fetchResponse.status} ${fetchResponse.statusText} - ${errorText}`);

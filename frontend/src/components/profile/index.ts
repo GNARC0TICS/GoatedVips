@@ -6,7 +6,7 @@
 
 export * from './ProfileHeader';
 export * from './ProfileStats';
-// ProfileTierProgress component moved to archive
+// ProfileTierProgress component removed - use TierProgress instead
 export * from './ProfileActions';
 export * from './ProfileLayout';
 export * from './QuickProfileCard';

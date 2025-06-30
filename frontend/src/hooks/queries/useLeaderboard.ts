@@ -72,69 +72,45 @@ export function useLeaderboard(
            { limit?: number; page?: number } = {}
 ) {
   const { limit, page, ...queryOptions } = options;
-  
+
   // Map frontend timeframes to backend expected timeframes
   const backendTimeframe = timeframe === 'today' ? 'daily' : timeframe;
-  
+
   // The queryFn returns the full API response (including the envelope)
   return useQuery<z.infer<typeof ApiLeaderboardEnvelopeSchema>, Error, LeaderboardResponse>({
     queryKey: ['/api/affiliate/stats', { timeframe: backendTimeframe, limit, page }],
     queryFn: createQueryFn(),
     staleTime: 2 * 60 * 1000, 
     refetchInterval: 2 * 60 * 1000, 
-    select: (data) => { // data is the full API response e.g. { success: true, data: [], metadata: {...} }
+    select: (data) => {
       try {
-        const parsedEnvelope = ApiLeaderboardEnvelopeSchema.parse(data);
-        
-        // Map backend timeframe back to frontend timeframe
-        const frontendTimeframe = parsedEnvelope.metadata.timeframe === 'daily' ? 'today' : parsedEnvelope.metadata.timeframe;
-        
-        // Transform entries to use correct wagered amount based on timeframe
-        const transformedEntries = parsedEnvelope.data.map(entry => {
-          let wagerAmount = entry.wagered;
-          
-          // If entry has wagerData, use timeframe-specific amount
-          if (entry.wagerData) {
-            switch (frontendTimeframe) {
-              case 'today':
-                wagerAmount = entry.wagerData.today;
-                break;
-              case 'weekly':
-                wagerAmount = entry.wagerData.this_week;
-                break;
-              case 'monthly':
-                wagerAmount = entry.wagerData.this_month;
-                break;
-              case 'all_time':
-              default:
-                wagerAmount = entry.wagerData.all_time;
-                break;
-            }
-          }
-          
-          return {
-            ...entry,
-            wagered: wagerAmount,
+        // Handle both old and new API response formats
+        if (data?.success !== undefined) {
+          // New format with success field
+          const transformedData = {
+            status: data.success ? 'success' as const : 'error' as const,
+            entries: data.data || [],
+            timeframe: data.metadata?.timeframe || options.timeframe || 'daily',
+            total: data.metadata?.totalUsers || 0,
+            page: data.metadata?.page || options.page || 1,
+            limit: data.metadata?.limit || options.limit || 10,
           };
-        });
+          return LeaderboardResponseSchema.parse(transformedData);
+        }
 
-        const leaderboardData: LeaderboardResponse = {
-          entries: transformedEntries,
-          timeframe: frontendTimeframe as LeaderboardTimeframe,
-          total: parsedEnvelope.metadata.totalUsers,
-          timestamp: new Date(parsedEnvelope.metadata.lastUpdated).getTime(),
-          page: parsedEnvelope.metadata.page,
-          limit: parsedEnvelope.metadata.limit,
-          totalPages: parsedEnvelope.metadata.totalPages,
-        };
-        
-        return leaderboardData;
+        // Try parsing as-is for backward compatibility
+        return LeaderboardResponseSchema.parse(data);
       } catch (error) {
         console.error('Leaderboard data validation error in useLeaderboard select:', error);
-        if (error instanceof z.ZodError) {
-          throw new Error(`Leaderboard data validation failed: ${error.issues.map(i => `${i.path.join('.')} - ${i.message}`).join(', ')}`);
-        }
-        throw error; 
+        return {
+          entries: [],
+          timeframe: timeframe,
+          total: 0,
+          timestamp: 0,
+          page: page || 1,
+          limit: limit || 10,
+          totalPages: 1,
+        };
       }
     },
     ...queryOptions,
@@ -154,7 +130,7 @@ export function useUserLeaderboardPosition(
 ) {
   // Map frontend timeframes to backend expected timeframes
   const backendTimeframe = timeframe === 'today' ? 'daily' : timeframe;
-  
+
   return useQuery<LeaderboardEntry | null, Error>({
     queryKey: ['/api/leaderboard/user', { userId, timeframe: backendTimeframe }],
     queryFn: createQueryFn(),

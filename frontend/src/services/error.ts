@@ -67,6 +67,16 @@ export function formatErrorMessage(error: unknown): string {
   }
   
   if (error instanceof Error) {
+    // Handle specific error types
+    if (error.message.includes('503') || error.message.includes('Service Unavailable')) {
+      return 'Service is temporarily unavailable. Please try again later.';
+    }
+    if (error.message.includes('401') || error.message.includes('Authentication')) {
+      return 'Please log in to continue.';
+    }
+    if (error.message.includes('Network Error') || error.message.includes('fetch')) {
+      return 'Network connection error. Please check your internet connection.';
+    }
     return error.message;
   }
   
