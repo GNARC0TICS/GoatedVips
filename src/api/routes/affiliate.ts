@@ -32,6 +32,16 @@ const AffiliateStatsQuery = z.object({
   page: z.coerce.number().min(1).default(1),
 });
 
+// Circuit breaker state
+let circuitBreakerState = {
+  failures: 0,
+  lastFailure: 0,
+  isOpen: false
+};
+
+const CIRCUIT_BREAKER_THRESHOLD = 5;
+const CIRCUIT_BREAKER_TIMEOUT = 30000; // 30 seconds
+
 export function createAffiliateRoutes(): Router {
   const router = Router();
 
@@ -62,40 +72,28 @@ export function createAffiliateRoutes(): Router {
           });
         }
 
-        // Circuit breaker for external API
-        let circuitBreakerState = {
-          failures: 0,
-          lastFailure: 0,
-          isOpen: false
-        };
+        console.log('Fetching affiliate stats...', {
+          timeframe,
+          limit,
+          page
+        });
 
-        const CIRCUIT_BREAKER_THRESHOLD = 5;
-        const CIRCUIT_BREAKER_TIMEOUT = 30000; // 30 seconds
-
-          const { timeframe: queryTimeframe = 'daily', limit: queryLimit = '10', page: queryPage = '1' } = req.query;
-
-          console.log('Fetching affiliate stats...', {
-            timeframe: queryTimeframe,
-            limit: queryLimit,
-            page: queryPage
-          });
-
-          // Check circuit breaker
-          const now = Date.now();
-          if (circuitBreakerState.isOpen) {
-            if (now - circuitBreakerState.lastFailure < CIRCUIT_BREAKER_TIMEOUT) {
-              return res.status(503).json({
-                status: 'error',
-                error: 'External API temporarily unavailable',
-                message: 'Circuit breaker is open, please try again later',
-                retryAfter: Math.ceil((CIRCUIT_BREAKER_TIMEOUT - (now - circuitBreakerState.lastFailure)) / 1000)
-              });
-            } else {
-              // Reset circuit breaker
-              circuitBreakerState.isOpen = false;
-              circuitBreakerState.failures = 0;
-            }
+        // Check circuit breaker
+        const now = Date.now();
+        if (circuitBreakerState.isOpen) {
+          if (now - circuitBreakerState.lastFailure < CIRCUIT_BREAKER_TIMEOUT) {
+            return res.status(503).json({
+              status: 'error',
+              error: 'External API temporarily unavailable',
+              message: 'Circuit breaker is open, please try again later',
+              retryAfter: Math.ceil((CIRCUIT_BREAKER_TIMEOUT - (now - circuitBreakerState.lastFailure)) / 1000)
+            });
+          } else {
+            // Reset circuit breaker
+            circuitBreakerState.isOpen = false;
+            circuitBreakerState.failures = 0;
           }
+        }
 
         // Fetch data from Goated.com API with retry logic for 503 errors
         const controller = new AbortController();
@@ -118,105 +116,77 @@ export function createAffiliateRoutes(): Router {
 
           clearTimeout(timeoutId);
 
-          console.log(`API Response status: ${fetchResponse.status} ${fetchResponse.statusText}`);
+          console.log(`API Response: ${fetchResponse.status} ${fetchResponse.statusText}`);
 
           if (!fetchResponse.ok) {
-            const errorText = await fetchResponse.text().catch(() => 'No response body');
-            console.log(`API Error response: ${errorText}`);
-
-            // For 503 errors, return cached data or graceful fallback
-            if (fetchResponse.status === 503) {
-                console.log('External API service unavailable (503), returning graceful fallback');
-                // Return properly structured response that matches frontend expectations
-                return res.json({
-                  success: true,
-                  data: [],
-                  metadata: {
-                    totalUsers: 0,
-                    lastUpdated: new Date().toISOString(),
-                    source: 'fallback_503',
-                    timeframe,
-                    page,
-                    limit,
-                    totalPages: 0,
-                    serviceStatus: 'unavailable'
-                  },
-                });
-            }
-            throw new Error(`External API error: ${fetchResponse.status} ${fetchResponse.statusText} - ${errorText}`);
-          }
-        } catch (error: any) {
-          clearTimeout(timeoutId);
-
-          if (error.name === 'AbortError') {
-            console.log('API request timed out after 21 seconds');
-            throw new Error('External API request timed out after 21 seconds');
+            throw new Error(`HTTP ${fetchResponse.status}: ${fetchResponse.statusText}`);
           }
 
-          console.error('API request failed:', {
-            error: error.message,
-            endpoint: apiUrl,
-            timeframe,
-            timestamp: new Date().toISOString(),
-            stack: error.stack
+          const externalData = await fetchResponse.json();
+          console.log('External API response received:', {
+            hasData: !!externalData,
+            dataType: typeof externalData,
+            isArray: Array.isArray(externalData),
+            hasDataProp: !!externalData?.data,
+            dataCount: externalData?.data?.length || 0
           });
-          throw error;
-        }
 
-        const externalData = await fetchResponse.json();
-        console.log(`API Response data length: ${externalData.data?.length || 0}`);
+          // Handle different response formats
+          let affiliateData = [];
+          if (externalData && Array.isArray(externalData)) {
+            affiliateData = externalData;
+          } else if (externalData && externalData.data && Array.isArray(externalData.data)) {
+            affiliateData = externalData.data;
+          } else if (externalData && externalData.users && Array.isArray(externalData.users)) {
+            affiliateData = externalData.users;
+          } else {
+            console.warn('Unexpected API response format:', externalData);
+            affiliateData = [];
+          }
 
-        // Process and transform the data
-        const affiliateData = externalData.data || [];
+          console.log(`Processing ${affiliateData.length} affiliate entries`);
 
-        // Sort by the requested timeframe (map 'daily' to 'today' for consistency)
-        let sortedData = affiliateData;
-        const normalizedTimeframe = timeframe === 'daily' ? 'today' : timeframe;
+          // Transform and validate data
+          const processedData = affiliateData.map((entry: any) => ({
+            uid: String(entry.uid || entry.id || entry.user_id || 'unknown'),
+            name: String(entry.name || entry.username || entry.display_name || 'Unknown'),
+            wagered: {
+              today: Number(entry.wagered?.today || entry.today || entry.daily_wagered || 0),
+              this_week: Number(entry.wagered?.this_week || entry.weekly || entry.weekly_wagered || 0),
+              this_month: Number(entry.wagered?.this_month || entry.monthly || entry.monthly_wagered || 0),
+              all_time: Number(entry.wagered?.all_time || entry.total || entry.total_wagered || 0),
+            }
+          }));
 
-        switch (normalizedTimeframe) {
-          case 'today':
-            sortedData = affiliateData.sort((a: any, b: any) => b.wagered.today - a.wagered.today);
-            break;
-          case 'weekly':
-            sortedData = affiliateData.sort((a: any, b: any) => b.wagered.this_week - a.wagered.this_week);
-            break;
-          case 'monthly':
-            sortedData = affiliateData.sort((a: any, b: any) => b.wagered.this_month - a.wagered.this_month);
-            break;
-          case 'all_time':
-          default:
-            sortedData = affiliateData.sort((a: any, b: any) => b.wagered.all_time - a.wagered.all_time);
-            break;
-        }
+          // Apply pagination
+          const startIndex = (page - 1) * limit;
+          const endIndex = startIndex + limit;
+          const paginatedData = processedData.slice(startIndex, endIndex);
 
-        // Apply pagination
-        const startIndex = (page - 1) * limit;
-        const endIndex = startIndex + limit;
-        const paginatedData = sortedData.slice(startIndex, endIndex);
+          // Add rank to each entry
+          const rankedData = paginatedData.map((entry, index) => ({
+            ...entry,
+            rank: startIndex + index + 1,
+          }));
 
-        // Add rank to each entry
-        const rankedData = paginatedData.map((entry: any, index: number) => ({
-          ...entry,
-          rank: startIndex + index + 1,
-        }));
-
-        // Return formatted response
-        res.json({
-          success: true,
-          data: rankedData,
-          metadata: {
-            totalUsers: affiliateData.length,
-            lastUpdated: new Date().toISOString(),
-            source: 'goated_api',
-            timeframe,
-            page,
-            limit,
-            totalPages: Math.ceil(affiliateData.length / limit),
-          },
-        });
+          // Return formatted response
+          res.json({
+            success: true,
+            data: rankedData,
+            metadata: {
+              totalUsers: affiliateData.length,
+              lastUpdated: new Date().toISOString(),
+              source: 'goated_api',
+              timeframe,
+              page,
+              limit,
+              totalPages: Math.ceil(affiliateData.length / limit),
+            },
+          });
 
           // Reset failure count on success
           circuitBreakerState.failures = 0;
+
         } catch (error: any) {
           console.error('Affiliate stats error:', error);
 
@@ -245,6 +215,15 @@ export function createAffiliateRoutes(): Router {
             });
           }
         }
+
+      } catch (error: any) {
+        console.error('Affiliate route error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch affiliate stats',
+          code: 'AFFILIATE_STATS_ERROR',
+          message: error.message,
+        });
       }
     }
   );
@@ -254,8 +233,8 @@ export function createAffiliateRoutes(): Router {
     rateLimitMiddleware({ windowMs: 15 * 60 * 1000, max: 60 }),
     async (req: Request, res: Response) => {
       try {
-        const apiUrl = process.env.API_BASE_URL || process.env.GOATED_API_URL;
-        const apiToken = process.env.GOATED_API_TOKEN || process.env.GOATED_API_KEY;
+        const apiUrl = process.env.GOATED_API_URL || 'https://apis.goated.com/user/affiliate/referral-leaderboard/2RW440E';
+        const apiToken = process.env.GOATED_API_TOKEN;
 
         if (!apiUrl || !apiToken) {
           return res.status(500).json({
@@ -271,6 +250,7 @@ export function createAffiliateRoutes(): Router {
             'Content-Type': 'application/json',
             'User-Agent': 'GoatedVIPs/2.0',
           },
+          signal: AbortSignal.timeout(21000),
         });
 
         if (!response.ok) {
@@ -278,7 +258,7 @@ export function createAffiliateRoutes(): Router {
         }
 
         const externalData = await response.json();
-        const affiliateData = externalData.data || [];
+        const affiliateData = externalData.data || externalData || [];
 
         // Get top performer for each timeframe
         const topPerformers = {
