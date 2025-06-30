@@ -14,7 +14,7 @@ export { ProfileEmblem } from './ProfileEmblem';
 export { ProfileHeader } from './ProfileHeader';
 export { ProfileLayout } from './ProfileLayout';
 export { ProfileStats } from './ProfileStats';
-export { ProfileTierProgress } from './ProfileTierProgress';
+export { ProfileTierProgress } from './TierProgress';
 export { QuickProfile } from './QuickProfile';
 export { QuickProfileCard } from './QuickProfileCard';
 export { TierProgress } from './TierProgress';
